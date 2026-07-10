@@ -1,6 +1,66 @@
+# =========================
+# Secrets / local config
+# =========================
 .env
+.env.*
+!.env.example
+
+# Telegram / Cloudflare / runtime URLs
+cloudflared_url.log
+
+# =========================
+# Local databases and private data
+# =========================
+data/*.sqlite3
+data/*.sqlite3-*
+data/*.db
+data/*.db-*
+data/backups/
+data/uploads/
+
+# =========================
+# Logs / runtime output
+# =========================
+*.log
+logs/
+server_runtime.log
+
+# =========================
+# Python
+# =========================
 .venv/
+venv/
+env/
 __pycache__/
 *.pyc
-data/*.sqlite3
-data/*.db
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# Node / frontend tooling
+# =========================
+node_modules/
+dist/
+build/
+.vite/
+
+# =========================
+# OS / editor / temporary files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# =========================
+# Local tunnel / process artifacts
+# =========================
+*.pid
+*.sock
