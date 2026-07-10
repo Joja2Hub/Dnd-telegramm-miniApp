@@ -1,0 +1,3896 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>D&D Cosmetics Library v26 — cleaned effect library</title>
+  <style>
+    :root {
+      --bg0: #050816;
+      --bg1: #0c1426;
+      --bg2: #111827;
+      --panel: rgba(15, 23, 42, 0.92);
+      --panel-soft: rgba(30, 41, 59, 0.90);
+      --border: rgba(255,255,255,.09);
+      --text: #edf2f7;
+      --muted: #9db0c7;
+      --accent: #e0bb6a;
+      --shadow: 0 20px 52px rgba(0,0,0,.36);
+      --avatar-size: 162px;
+      --tag-text: "Тэг";
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(59,130,246,.12), transparent 24%),
+        radial-gradient(circle at 84% 10%, rgba(249,115,22,.12), transparent 22%),
+        radial-gradient(circle at 50% -4%, rgba(34,197,94,.08), transparent 24%),
+        linear-gradient(160deg, var(--bg0), var(--bg1) 46%, var(--bg2));
+      padding: 22px 14px 42px;
+    }
+
+    .app {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      padding: 20px 22px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hero-text {
+      display: grid;
+      gap: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 2vw, 34px);
+      line-height: 1.08;
+      text-align: left;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+      max-width: 980px;
+      text-align: left;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .btn, select, input[type="search"] {
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(2,6,23,.78);
+      color: var(--text);
+      border-radius: 14px;
+      font-size: 14px;
+      padding: 10px 13px;
+      outline: none;
+    }
+
+    .btn {
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: rgba(15,23,42,.96);
+    }
+
+    .btn.primary {
+      background: rgba(224,187,106,.16);
+      border-color: rgba(224,187,106,.34);
+      color: #fef3c7;
+    }
+
+    input[type="search"] {
+      min-width: 230px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      padding: 14px 16px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-card .label {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .tabs {
+      padding: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .tab-btn {
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(2,6,23,.56);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .tab-btn.active {
+      background: rgba(224,187,106,.16);
+      border-color: rgba(224,187,106,.34);
+      color: #fef3c7;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 18px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+
+    .small-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      position: relative;
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .preview {
+      position: relative;
+      min-height: 270px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(148,163,184,.12), transparent 32%),
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+        linear-gradient(135deg, #0f172a, #111827);
+    }
+
+    .preview::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 24px 24px;
+      opacity: .34;
+      pointer-events: none;
+    }
+
+    .avatar-shell {
+      position: relative;
+      width: calc(var(--avatar-size) + 96px);
+      height: calc(var(--avatar-size) + 96px);
+      display: grid;
+      place-items: center;
+      isolation: isolate;
+    }
+
+    .avatar {
+      position: relative;
+      z-index: 2;
+      width: var(--avatar-size);
+      height: var(--avatar-size);
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,.14);
+      background:
+        radial-gradient(circle at 32% 26%, rgba(255,245,210,.95) 0 10%, transparent 10% 100%),
+        linear-gradient(135deg, #4f46e5, #0ea5e9 48%, #0f766e 100%);
+      box-shadow: inset 0 0 28px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.38);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      font-size: 62px;
+    }
+
+    .avatar::before {
+      content: "🧙";
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,.35));
+      transform: translateY(-1px);
+    }
+
+    .frame-ring {
+      position: absolute;
+      width: calc(var(--avatar-size) + 46px);
+      height: calc(var(--avatar-size) + 46px);
+      border-radius: 50%;
+      z-index: 3;
+      pointer-events: none;
+      border: 10px solid rgba(216,180,95,.80);
+      box-shadow: inset 0 0 20px rgba(255,242,181,.25), 0 0 18px rgba(216,180,95,.22);
+    }
+
+    canvas.fx-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 6;
+      pointer-events: none;
+      mix-blend-mode: normal;
+    }
+
+    .fx-active-dot {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: #cbd5e1;
+      background: rgba(15,23,42,.86);
+      border: 1px solid rgba(148,163,184,.22);
+      transition: .16s ease;
+      user-select: none;
+    }
+
+    .fx-active-dot::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      box-shadow: 0 0 8px rgba(148,163,184,.6);
+      transition: .16s ease;
+    }
+
+    .fx-active-dot.is-live {
+      color: #bbf7d0;
+      background: rgba(2, 44, 34, .76);
+      border-color: rgba(74,222,128,.22);
+    }
+
+    .fx-active-dot.is-live::before {
+      background: #4ade80;
+      box-shadow: 0 0 10px rgba(74,222,128,.95);
+    }
+
+    .fx-active-dot.is-pinned {
+      color: #fde68a;
+      background: rgba(66, 32, 6, .82);
+      border-color: rgba(250,204,21,.24);
+    }
+
+    .fx-active-dot.is-pinned::before {
+      background: #facc15;
+      box-shadow: 0 0 10px rgba(250,204,21,.95);
+    }
+
+    .frame-gilded-vine { border-color:#d6b66b; box-shadow: inset 0 0 22px rgba(240,220,150,.32), 0 0 20px rgba(214,182,107,.22); }
+    .frame-ashen-bone { border-color:#d6d3d1; border-style: double; box-shadow: inset 0 0 20px rgba(231,229,228,.22), 0 0 18px rgba(214,211,209,.22); }
+    .frame-storm-iron { border-color:#94a3b8; box-shadow: inset 0 0 18px rgba(191,219,254,.24), 0 0 18px rgba(96,165,250,.18); }
+    .frame-sunforge { border-color:#f59e0b; box-shadow: inset 0 0 20px rgba(253,224,71,.24), 0 0 20px rgba(245,158,11,.20); }
+    .frame-moon-silk { border-color:#c4b5fd; box-shadow: inset 0 0 20px rgba(224,231,255,.26), 0 0 18px rgba(196,181,253,.20); }
+    .frame-deepwood { border-color:#166534; box-shadow: inset 0 0 20px rgba(74,222,128,.24), 0 0 18px rgba(22,101,52,.18); }
+    .frame-red-bastion { border-color:#b91c1c; box-shadow: inset 0 0 20px rgba(248,113,113,.24), 0 0 18px rgba(185,28,28,.18); }
+    .frame-copper-gear { border-color:#b45309; box-shadow: inset 0 0 20px rgba(251,191,36,.20), 0 0 18px rgba(180,83,9,.18); }
+    .frame-sea-glass { border-color:#14b8a6; box-shadow: inset 0 0 20px rgba(153,246,228,.22), 0 0 18px rgba(20,184,166,.18); }
+    .frame-night-obsidian { border-color:#475569; box-shadow: inset 0 0 20px rgba(168,85,247,.24), 0 0 20px rgba(71,85,105,.18); }
+    .frame-ember-crown { border-color:#ea580c; box-shadow: inset 0 0 22px rgba(251,146,60,.26), 0 0 20px rgba(234,88,12,.20); }
+    .frame-blessed-silver { border-color:#cbd5e1; box-shadow: inset 0 0 18px rgba(248,250,252,.26), 0 0 18px rgba(203,213,225,.20); }
+    .frame-glacial-rim { border-color:#7dd3fc; box-shadow: inset 0 0 22px rgba(186,230,253,.26), 0 0 20px rgba(125,211,252,.20); }
+    .frame-thorn-circle { border-color:#22c55e; border-style: dashed; box-shadow: inset 0 0 18px rgba(134,239,172,.24), 0 0 18px rgba(34,197,94,.20); }
+    .frame-royal-amethyst { border-color:#8b5cf6; box-shadow: inset 0 0 20px rgba(216,180,254,.24), 0 0 18px rgba(139,92,246,.20); }
+    .frame-ghost-veil { border-color:#e2e8f0; box-shadow: inset 0 0 22px rgba(226,232,240,.26), 0 0 18px rgba(226,232,240,.16); }
+    .frame-drake-scale { border-color:#92400e; box-shadow: inset 0 0 22px rgba(251,146,60,.20), 0 0 18px rgba(146,64,14,.20); }
+    .frame-crystal-lattice { border-color:#67e8f9; border-style: double; box-shadow: inset 0 0 20px rgba(165,243,252,.24), 0 0 18px rgba(103,232,249,.20); }
+    .frame-eclipse-halo { border-color:#a855f7; box-shadow: inset 0 0 20px rgba(216,180,254,.26), 0 0 20px rgba(168,85,247,.24); }
+    .frame-worldroot { border-color:#15803d; box-shadow: inset 0 0 20px rgba(74,222,128,.24), 0 0 18px rgba(21,128,61,.22); }
+
+    .meta {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      gap: 8px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .name {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      text-align: left;
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(2,6,23,.60);
+      white-space: nowrap;
+    }
+
+    .badge.common { color:#d1d5db; }
+    .badge.rare { color:#93c5fd; }
+    .badge.epic { color:#c4b5fd; }
+    .badge.legendary { color:#fcd34d; }
+    .badge.group { color:#a7f3d0; }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 40px;
+      text-align: left;
+    }
+
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color:#cbd5e1;
+      font-size:12px;
+      line-height:1.45;
+      padding:9px 10px;
+      border-radius:12px;
+      background: rgba(2,6,23,.56);
+      border: 1px solid rgba(255,255,255,.06);
+      text-align:left;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+      border-radius: 14px;
+      padding: 11px 12px;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.09);
+      background: rgba(2,6,23,.44);
+      font: inherit;
+    }
+
+    .tag-sample-wrap {
+      min-height: 110px;
+      display: grid;
+      place-items: center;
+    }
+
+    .tag-pill {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+      color: #f8fafc;
+      text-transform: none;
+      letter-spacing: .02em;
+      text-shadow: 0 1px 2px rgba(0,0,0,.35);
+      max-width: 210px;
+      text-align: center;
+    }
+
+    .tag-pill::before {
+      content: var(--tag-text);
+    }
+
+    .form-scroll { background: linear-gradient(180deg,#d8c7a0,#b8996c); color:#3b2512; border-radius: 10px; box-shadow: inset 0 -2px 0 rgba(70,40,10,.18); }
+    .form-banner { background: linear-gradient(90deg,#7f1d1d,#b91c1c,#7f1d1d); border-radius: 4px; padding-inline: 18px; }
+    .form-hex { background: linear-gradient(135deg,#334155,#64748b); clip-path: polygon(12% 0,88% 0,100% 50%,88% 100%,12% 100%,0 50%); padding-inline: 20px; }
+    .form-shield { background: linear-gradient(180deg,#1d4ed8,#1e3a8a); clip-path: polygon(50% 0,100% 18%,88% 85%,50% 100%,12% 85%,0 18%); min-width: 94px; min-height: 48px; padding: 12px 14px; }
+    .form-ribbon { background: linear-gradient(90deg,#7c3aed,#a855f7); }
+    .form-ribbon::after, .form-ribbon::before { content: ""; position: absolute; top: 0; bottom: 0; width: 12px; background: inherit; }
+    .form-ribbon::before { left: -8px; clip-path: polygon(100% 0,0 50%,100% 100%); }
+    .form-ribbon::after { right: -8px; clip-path: polygon(0 0,100% 50%,0 100%); }
+    .form-plate { background: linear-gradient(180deg,#475569,#1f2937); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; }
+    .form-leaf { background: linear-gradient(90deg,#166534,#22c55e); border-radius: 999px 20px 999px 20px; }
+    .form-crystal { background: linear-gradient(135deg,#0ea5e9,#67e8f9); clip-path: polygon(18% 0,82% 0,100% 50%,82% 100%,18% 100%,0 50%); }
+    .form-seal { background: radial-gradient(circle at center,#f59e0b,#b45309); border-radius: 999px; min-width: 42px; min-height: 42px; padding-inline: 16px; }
+    .form-thorn { background: linear-gradient(90deg,#365314,#65a30d); clip-path: polygon(0 50%,10% 18%,28% 32%,40% 0,52% 32%,64% 8%,76% 30%,90% 10%,100% 50%,90% 88%,76% 70%,64% 92%,52% 68%,40% 100%,28% 68%,10% 82%); padding-inline: 18px; min-height: 40px; }
+    .form-arcane { background: linear-gradient(90deg,#312e81,#6366f1,#312e81); border-radius: 999px; box-shadow: 0 0 0 1px rgba(165,180,252,.22), inset 0 0 12px rgba(196,181,253,.20); }
+    .form-claw { background: linear-gradient(90deg,#7c2d12,#ea580c); clip-path: polygon(0 0,88% 0,100% 24%,80% 42%,100% 62%,88% 100%,0 100%,12% 62%,0 42%,12% 24%); }
+    .form-crown { background: linear-gradient(180deg,#facc15,#ca8a04); color:#422006; clip-path: polygon(0 100%,0 45%,12% 62%,22% 16%,38% 60%,50% 8%,62% 60%,78% 16%,88% 62%,100% 45%,100% 100%); min-height: 42px; padding: 14px 16px 10px; }
+
+    .builder {
+      display:grid;
+      grid-template-columns: minmax(320px, 440px) 1fr;
+      gap:18px;
+    }
+
+    .builder-controls {
+      display:grid;
+      gap:14px;
+    }
+
+    .field {
+      display:grid;
+      gap:7px;
+    }
+
+    .field label {
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .builder-stage {
+      min-height: 430px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at 50% 25%, rgba(148,163,184,.12), transparent 32%),
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+        linear-gradient(135deg, #0f172a, #111827);
+      display:grid;
+      place-items:center;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .builder-stage::before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 28px 28px;
+      opacity:.32;
+    }
+
+    .builder-tag {
+      position: absolute;
+      bottom: 26px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 7;
+    }
+
+    .footer {
+      padding:18px 22px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:14px;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .footer p {
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.5;
+      max-width:900px;
+      text-align:left;
+    }
+
+    .hidden { display:none !important; }
+
+    @media (max-width: 920px) {
+      body { padding: 14px 10px 28px; }
+      .hero, .footer { padding: 16px; }
+      .tab-content { padding: 14px; }
+      .card { padding: 14px; }
+      .preview { min-height: 246px; }
+      .avatar-shell { transform: scale(.94); }
+      .builder { grid-template-columns: 1fr; }
+      .toolbar { justify-content:flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel hero">
+      <div class="hero-text">
+        <h1>Полная библиотека косметики v26</h1>
+        <p class="subtitle">
+          Новая версия: очищена библиотека эффектов, удалены лишние эффекты и смягчены/уменьшены оставшиеся спорные анимации.
+        </p>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="searchInput" placeholder="Поиск по названию" />
+        <select id="rarityFilter">
+          <option value="all">Все редкости</option>
+          <option value="common">Common</option>
+          <option value="rare">Rare</option>
+          <option value="epic">Epic</option>
+          <option value="legendary">Legendary</option>
+        </select>
+        <button class="btn" id="pauseBtn">Пауза анимаций</button>
+        <button class="btn primary" id="collectBtn">Собрать заметки</button>
+      </div>
+    </section>
+
+    <section class="stats">
+      <article class="stat-card"><div class="value" id="fxCount">0</div><div class="label">Новых эффектов</div></article>
+      <article class="stat-card"><div class="value" id="frameCount">0</div><div class="label">Рамок</div></article>
+      <article class="stat-card"><div class="value" id="formCount">0</div><div class="label">Форм тэгов</div></article>
+      <article class="stat-card"><div class="value" id="textCount">0</div><div class="label">Текстов тэгов</div></article>
+      <article class="stat-card"><div class="value">Canvas</div><div class="label">Анимации поверх рамки</div></article>
+      <article class="stat-card"><div class="value">v26</div><div class="label">Cleaned effect library</div></article>
+    </section>
+
+    <section class="panel">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="effects">Эффекты</button>
+        <button class="tab-btn" data-tab="frames">Рамки</button>
+        <button class="tab-btn" data-tab="tagForms">Формы тэгов</button>
+        <button class="tab-btn" data-tab="tagTexts">Тексты тэгов</button>
+        <button class="tab-btn" data-tab="builder">Сборка образа</button>
+      </div>
+
+      <div class="tab-content active" id="tab-effects">
+        <div class="grid" id="effectsGrid"></div>
+      </div>
+
+      <div class="tab-content" id="tab-frames">
+        <div class="small-grid" id="framesGrid"></div>
+      </div>
+
+      <div class="tab-content" id="tab-tagForms">
+        <div class="small-grid" id="formsGrid"></div>
+      </div>
+
+      <div class="tab-content" id="tab-tagTexts">
+        <div class="small-grid" id="textsGrid"></div>
+      </div>
+
+      <div class="tab-content" id="tab-builder">
+        <div class="builder">
+          <div class="builder-controls">
+            <div class="field"><label for="builderFrame">Рамка</label><select id="builderFrame"></select></div>
+            <div class="field"><label for="builderEffect">Эффект</label><select id="builderEffect"></select></div>
+            <div class="field"><label for="builderForm">Форма тэга</label><select id="builderForm"></select></div>
+            <div class="field"><label for="builderText">Текст тэга</label><select id="builderText"></select></div>
+            <div class="field"><label for="builderCustomText">Или свой текст тэга</label><input id="builderCustomText" type="search" placeholder="Например: Кровожадный" /></div>
+            <div class="code" id="builderCode"></div>
+          </div>
+          <div class="builder-stage">
+            <div class="avatar-shell">
+              <div class="frame-ring frame-gilded-vine" id="builderFrameRing"></div>
+              <div class="avatar"></div>
+              <canvas class="fx-canvas" id="builderCanvas"></canvas>
+            </div>
+            <div class="builder-tag"><span class="tag-pill form-scroll" id="builderTag"></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel footer">
+      <p>
+        Эта версия оптимизирована: анимация запускается только при наведении или клике. Удалены лишние эффекты, а оставшиеся проблемные эффекты сделаны мягче и компактнее.
+      </p>
+      <button class="btn primary" id="collectBtnBottom">Собрать заметки</button>
+    </section>
+  </main>
+
+  <script>
+    const FRAMES = [
+      { id:'gilded-vine', name:'Позолоченная лоза', rarity:'common', className:'frame-gilded-vine', desc:'Тёплая классическая рамка с мягким золотым свечением.' },
+      { id:'ashen-bone', name:'Пепельная кость', rarity:'common', className:'frame-ashen-bone', desc:'Костяная рамка для мрачных и боевых образов.' },
+      { id:'storm-iron', name:'Грозовое железо', rarity:'common', className:'frame-storm-iron', desc:'Металлическая рамка с холодным стальным оттенком.' },
+      { id:'sunforge', name:'Солнечная кузня', rarity:'rare', className:'frame-sunforge', desc:'Яркая оранжево-золотая рамка с кузнечным настроением.' },
+      { id:'moon-silk', name:'Лунный шёлк', rarity:'rare', className:'frame-moon-silk', desc:'Мягкая лилово-серебряная рамка для мистических персонажей.' },
+      { id:'deepwood', name:'Глубокий лес', rarity:'rare', className:'frame-deepwood', desc:'Насыщенная зелёная рамка для друидов и следопытов.' },
+      { id:'red-bastion', name:'Алый бастион', rarity:'rare', className:'frame-red-bastion', desc:'Агрессивная кроваво-красная рамка.' },
+      { id:'copper-gear', name:'Медный механизм', rarity:'rare', className:'frame-copper-gear', desc:'Тёплая механическая рамка с индустриальным видом.' },
+      { id:'sea-glass', name:'Морское стекло', rarity:'rare', className:'frame-sea-glass', desc:'Бирюзовый морской оттенок и лёгкий блеск.' },
+      { id:'night-obsidian', name:'Ночной обсидиан', rarity:'epic', className:'frame-night-obsidian', desc:'Тёмная и холодная рамка с магической глубиной.' },
+      { id:'ember-crown', name:'Корона углей', rarity:'epic', className:'frame-ember-crown', desc:'Огненный акцент и раскалённый силуэт.' },
+      { id:'blessed-silver', name:'Благословенное серебро', rarity:'epic', className:'frame-blessed-silver', desc:'Светлая рамка для священных и благородных образов.' },
+      { id:'glacial-rim', name:'Ледяной обод', rarity:'epic', className:'frame-glacial-rim', desc:'Холодная голубая рамка с ледяным свечением.' },
+      { id:'thorn-circle', name:'Терновый круг', rarity:'epic', className:'frame-thorn-circle', desc:'Живая природная рамка с шипастым настроением.' },
+      { id:'royal-amethyst', name:'Королевский аметист', rarity:'epic', className:'frame-royal-amethyst', desc:'Насыщенный фиолетовый для магов и аристократии.' },
+      { id:'ghost-veil', name:'Призрачная вуаль', rarity:'epic', className:'frame-ghost-veil', desc:'Светлая призрачная рамка с почти эфирным свечением.' },
+      { id:'drake-scale', name:'Драконья чешуя', rarity:'legendary', className:'frame-drake-scale', desc:'Плотная тёплая рамка с характером древнего дракона.' },
+      { id:'crystal-lattice', name:'Кристальная решётка', rarity:'legendary', className:'frame-crystal-lattice', desc:'Яркая кристаллическая рамка с магическим оттенком.' },
+      { id:'eclipse-halo', name:'Венец затмения', rarity:'legendary', className:'frame-eclipse-halo', desc:'Тёмно-фиолетовый ореол с легендарной подачей.' },
+      { id:'worldroot', name:'Корень мира', rarity:'legendary', className:'frame-worldroot', desc:'Природно-древняя рамка с ощущением силы живого мира.' }
+    ];
+
+    const TAG_FORMS = [
+      { id:'scroll', name:'Свиток', rarity:'common', className:'form-scroll', desc:'Классический бумажный вид.' },
+      { id:'banner', name:'Знамя', rarity:'common', className:'form-banner', desc:'Прямой и читаемый боевой стиль.' },
+      { id:'hex', name:'Шестиугольник', rarity:'common', className:'form-hex', desc:'Строгая геометрия и нейтральность.' },
+      { id:'plate', name:'Пластина', rarity:'common', className:'form-plate', desc:'Металлическая табличка.' },
+      { id:'shield', name:'Щит', rarity:'rare', className:'form-shield', desc:'Геральдический защитный силуэт.' },
+      { id:'ribbon', name:'Лента', rarity:'rare', className:'form-ribbon', desc:'Лёгкая декоративная форма.' },
+      { id:'leaf', name:'Лист', rarity:'rare', className:'form-leaf', desc:'Мягкая природная форма.' },
+      { id:'crystal', name:'Кристалл', rarity:'rare', className:'form-crystal', desc:'Огранённый магический силуэт.' },
+      { id:'seal', name:'Печать', rarity:'epic', className:'form-seal', desc:'Круглая печать для редких надписей.' },
+      { id:'thorn', name:'Шипы', rarity:'epic', className:'form-thorn', desc:'Агрессивная рваная форма.' },
+      { id:'arcane', name:'Арканная дуга', rarity:'epic', className:'form-arcane', desc:'Светящийся магический овал.' },
+      { id:'claw', name:'Коготь', rarity:'legendary', className:'form-claw', desc:'Резкий хищный силуэт.' },
+      { id:'crown', name:'Корона', rarity:'legendary', className:'form-crown', desc:'Торжественная форма для выдающихся тэгов.' }
+    ];
+
+    const TAG_TEXTS = [
+      { id:'barbarian', name:'Варвар', rarity:'common' },
+      { id:'bard', name:'Бард', rarity:'common' },
+      { id:'cleric', name:'Жрец', rarity:'common' },
+      { id:'druid', name:'Друид', rarity:'common' },
+      { id:'fighter', name:'Воин', rarity:'common' },
+      { id:'rogue', name:'Плут', rarity:'common' },
+      { id:'wizard', name:'Волшебник', rarity:'common' },
+      { id:'paladin', name:'Паладин', rarity:'common' },
+      { id:'ranger', name:'Следопыт', rarity:'common' },
+      { id:'warlock', name:'Колдун', rarity:'rare' },
+      { id:'sorcerer', name:'Чародей', rarity:'rare' },
+      { id:'alchemist', name:'Алхимик', rarity:'rare' },
+      { id:'merciless', name:'Безжалостный', rarity:'rare' },
+      { id:'vanguard', name:'Авангард', rarity:'rare' },
+      { id:'nightborn', name:'Ночной', rarity:'epic' },
+      { id:'bloodthirsty', name:'Кровожадный', rarity:'epic' },
+      { id:'dragonslayer', name:'Драконоборец', rarity:'epic' },
+      { id:'fatebreaker', name:'Сломавший судьбу', rarity:'legendary' },
+      { id:'voidmarked', name:'Отмеченный Бездной', rarity:'legendary' },
+      { id:'chosen', name:'Избранный', rarity:'legendary' }
+    ];
+
+    const EFFECTS = [
+      { id:'silver-motes', name:'Серебряные пылинки', rarity:'common', group:'light', effect:'motesSilver', frame:'blessed-silver', desc:'Чистые серебряные частицы медленно дрейфуют вокруг аватарки.' },
+      { id:'soft-mist', name:'Мягкий туман', rarity:'common', group:'mist', effect:'mistSoft', frame:'ghost-veil', desc:'Лёгкая дымка создаёт глубину и не перегружает аватарку.' },
+      { id:'dew-drift', name:'Роса и дрейф', rarity:'common', group:'water', effect:'dew', frame:'sea-glass', desc:'Холодные капли и влажный блеск дают спокойный водный оттенок.' },
+      { id:'shadow-dust', name:'Теневая пыль', rarity:'common', group:'shadow', effect:'shadowDust', frame:'night-obsidian', desc:'Мелкая тёмная пыль и приглушённые фиолетовые искры для мрачного образа.' },
+
+      { id:'heavy-rain', name:'Ливень', rarity:'rare', group:'rain', effect:'heavyRain', frame:'sea-glass', desc:'Простой читаемый эффект: много капель падают сверху вниз с разной скоростью.' },
+      { id:'snow-squall', name:'Снежный шквал', rarity:'rare', group:'snow', effect:'snowSquall', frame:'glacial-rim', desc:'Снег летит сверху вниз по диагонали, будто персонажа накрыла метель.' },
+      { id:'black-rain', name:'Чёрный дождь', rarity:'rare', group:'dark', effect:'blackRain', frame:'night-obsidian', desc:'Тёмные холодные капли падают сверху вниз и оставляют мрачное ощущение.' },
+      { id:'midnight-snow', name:'Полуночный снег', rarity:'rare', group:'dark', effect:'midnightSnow', frame:'night-obsidian', desc:'Тёмные снежинки и фиолетовая пыль падают сверху как снег в проклятой ночи.' },
+      { id:'soot-rain', name:'Сажевый дождь', rarity:'rare', group:'dark', effect:'sootRain', frame:'ashen-bone', desc:'Чёрная сажа медленно осыпается вниз, как после пожара или проклятого костра.' },
+      { id:'moon-sigils', name:'Лунные сигилы', rarity:'rare', group:'moon', effect:'moonSigils', frame:'moon-silk', desc:'Полумесяцы и мягкие символы всплывают в холодном свете.' },
+      { id:'toxic-drizzle', name:'Ядовитая морось', rarity:'rare', group:'acid', effect:'toxicDrizzle', frame:'deepwood', desc:'Тонкие зелёные капли и лёгкие брызги добавляют токсичный тон.' },
+      { id:'star-chorus', name:'Хор звёзд', rarity:'rare', group:'stars', effect:'starChorus', frame:'blessed-silver', desc:'Несколько типов звёздных частиц движутся разной скоростью.' },
+      { id:'coin-whirl', name:'Вихрь монет', rarity:'rare', group:'wealth', effect:'coinWhirl', frame:'copper-gear', desc:'Золотые монеты и блики вращаются вокруг аватарки.' },
+      { id:'grave-whispers', name:'Шёпот могил', rarity:'rare', group:'dark', effect:'graveWhispers', frame:'ghost-veil', desc:'Бледные знаки, черепа и холодные духи медленно всплывают вокруг портрета.' },
+
+      { id:'storm-lash', name:'Бич бури', rarity:'epic', group:'lightning', effect:'stormLash', frame:'storm-iron', desc:'Длинные молнии и искры создают сильный грозовой характер.' },
+      { id:'oracle-glyphs', name:'Оракульные глифы', rarity:'epic', group:'runes', effect:'oracleGlyphs', frame:'royal-amethyst', desc:'Сложные символы в случайных местах спокойно всплывают вверх.' },
+      { id:'grave-candles', name:'Могильные свечи', rarity:'epic', group:'spirit', effect:'graveCandles', frame:'night-obsidian', desc:'Свечи появляются плавно, мерцают и медленно гаснут.' },
+      { id:'necrotic-ash', name:'Некротический прах', rarity:'epic', group:'dark', effect:'necroticAsh', frame:'ashen-bone', desc:'Зелёно-серый прах, черепа и тусклые знаки для некромантского образа.' },
+      { id:'night-script', name:'Ночные письмена', rarity:'epic', group:'dark', effect:'nightScript', frame:'royal-amethyst', desc:'Тёмные руны и холодные символы появляются редко, зато выглядят выразительно.' },
+
+      { id:'neon-rain', name:'Неоновый дождь', rarity:'rare', group:'cyberpunk', effect:'neonRain', frame:'sea-glass', desc:'Киберпанковый дождь из коротких розово-голубых световых штрихов сверху вниз.' },
+      { id:'holo-glitch', name:'Голографический сбой', rarity:'rare', group:'sci-fi', effect:'holoGlitch', frame:'crystal-lattice', desc:'Короткие глитч-полосы и цифровые смещения вокруг аватарки.' },
+      { id:'quantum-pixels', name:'Квантовые пиксели', rarity:'epic', group:'sci-fi', effect:'quantumPixels', frame:'royal-amethyst', desc:'Квадратные пиксели распадаются, дрожат и собираются обратно.' },
+      { id:'meridian-orbit', name:'Меридиональный облёт', rarity:'epic', group:'sci-fi', effect:'meridianOrbit', frame:'storm-iron', desc:'Энергетический объект облетает аватарку по вертикальной орбите, визуально уходя за неё и возвращаясь на передний план.' },
+      { id:'thunder-throne', name:'Трон грома', rarity:'legendary', group:'lightning', effect:'thunderThrone', frame:'storm-iron', desc:'Сильные разветвлённые молнии и сияющие точки. Пока оставлен как усиленный любимый вариант бури.' },
+      { id:'nightfall', name:'Падение ночи', rarity:'legendary', group:'dark', effect:'nightfall', frame:'night-obsidian', desc:'Чёрный дождь, редкие холодные звёзды и дым создают стильный эффект наступающей тьмы.' },
+      { id:'oblivion-script', name:'Письмена забвения', rarity:'legendary', group:'dark', effect:'oblivionScript', frame:'eclipse-halo', desc:'Крупные тёмные символы появляются из дыма и растворяются, не перегружая портрет.' },
+      ,{ id:'golden-glint', name:'Золотой отблеск', rarity:'epic', group:'light', effect:'goldenGlint', frame:'sunforge', desc:'Редкие маленькие золотые отблески мягко появляются в случайных точках и плавно затухают.' }
+      ,{ id:'amethyst-dust', name:'Аметистовая пыль', rarity:'rare', group:'arcane', effect:'amethystDust', frame:'royal-amethyst', desc:'Мелкая фиолетовая пыль мерцает и плавно дрейфует вокруг аватарки.' }
+      ,{ id:'halo-of-dawn', name:'Нимб рассвета', rarity:'epic', group:'holy', effect:'haloDawn', frame:'blessed-silver', desc:'Над аватаркой мерцает небольшой светящийся нимб и редкие частицы света.' }
+      ,{ id:'umbra-crown', name:'Венец мрака', rarity:'epic', group:'dark', effect:'umbraCrown', frame:'night-obsidian', desc:'Над аватаркой висит тёмный венец из мрака и фиолетовой дымки.' }
+      ,{ id:'rune-ascent', name:'Восходящие руны', rarity:'epic', group:'runes', effect:'runeAscent', frame:'royal-amethyst', desc:'Светящиеся руны возникают в случайных местах вокруг аватарки, плавно поднимаются и исчезают.' }
+      ,{ id:'brutalist-hud', name:'Брутальный HUD', rarity:'epic', group:'cyberpunk', effect:'brutalistHud', frame:'night-obsidian', desc:'Грубые прямоугольные индикаторы, предупреждающие полосы и техно-бруталистичный интерфейс.' }
+      ,{ id:'corporate-veil', name:'Корпоративная вуаль', rarity:'epic', group:'cyberpunk', effect:'corporateVeil', frame:'storm-iron', desc:'Сдержанный корпоративный интерфейс с холодными метками, акцентами и техно-брендингом.' }
+      ,{ id:'gear-orbit', name:'Шестерни изобретателя', rarity:'epic', group:'clockwork', effect:'gearOrbit', frame:'copper-gear', desc:'Малые шестерни и латунные символы вращаются у аватарки, подчёркивая образ изобретателя и стимпанк-эстетику.' }
+
+      ,{ id:'silver-glint', name:'Серебряный отблеск', rarity:'rare', group:'light', effect:'silverGlint', frame:'blessed-silver', desc:'Редкие маленькие серебряные блики мягко вспыхивают в случайных точках, как отражения на полированном металле.' }
+      ,{ id:'gem-grotto', name:'Пещера самоцветов', rarity:'epic', group:'crystal', effect:'gemGrotto', frame:'crystal-lattice', desc:'Редкие самоцветные блики появляются в случайных местах по всей аватарке и мягко затухают, как мерцание кристаллов в пещере.' }
+      ,{ id:'low-equator-orbit', name:'Нижний экваториальный облёт', rarity:'epic', group:'sci-fi', effect:'lowEquatorOrbit', frame:'sea-glass', desc:'Похожий на экваториальный облёт, но линия орбиты и световой объект проходят чуть ниже центра аватарки.' }
+      ,{ id:'red-equator-scan', name:'Экваториальное сканирование', rarity:'legendary', group:'cyberpunk', effect:'redEquatorScan', frame:'storm-iron', desc:'Горизонтальная и вертикальная красные линии двигаются по аватарке, замирают на мгновение, а точка их пересечения ярко помечает цель.' }
+      ,{ id:'matrix-rain', name:'Матричный дождь', rarity:'epic', group:'cyberpunk', effect:'matrixRain', frame:'night-obsidian', desc:'Сверху вниз падают зелёные цифровые символы, которые меняются на каждом шаге и создают эффект матричного дождя.' }
+
+      ,{ id:'diamond-shimmer', name:'Алмазная россыпь', rarity:'epic', group:'crystal', effect:'diamondShimmer', frame:'crystal-lattice', desc:'Редкие алмазные блики вспыхивают по всей аватарке, как холодное мерцание кристаллических граней.' }
+      ,{ id:'matrix-rain-cyan', name:'Лазурный код', rarity:'epic', group:'cyberpunk', effect:'matrixRainCyan', frame:'sea-glass', desc:'Внутри аватарки струятся вниз лазурные цифровые символы, меняющиеся прямо на ходу.' }
+      ,{ id:'matrix-rain-violet', name:'Фиолетовый код', rarity:'epic', group:'cyberpunk', effect:'matrixRainViolet', frame:'royal-amethyst', desc:'Фиолетовый цифровой дождь с меняющимися символами льётся внутри аватарки.' }
+      ,{ id:'matrix-rain-gold', name:'Янтарный код', rarity:'epic', group:'cyberpunk', effect:'matrixRainGold', frame:'sunforge', desc:'Тёплый золотистый цифровой поток создаёт более корпоративно-технологичное ощущение.' }
+      ,{ id:'matrix-orbit', name:'Орбитальный код', rarity:'epic', group:'cyberpunk', effect:'matrixOrbit', frame:'night-obsidian', desc:'Зелёные цифровые символы и фрагменты кода летают вокруг аватарки по мягким орбитам.' }
+      ,{ id:'quantum-hex', name:'Квантовые соты', rarity:'legendary', group:'sci-fi', effect:'quantumHex', frame:'sea-glass', desc:'Полупрозрачные световые шестиугольники вспыхивают вокруг аватарки, формируя техномагическую сетку.' }
+      ,{ id:'hex-beacon', name:'Гекс-маяк', rarity:'rare', group:'sci-fi', effect:'hexBeacon', frame:'sea-glass', desc:'Одиночные световые соты вспыхивают вокруг аватарки и быстро гаснут, создавая лёгкий техно-акцент.' }
+      ,{ id:'ring-glints', name:'Венец отблесков', rarity:'rare', group:'light', effect:'ringGlints', frame:'blessed-silver', desc:'Редкие маленькие отблески вспыхивают по радиусу аватарки, как свет на кромке металла или самоцвета.' }
+      ,{ id:'holo-iris', name:'Голографическая диафрагма', rarity:'legendary', group:'sci-fi', effect:'holoIris', frame:'sea-glass', desc:'Полупрозрачные световые секторы раскрываются вокруг аватарки, как футуристическая ирис-диафрагма или сканирующая апертура.' }
+      ,{ id:'aether-loom', name:'Эфирное ткачество', rarity:'legendary', group:'arcane', effect:'aetherLoom', frame:'blessed-silver', desc:'Совершенно новый узор из световых волн переплетается внутри аватарки, как магический тканый резонанс или муаровая сетка.' }
+    ];
+
+    const searchInput = document.getElementById('searchInput');
+    const rarityFilter = document.getElementById('rarityFilter');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const collectBtn = document.getElementById('collectBtn');
+    const collectBtnBottom = document.getElementById('collectBtnBottom');
+    const tabButtons = [...document.querySelectorAll('.tab-btn')];
+    const tabContents = [...document.querySelectorAll('.tab-content')];
+    const effectsGrid = document.getElementById('effectsGrid');
+    const framesGrid = document.getElementById('framesGrid');
+    const formsGrid = document.getElementById('formsGrid');
+    const textsGrid = document.getElementById('textsGrid');
+
+    document.getElementById('fxCount').textContent = EFFECTS.length;
+    document.getElementById('frameCount').textContent = FRAMES.length;
+    document.getElementById('formCount').textContent = TAG_FORMS.length;
+    document.getElementById('textCount').textContent = TAG_TEXTS.length;
+
+    let paused = false;
+    const effectInstances = new Map();
+    let builderEngine = null;
+    let pinnedEffectId = null;
+
+
+    function rarityLabel(r) {
+      return ({common:'Common', rare:'Rare', epic:'Epic', legendary:'Legendary'})[r] || r;
+    }
+
+    function frameClass(id) {
+      const f = FRAMES.find(x => x.id === id);
+      return f ? f.className : 'frame-gilded-vine';
+    }
+
+    function noteArea() {
+      return '<textarea placeholder="Напиши здесь, что улучшить, убрать или оставить."></textarea>';
+    }
+
+    function effectCard(item) {
+      const el = document.createElement('article');
+      el.className = 'card';
+      el.dataset.rarity = item.rarity;
+      el.dataset.search = `${item.name} ${item.group} ${item.id}`.toLowerCase();
+      el.dataset.type = 'effect';
+      el.dataset.id = item.id;
+      el.innerHTML = `
+        <div class="preview">
+          <span class="fx-active-dot">наведи или нажми</span>
+          <div class="avatar-shell">
+            <div class="avatar"></div>
+            <canvas class="fx-canvas"></canvas>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3 class="name">${item.name}</h3>
+            <div class="chips">
+              <span class="badge group">${item.group}</span>
+              <span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span>
+            </div>
+          </div>
+          <p class="desc">${item.desc}</p>
+          <div class="code">id: ${item.id}<br>effect: ${item.effect}</div>
+          ${noteArea()}
+        </div>
+      `;
+      const canvas = el.querySelector('canvas');
+      const textarea = el.querySelector('textarea');
+      const badge = el.querySelector('.fx-active-dot');
+      const instance = new EffectEngine(canvas, item.effect);
+      effectInstances.set(item.id, { item, textarea, badge, card: el, instance });
+
+      const hot = el.querySelector('.preview');
+      hot.addEventListener('mouseenter', () => {
+        if (activeTabKey() !== 'effects') return;
+        if (pinnedEffectId && pinnedEffectId !== item.id) return;
+        activateOnly(item.id, false);
+      });
+      hot.addEventListener('mouseleave', () => {
+        if (pinnedEffectId === item.id) return;
+        if (!pinnedEffectId) deactivateAllEffects();
+      });
+      hot.addEventListener('click', () => {
+        if (pinnedEffectId === item.id) {
+          pinnedEffectId = null;
+          deactivateAllEffects();
+        } else {
+          pinnedEffectId = item.id;
+          activateOnly(item.id, true);
+        }
+      });
+      return el;
+    }
+
+    function buildEffects() {
+      EFFECTS.forEach(item => effectsGrid.appendChild(effectCard(item)));
+    }
+
+    function buildFrames() {
+      FRAMES.forEach(item => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.dataset.rarity = item.rarity;
+        el.dataset.search = `${item.name} ${item.id}`.toLowerCase();
+        el.dataset.type = 'frame';
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <div class="preview">
+            <div class="avatar-shell">
+              <div class="frame-ring ${item.className}"></div>
+              <div class="avatar"></div>
+            </div>
+          </div>
+          <div class="meta">
+            <div class="row"><h3 class="name">${item.name}</h3><div class="chips"><span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span></div></div>
+            <p class="desc">${item.desc}</p>
+            <div class="code">id: ${item.id}<br>frame_class: ${item.className}</div>
+            ${noteArea()}
+          </div>
+        `;
+        framesGrid.appendChild(el);
+      });
+    }
+
+    function buildForms() {
+      TAG_FORMS.forEach(item => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.dataset.rarity = item.rarity;
+        el.dataset.search = `${item.name} ${item.id}`.toLowerCase();
+        el.dataset.type = 'tag-form';
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <div class="preview tag-sample-wrap"><span class="tag-pill ${item.className}" style="--tag-text:'Форма';"></span></div>
+          <div class="meta">
+            <div class="row"><h3 class="name">${item.name}</h3><div class="chips"><span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span></div></div>
+            <p class="desc">${item.desc}</p>
+            <div class="code">id: ${item.id}<br>tag_class: ${item.className}</div>
+            ${noteArea()}
+          </div>
+        `;
+        formsGrid.appendChild(el);
+      });
+    }
+
+    function buildTexts() {
+      TAG_TEXTS.forEach(item => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.dataset.rarity = item.rarity;
+        el.dataset.search = `${item.name} ${item.id}`.toLowerCase();
+        el.dataset.type = 'tag-text';
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <div class="preview tag-sample-wrap"><span class="tag-pill form-scroll" style="--tag-text:'${item.name}';"></span></div>
+          <div class="meta">
+            <div class="row"><h3 class="name">${item.name}</h3><div class="chips"><span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span></div></div>
+            <p class="desc">Пример текста тэга. Можно комбинировать с любой доступной формой.</p>
+            <div class="code">id: ${item.id}<br>tag_text: ${item.name}</div>
+            ${noteArea()}
+          </div>
+        `;
+        textsGrid.appendChild(el);
+      });
+    }
+
+    function setBadgeState(record, state) {
+      if (!record?.badge) return;
+      record.badge.classList.remove('is-live', 'is-pinned');
+      if (state === 'live') {
+        record.badge.classList.add('is-live');
+        record.badge.textContent = 'анимация активна';
+      } else if (state === 'pinned') {
+        record.badge.classList.add('is-pinned');
+        record.badge.textContent = 'зафиксировано';
+      } else {
+        record.badge.textContent = 'наведи или нажми';
+      }
+    }
+
+    function deactivateAllEffects() {
+      for (const [id, record] of effectInstances.entries()) {
+        record.instance.setActive(false);
+        setBadgeState(record, 'idle');
+      }
+    }
+
+    function activateOnly(id, pinned=false) {
+      for (const [key, record] of effectInstances.entries()) {
+        const isTarget = key === id;
+        record.instance.setActive(isTarget);
+        setBadgeState(record, isTarget ? (pinned ? 'pinned' : 'live') : 'idle');
+      }
+    }
+
+    class EffectEngine {
+      constructor(canvas, type) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.type = type;
+        this.particles = [];
+        this.last = performance.now();
+        this.spawnAcc = 0;
+        this.active = false;
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+      }
+
+      setActive(value) {
+        this.active = !!value;
+        this.last = performance.now();
+        if (!this.active) {
+          this.particles = [];
+          this.spawnAcc = 0;
+          this.ctx.clearRect(0, 0, this.w, this.h);
+        }
+      }
+
+      resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        this.ctx.setTransform(dpr,0,0,dpr,0,0);
+        this.w = rect.width || 258;
+        this.h = rect.height || 258;
+        this.cx = this.w / 2;
+        this.cy = this.h / 2;
+      }
+
+      rand(a,b){ return a + Math.random()*(b-a); }
+      pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+      spawn(dtMs) {
+        const rates = {
+          embers:38, motesSilver:46, mistSoft:96, fireflies:54, dew:72, snowDust:34, amberDust:42, shadowDust:42,
+          heavyRain:48, snowSquall:58, blackRain:50, midnightSnow:56, sootRain:56, obsidianSplinters:30,
+          arcSparks:60, thornBloom:45, moonSigils:50, toxicDrizzle:50, starChorus:76, frostOrbit:42, spiritLanterns:48, sunShards:44, coinWhirl:82, graveWhispers:42,
+          stormLash:70, bloodRite:42, riftGlass:42, dragonCinders:34, oracleGlyphs:42, clockHalo:42, graveCandles:48, crystalPulse:42, shadowChains:44, necroticAsh:40, voidShards:40, shadowNeedles:30, inkComets:34, nightScript:42,
+          neonRain:50, holoGlitch:96, dataSparks:44, laserSights:90, plasmaCircuit:48, quantumPixels:80, orbitalScan:22, cyberGhost:46, ionTrails:34, glitchFrame:26, phaseOrbit:32, meridianOrbit:30, equatorOrbit:30, tracerTail:24,
+          ghostFireflies:28, goldenFireflies:30, goldenGlint:78, violetAether:34, amethystDust:34, retroSunset:26, vhsGlitch:42, haloDawn:24, umbraCrown:26, chronoDial:30, timeSands:30, runeAscent:34, arcaneWreath:36, tacticalLock:34, brutalistHud:78, corporateVeil:78, kanjiStream:38, gearOrbit:92, steamValves:32,
+          silverGlint:82, gemGrotto:72, lowEquatorOrbit:62, redEquatorScan:30, matrixRain:26, matrixRainCyan:26, matrixRainViolet:26, matrixRainGold:26, diamondShimmer:76, prismaticRibbons:12, matrixOrbit:42, quantumHex:78, hexBeacon:76, signalWave:44, ringGlints:74, triNet:110, starConstellations:240, webRunner:26, relayMesh:28, fractureBloom:90, holoIris:118, solarIris:82, violetIris:86, sentinelRelay:42, violetRelay:46, hypnoSpiral:60, aetherLoom:34, mobiusRibbon:36, pulsarRose:34,
+          eclipseCrown:34, prismMonarch:34, thunderThrone:58, hyperspaceJump:10, blackIce:40, infernoCrown:18, nightfall:54, oblivionScript:28, blackAurora:28
+        };
+        this.spawnAcc += dtMs;
+        const rate = rates[this.type] || 45;
+        while (this.spawnAcc > rate) {
+          this.spawnOne();
+          this.spawnAcc -= rate;
+        }
+      }
+
+      posOnRing(minR=58, maxR=124) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = this.rand(minR, maxR);
+        return {
+          angle,
+          x: this.cx + Math.cos(angle) * r,
+          y: this.cy + Math.sin(angle) * r,
+          r
+        };
+      }
+
+      posInAvatar(maxR=80) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(Math.random()) * maxR;
+        return {
+          angle,
+          x: this.cx + Math.cos(angle) * r,
+          y: this.cy + Math.sin(angle) * r,
+          r
+        };
+      }
+
+      pushText(chars, palette, options={}) {
+        const p = this.posOnRing(options.minR || 56, options.maxR || 124);
+        this.particles.push({
+          kind:'text',
+          char:this.pick(chars),
+          x:p.x,
+          y:p.y,
+          vx:this.rand(-14,14),
+          vy:this.rand(options.vy0 ?? -48, options.vy1 ?? -14),
+          life:this.rand(options.life0 || 1.2, options.life1 || 2.5),
+          age:0,
+          size:this.rand(options.size0 || 14, options.size1 || 26),
+          color:this.pick(palette),
+          shadow: options.shadow || 16,
+          rot: Math.random() * Math.PI * 2,
+          spin: this.rand(-1.5, 1.5)
+        });
+      }
+
+      pushDot(palette, mode='rise', options={}) {
+        const p = this.posOnRing(options.minR || 58, options.maxR || 124);
+        this.particles.push({
+          kind:'dot',
+          mode,
+          x0:p.x,
+          x:p.x,
+          y:p.y,
+          amp:this.rand(options.amp0 || 10, options.amp1 || 30) * (Math.random()<.5?-1:1),
+          phase:Math.random()*Math.PI*2,
+          freq:this.rand(2.0,4.4),
+          vx:this.rand(-12,12),
+          vy:this.rand(options.vy0 ?? -64, options.vy1 ?? -16),
+          life:this.rand(options.life0 || .9, options.life1 || 2.2),
+          age:0,
+          size:this.rand(options.size0 || 2.4, options.size1 || 5.2),
+          color:this.pick(palette),
+          shadow: options.shadow || 13
+        });
+      }
+
+      pushEmber() {
+        const p = this.posOnRing(58, 122);
+        this.particles.push({
+          kind:'ember',
+          x0:p.x,
+          x:p.x,
+          y:p.y,
+          amp:this.rand(12,30) * (Math.random()<.5?-1:1),
+          phase:Math.random()*Math.PI*2,
+          freq:this.rand(2.0,4.2),
+          vy:this.rand(-66,-26),
+          life:this.rand(1.1,2.0),
+          age:0,
+          size:this.rand(3.2,6.2),
+          hot:this.pick(['#fff7ad','#fde047','#fbbf24']),
+          mid:this.pick(['#fb923c','#f97316','#ea580c']),
+          cold:this.pick(['#57534e','#44403c','#292524']),
+          shadow:14
+        });
+      }
+
+      pushRain(palette, options={}) {
+        this.particles.push({
+          kind:'rain',
+          x:this.rand(options.x0 ?? 8, options.x1 ?? this.w-8),
+          y:this.rand(options.y0 ?? -28, options.y1 ?? 4),
+          vy:this.rand(options.vy0 || 190, options.vy1 || 340),
+          len:this.rand(options.len0 || 8, options.len1 || 19),
+          life:this.rand(options.life0 || .9, options.life1 || 1.3),
+          age:0,
+          color:this.pick(palette),
+          alpha:this.rand(options.alpha0 ?? .45, options.alpha1 ?? .95),
+          width: options.width || 1.5
+        });
+      }
+
+      pushSmoke(palette, options={}) {
+        const p = this.posOnRing(52, 112);
+        this.particles.push({
+          kind:'smoke',
+          x:p.x,
+          y:p.y,
+          vx:this.rand(-12,12),
+          vy:this.rand(options.vy0 ?? -20, options.vy1 ?? -4),
+          life:this.rand(options.life0 || 1.6, options.life1 || 3.2),
+          age:0,
+          size:this.rand(options.size0 || 20, options.size1 || 42),
+          color:this.pick(palette)
+        });
+      }
+
+      pushArc(colors, options={}) {
+        const p1 = this.posOnRing(62, 126);
+        const p2 = this.posOnRing(62, 126);
+        this.particles.push({
+          kind:'arc',
+          start:p1,
+          end:p2,
+          ctrl:{x:this.cx + this.rand(-34,34), y:this.cy + this.rand(-34,34)},
+          life:this.rand(options.life0 || .55, options.life1 || 1.1),
+          age:0,
+          color1:colors[0],
+          color2:colors[1],
+          width:this.rand(options.w0 || 1.8, options.w1 || 3.8)
+        });
+      }
+
+      pushBolt(palette, branches=1) {
+        for (let b=0;b<branches;b++) {
+          const start = this.posOnRing(78, 128);
+          let x = start.x, y = start.y;
+          const pts=[{x,y}];
+          const seg=4+Math.floor(Math.random()*5)+(branches>1?2:0);
+          for(let i=0;i<seg;i++){
+            x += this.rand(-23,23);
+            y += this.rand(-23,23);
+            pts.push({x,y});
+          }
+          this.particles.push({
+            kind:'bolt',
+            points:pts,
+            life:this.rand(.16,.42),
+            age:0,
+            width:this.rand(1.4,3.4),
+            core:this.pick(palette)
+          });
+        }
+      }
+
+      pushLeaf(palette) {
+        const p = this.posOnRing(60, 126);
+        this.particles.push({
+          kind:'leaf',
+          x:p.x,
+          y:p.y,
+          vx:this.rand(-14,14),
+          vy:this.rand(-18,12),
+          rot:Math.random()*Math.PI*2,
+          spin:this.rand(-2.4,2.4),
+          life:this.rand(1.5,3.0),
+          age:0,
+          size:this.rand(9,16),
+          color:this.pick(palette)
+        });
+      }
+
+      pushShard(palette) {
+        const p = this.posOnRing(28, 116);
+        this.particles.push({
+          kind:'shard',
+          x:p.x,
+          y:p.y,
+          vx:this.rand(-30,30),
+          vy:this.rand(-30,30),
+          rot:Math.random()*Math.PI*2,
+          spin:this.rand(-3.4,3.4),
+          life:this.rand(.9,1.8),
+          age:0,
+          size:this.rand(7,13),
+          color:this.pick(palette)
+        });
+      }
+
+      pushOrbitText(chars,palette) {
+        const p = this.posOnRing(78, 120);
+        this.particles.push({
+          kind:'orbiterText',
+          char:this.pick(chars),
+          ang:p.angle,
+          r:p.r,
+          dang:this.rand(-1.5,1.5),
+          life:this.rand(1.9,3.3),
+          age:0,
+          size:this.rand(14,22),
+          color:this.pick(palette),
+          rot:0,
+          spin:this.rand(-2.5,2.5),
+          shadow:14
+        });
+      }
+
+      pushOrbitDot(palette) {
+        const p = this.posOnRing(76, 120);
+        this.particles.push({
+          kind:'orbiterDot',
+          ang:p.angle,
+          r:p.r,
+          dang:this.rand(-1.6,1.6),
+          life:this.rand(1.8,3.2),
+          age:0,
+          size:this.rand(3.5,7),
+          color:this.pick(palette),
+          shadow:14
+        });
+      }
+
+      pushRingPulse(palette) {
+        this.particles.push({
+          kind:'ringPulse',
+          r0:this.rand(64,92),
+          growth:this.rand(22,40),
+          startAng:Math.random()*Math.PI*2,
+          sweep:this.rand(.8,1.9),
+          life:this.rand(.7,1.35),
+          age:0,
+          color:this.pick(palette)
+        });
+      }
+
+      pushSnowParticle(palette, options={}) {
+        this.particles.push({
+          kind:'snow',
+          x:this.rand(options.x0 ?? 8, options.x1 ?? this.w-8),
+          y:this.rand(options.y0 ?? -18, options.y1 ?? 2),
+          vx:this.rand(options.vx0 ?? -18, options.vx1 ?? 18),
+          vy:this.rand(options.vy0 ?? 34, options.vy1 ?? 86),
+          life:this.rand(options.life0 || 1.8, options.life1 || 3.8),
+          age:0,
+          phase:Math.random()*Math.PI*2,
+          size:this.rand(options.size0 || 2.4, options.size1 || 5.0),
+          color:this.pick(palette)
+        });
+      }
+
+      pushFallingShard(palette, options={}) {
+        this.particles.push({
+          kind:'shard',
+          x:this.rand(8,this.w-8),
+          y:this.rand(-20,6),
+          vx:this.rand(options.vx0 ?? -18, options.vx1 ?? 18),
+          vy:this.rand(options.vy0 ?? 70, options.vy1 ?? 145),
+          rot:Math.random()*Math.PI*2,
+          spin:this.rand(-3.5,3.5),
+          life:this.rand(options.life0 || 1.2, options.life1 || 2.4),
+          age:0,
+          size:this.rand(options.size0 || 6, options.size1 || 12),
+          color:this.pick(palette),
+          shadow: options.shadow || 12
+        });
+      }
+
+      pushComet(palette, options={}) {
+        const x = this.rand(-22,this.w * .64);
+        const y = this.rand(16,this.h * .50);
+        this.particles.push({
+          kind:'comet',
+          x,
+          y,
+          px:x,
+          py:y,
+          vx:this.rand(options.vx0 ?? 72, options.vx1 ?? 128),
+          vy:this.rand(options.vy0 ?? 42, options.vy1 ?? 96),
+          life:this.rand(options.life0 || .95, options.life1 || 1.65),
+          age:0,
+          size:this.rand(options.size0 || 4.5, options.size1 || 8.5),
+          color:this.pick(palette),
+          trail:this.pick(options.trail || ['rgba(15,23,42,.48)','rgba(88,28,135,.34)'])
+        });
+      }
+
+      pushNeonRain(options={}) {
+        this.particles.push({
+          kind:'rain',
+          x:this.rand(options.x0 ?? this.cx-76, options.x1 ?? this.cx+76),
+          y:this.rand(options.y0 ?? -22, options.y1 ?? 4),
+          vy:this.rand(options.vy0 || 190, options.vy1 || 330),
+          len:this.rand(options.len0 || 7, options.len1 || 16),
+          life:this.rand(options.life0 || .75, options.life1 || 1.18),
+          age:0,
+          color:this.pick(['rgba(34,211,238,.9)','rgba(244,114,182,.88)','rgba(59,130,246,.82)']),
+          alpha:this.rand(options.alpha0 ?? .45, options.alpha1 ?? .82),
+          width:this.rand(options.w0 || 1.1, options.w1 || 1.8)
+        });
+      }
+
+      pushGlitchRect(palette, options={}) {
+        this.particles.push({
+          kind:'glitchRect',
+          x:this.rand(options.x0 ?? this.cx-92, options.x1 ?? this.cx+92),
+          y:this.rand(options.y0 ?? this.cy-92, options.y1 ?? this.cy+92),
+          w:this.rand(options.w0 || 18, options.w1 || 58),
+          h:this.rand(options.h0 || 2, options.h1 || 8),
+          vx:this.rand(options.vx0 ?? -18, options.vx1 ?? 18),
+          vy:this.rand(options.vy0 ?? -8, options.vy1 ?? 8),
+          life:this.rand(options.life0 || .16, options.life1 || .42),
+          age:0,
+          color:this.pick(palette),
+          clipAvatar: !!options.clipAvatar
+        });
+      }
+
+      pushLaserLine(palette) {
+        const horizontal = Math.random() < .5;
+        const pos = horizontal ? this.rand(this.cy-90, this.cy+90) : this.rand(this.cx-90, this.cx+90);
+        this.particles.push({
+          kind:'laserLine',
+          horizontal,
+          pos,
+          offset:this.rand(-18,18),
+          life:this.rand(.18,.38),
+          age:0,
+          width:this.rand(1.4,2.8),
+          color:this.pick(palette)
+        });
+      }
+
+      pushHyperspaceStreak(palette, options={}) {
+        const angle = Math.random() * Math.PI * 2;
+        const startR = this.rand(options.startR0 ?? 2, options.startR1 ?? 16);
+        const speed = this.rand(options.speed0 ?? 260, options.speed1 ?? 520);
+        this.particles.push({
+          kind:'streak',
+          angle,
+          r:startR,
+          speed,
+          life:this.rand(options.life0 ?? .42, options.life1 ?? .82),
+          age:0,
+          len:this.rand(options.len0 ?? 64, options.len1 ?? 132),
+          width:this.rand(options.width0 ?? 1.8, options.width1 ?? 4.2),
+          color:this.pick(palette)
+        });
+      }
+
+      pushFrameGlitch(palette) {
+        const side = Math.floor(Math.random() * 4);
+        let x = this.cx, y = this.cy, w = this.rand(20, 60), h = this.rand(2, 7);
+        if (side === 0) { x = this.cx + this.rand(-92, 92); y = this.cy - this.rand(84, 100); }
+        else if (side === 1) { x = this.cx + this.rand(-92, 92); y = this.cy + this.rand(84, 100); }
+        else if (side === 2) { x = this.cx - this.rand(84, 100); y = this.cy + this.rand(-92, 92); w = this.rand(2, 7); h = this.rand(20, 60); }
+        else { x = this.cx + this.rand(84, 100); y = this.cy + this.rand(-92, 92); w = this.rand(2, 7); h = this.rand(20, 60); }
+        this.particles.push({
+          kind:'glitchRect',
+          x, y, w, h,
+          vx:this.rand(-8,8), vy:this.rand(-8,8),
+          life:this.rand(.16, .42), age:0,
+          color:this.pick(palette)
+        });
+      }
+
+      pushPhaseOrbiter(palette) {
+        const p = this.posOnRing(84, 104);
+        this.particles.push({
+          kind:'orbiterDot',
+          ang:p.angle,
+          r:p.r,
+          dang:this.rand(1.25, 2.35) * (Math.random() < .5 ? -1 : 1),
+          life:this.rand(2.2, 3.8),
+          age:0,
+          size:this.rand(4.5, 8.5),
+          color:this.pick(palette),
+          shadow:18,
+          avatarOcclude:true,
+          trailColor:this.pick(['rgba(34,211,238,.42)','rgba(196,181,253,.38)','rgba(255,255,255,.32)'])
+        });
+      }
+
+      pushPerimeterStreak(palette) {
+        const p = this.posOnRing(86, 102);
+        this.particles.push({
+          kind:'orbitStreak',
+          ang:p.angle,
+          r:p.r,
+          dang:this.rand(3.8, 6.2) * (Math.random() < .5 ? -1 : 1),
+          life:this.rand(.55, 1.05),
+          age:0,
+          len:this.rand(20, 42),
+          width:this.rand(2.0, 4.0),
+          color:this.pick(palette),
+          shadow:18,
+          avatarOcclude:true
+        });
+      }
+
+      pushMeridianOrbiter(palette) {
+        this.particles.push({
+          kind:'meridianOrbiter',
+          ang:Math.random() * Math.PI * 2,
+          rx:this.rand(30, 42),
+          ry:this.rand(88, 104),
+          dang:this.rand(1.15, 2.05) * (Math.random() < .5 ? -1 : 1),
+          life:this.rand(2.2, 3.8),
+          age:0,
+          size:this.rand(4.5, 8.0),
+          color:this.pick(palette),
+          shadow:18,
+          trailColor:this.pick(['rgba(34,211,238,.42)','rgba(196,181,253,.38)','rgba(255,255,255,.32)','rgba(244,114,182,.28)'])
+        });
+      }
+
+      pushFlameTongue() {
+        const angle = this.rand(Math.PI * 0.12, Math.PI * 0.88);
+        const r = this.rand(78, 104);
+        const x = this.cx + Math.cos(angle) * r;
+        const y = this.cy + Math.sin(angle) * r + this.rand(8, 22);
+        this.particles.push({
+          kind:'flame',
+          x0:x,
+          x,
+          y,
+          amp:this.rand(4, 14) * (Math.random() < .5 ? -1 : 1),
+          phase:Math.random() * Math.PI * 2,
+          freq:this.rand(4.5, 8.0),
+          vy:this.rand(-54, -92),
+          life:this.rand(.62, 1.18),
+          age:0,
+          size:this.rand(10, 18),
+          inner:this.pick(['rgba(255,244,180,.98)','rgba(254,240,138,.96)']),
+          core:this.pick(['rgba(251,146,60,.95)','rgba(249,115,22,.95)','rgba(245,158,11,.95)']),
+          outer:this.pick(['rgba(239,68,68,.72)','rgba(220,38,38,.68)','rgba(251,146,60,.54)'])
+        });
+      }
+
+
+      pushFirefly(palette, options={}) {
+        const p = this.posOnRing(options.minR || 58, options.maxR || 102);
+        this.particles.push({
+          kind:'firefly',
+          x0:p.x,
+          y0:p.y,
+          x:p.x,
+          y:p.y,
+          ampX:this.rand(options.ampX0 || 8, options.ampX1 || 22) * (Math.random()<.5?-1:1),
+          ampY:this.rand(options.ampY0 || 6, options.ampY1 || 16),
+          phase:Math.random()*Math.PI*2,
+          phaseY:Math.random()*Math.PI*2,
+          freqX:this.rand(options.freqX0 || 1.1, options.freqX1 || 2.3),
+          freqY:this.rand(options.freqY0 || 1.0, options.freqY1 || 1.9),
+          driftX:this.rand(options.vx0 ?? -8, options.vx1 ?? 8),
+          driftY:this.rand(options.vy0 ?? -24, options.vy1 ?? -8),
+          life:this.rand(options.life0 || 1.9, options.life1 || 3.6),
+          age:0,
+          size:this.rand(options.size0 || 2.4, options.size1 || 4.8),
+          color:this.pick(palette),
+          shadow: options.shadow || 16
+        });
+      }
+
+      pushEquatorOrbiter(palette, options={}) {
+        this.particles.push({
+          kind:'equatorOrbiter',
+          ang:Math.random() * Math.PI * 2,
+          rx:this.rand(options.rx0 || 80, options.rx1 || 102),
+          ry:this.rand(options.ry0 || 22, options.ry1 || 36),
+          cyOff: options.cyOff ?? 0,
+          dang:this.rand(options.d0 || 1.05, options.d1 || 1.85) * (Math.random() < .5 ? -1 : 1),
+          life:this.rand(2.4, 3.9),
+          age:0,
+          size:this.rand(options.size0 || 3.6, options.size1 || 6.2),
+          color:this.pick(palette),
+          shadow:14,
+          trailColor:this.pick(options.trails || ['rgba(34,211,238,.26)','rgba(196,181,253,.24)','rgba(255,255,255,.18)'])
+        });
+      }
+
+      pushSparkle(palette, options={}) {
+        const p = this.posOnRing(options.minR || 68, options.maxR || 106);
+        this.particles.push({
+          kind:'sparkle',
+          x:p.x,
+          y:p.y,
+          vx:this.rand(options.vx0 ?? -4, options.vx1 ?? 4),
+          vy:this.rand(options.vy0 ?? -6, options.vy1 ?? 6),
+          life:this.rand(options.life0 || .55, options.life1 || 1.1),
+          age:0,
+          size:this.rand(options.size0 || 5, options.size1 || 10),
+          color:this.pick(palette),
+          rot:Math.random()*Math.PI*2,
+          spin:this.rand(-3.2, 3.2),
+          shadow: options.shadow || 14
+        });
+      }
+
+      pushHaloArc(palette, options={}) {
+        this.particles.push({
+          kind:'haloArc',
+          yOff: options.yOff ?? -74,
+          rx: this.rand(options.rx0 || 34, options.rx1 || 52),
+          ry: this.rand(options.ry0 || 7, options.ry1 || 13),
+          life: this.rand(options.life0 || 1.2, options.life1 || 2.2),
+          age:0,
+          width: this.rand(options.w0 || 1.8, options.w1 || 3.6),
+          color:this.pick(palette),
+          shadow: options.shadow || 16,
+          phase:Math.random()*Math.PI*2,
+          dark: !!options.dark
+        });
+      }
+
+
+      pushGemGlint(palette, options={}) {
+        const p = options.withinAvatar ? this.posInAvatar(options.maxR || 70) : this.posOnRing(options.minR || 58, options.maxR || 104);
+        this.particles.push({
+          kind:'gemGlint',
+          x:p.x,
+          y:p.y,
+          life:this.rand(options.life0 || 1.1, options.life1 || 2.0),
+          age:0,
+          size:this.rand(options.size0 || 3.4, options.size1 || 7.2),
+          color:this.pick(palette),
+          rot:Math.random() * Math.PI * 2,
+          spin:this.rand(-1.2,1.2),
+          shadow: options.shadow || 12,
+          flare: this.rand(.72, 1.08),
+          twinkle: this.rand(4.8, 7.2)
+        });
+      }
+
+      pushMatrixGlyph(palette, glyphs, options={}) {
+        const clipR = options.clipR || 78;
+        const cols = options.cols || 11;
+        const col = Math.floor(this.rand(0, cols));
+        const spacing = (clipR * 2 - 10) / cols;
+        const x = this.cx - clipR + 5 + col * spacing + this.rand(-2.5,2.5);
+        this.particles.push({
+          kind:'matrixGlyph',
+          x,
+          y:this.cy - clipR - this.rand(2, 14),
+          vy:this.rand(options.vy0 || 58, options.vy1 || 110),
+          life:this.rand(options.life0 || 1.5, options.life1 || 2.6),
+          age:0,
+          size:this.rand(options.size0 || 11, options.size1 || 16),
+          color:this.pick(palette),
+          glyphs,
+          char:this.pick(glyphs),
+          nextSwap:this.rand(.05,.18),
+          shadow: options.shadow || 14,
+          clipR
+        });
+      }
+
+      pushCrossScan(palette, options={}) {
+        const rx = this.rand(options.rx0 || 78, options.rx1 || 98);
+        const ry = this.rand(options.ry0 || 78, options.ry1 || 98);
+        const rangeFactor = options.rangeFactor || .68;
+        const x0 = this.cx + (options.cxOff || 0);
+        const y0 = this.cy + (options.cyOff || 0);
+        const tx = this.rand(this.cx - rx * rangeFactor, this.cx + rx * rangeFactor);
+        const ty = this.rand(this.cy - ry * rangeFactor, this.cy + ry * rangeFactor);
+        this.particles.push({
+          kind:'crossScan',
+          xPos:x0,
+          yPos:y0,
+          targetX:tx,
+          targetY:ty,
+          speedX:this.rand(options.sx0 || 52, options.sx1 || 88) * (tx > x0 ? 1 : -1),
+          speedY:this.rand(options.sy0 || 52, options.sy1 || 88) * (ty > y0 ? 1 : -1),
+          holdX:0,
+          holdY:0,
+          rx, ry,
+          rangeFactor,
+          life:this.rand(options.life0 || 3.4, options.life1 || 5.0),
+          age:0,
+          color:this.pick(palette),
+          width:this.rand(options.w0 || 1.3, options.w1 || 2.3),
+          shadow: options.shadow || 12
+        });
+      }
+
+      pushRibbon(palette, options={}) {
+        const baseAng = this.rand(0, Math.PI * 2);
+        this.particles.push({
+          kind:'ribbon',
+          ang:baseAng,
+          arc:this.rand(options.arc0 || .8, options.arc1 || 1.35),
+          r:this.rand(options.r0 || 64, options.r1 || 88),
+          phase:Math.random() * Math.PI * 2,
+          amp:this.rand(options.amp0 || 6, options.amp1 || 14),
+          life:this.rand(options.life0 || 1.6, options.life1 || 2.8),
+          age:0,
+          width:this.rand(options.w0 || 4, options.w1 || 8),
+          color:this.pick(palette),
+          shadow: options.shadow || 16,
+          spin:this.rand(options.spin0 || -0.6, options.spin1 || 0.6)
+        });
+      }
+
+      pushOrbitGlyph(palette, glyphs, options={}) {
+        this.particles.push({
+          kind:'orbitGlyph',
+          ang:Math.random() * Math.PI * 2,
+          dang:this.rand(options.d0 || 0.6, options.d1 || 1.2) * (Math.random() < .5 ? -1 : 1),
+          r:this.rand(options.r0 || 84, options.r1 || 106),
+          wobble:this.rand(4, 10),
+          phase:Math.random() * Math.PI * 2,
+          life:this.rand(options.life0 || 1.6, options.life1 || 3.2),
+          age:0,
+          size:this.rand(options.size0 || 10, options.size1 || 16),
+          color:this.pick(palette),
+          glyphs,
+          char:this.pick(glyphs),
+          nextSwap:this.rand(.08, .24),
+          shadow: options.shadow || 16
+        });
+      }
+
+      pushHexCell(palette, options={}) {
+        const p = this.posOnRing(options.minR || 58, options.maxR || 100);
+        this.particles.push({
+          kind:'hexCell',
+          x:p.x,
+          y:p.y,
+          size:this.rand(options.size0 || 8, options.size1 || 16),
+          rot:Math.random() * Math.PI * 2,
+          spin:this.rand(-1.1,1.1),
+          life:this.rand(options.life0 || 1.2, options.life1 || 2.4),
+          age:0,
+          color:this.pick(palette),
+          shadow: options.shadow || 14,
+          pulse:this.rand(.8, 1.5)
+        });
+      }
+
+      pushConstellation(palette, options={}) {
+        const count = Math.floor(this.rand(options.count0 || 4, options.count1 || 7));
+        const points = [];
+        for (let i = 0; i < count; i++) {
+          const p = this.posInAvatar(options.maxR || 66);
+          points.push({ x:p.x, y:p.y, size:this.rand(1.6, 2.8) });
+        }
+        points.sort((a,b) => a.x - b.x || a.y - b.y);
+        const edges = [];
+        for (let i = 0; i < points.length - 1; i++) edges.push([i, i + 1]);
+        if (points.length >= 5) edges.push([0, 2]);
+        if (points.length >= 6) edges.push([2, 4]);
+        this.particles.push({
+          kind:'constellation',
+          points,
+          edges,
+          life:this.rand(options.life0 || 1.8, options.life1 || 3.4),
+          age:0,
+          color:this.pick(palette),
+          nodeColor:this.pick(options.nodePalette || ['rgba(255,255,255,.98)']),
+          width:this.rand(options.w0 || 1.0, options.w1 || 1.8),
+          shadow: options.shadow || 12
+        });
+      }
+
+      pushWebSwarm(kind='webSwarm', palette, options={}) {
+        const count = options.count || 4;
+        const radius = options.radius || 60;
+        const nodes = [];
+        for (let i = 0; i < count; i++) {
+          const p = this.posInAvatar(radius);
+          nodes.push({
+            x:p.x, y:p.y,
+            vx:this.rand(options.vx0 || -28, options.vx1 || 28),
+            vy:this.rand(options.vy0 || -28, options.vy1 || 28)
+          });
+        }
+        this.particles.push({
+          kind,
+          nodes,
+          radius,
+          connectDist: options.connectDist || 76,
+          life:this.rand(options.life0 || 60, options.life1 || 60),
+          age:0,
+          color:this.pick(palette),
+          nodeColor:this.pick(options.nodePalette || ['rgba(255,255,255,.95)']),
+          width:this.rand(options.w0 || 1.0, options.w1 || 1.7),
+          shadow: options.shadow || 12,
+          pulseT:0,
+          pulseEdge:0
+        });
+      }
+
+      pushFractureBloom(palette, options={}) {
+        const origin = this.posInAvatar(options.maxR || 30);
+        const branchCount = Math.floor(this.rand(options.b0 || 4, options.b1 || 7));
+        const branches = [];
+        for (let i = 0; i < branchCount; i++) {
+          const pts = [{x:origin.x, y:origin.y}];
+          let x = origin.x, y = origin.y;
+          let ang = Math.random() * Math.PI * 2;
+          const segs = Math.floor(this.rand(2, 5));
+          for (let s = 0; s < segs; s++) {
+            ang += this.rand(-0.55, 0.55);
+            const len = this.rand(10, 24) * (1 - s * 0.12);
+            x += Math.cos(ang) * len;
+            y += Math.sin(ang) * len;
+            pts.push({x, y});
+            if (Math.hypot(x - this.cx, y - this.cy) > 72) break;
+          }
+          branches.push(pts);
+        }
+        this.particles.push({
+          kind:'fractureBloom',
+          origin:{x:origin.x,y:origin.y},
+          branches,
+          life:this.rand(options.life0 || 1.8, options.life1 || 3.1),
+          age:0,
+          color:this.pick(palette),
+          coreColor:this.pick(options.corePalette || ['rgba(255,255,255,.96)']),
+          width:this.rand(options.w0 || 1.1, options.w1 || 2.0),
+          shadow: options.shadow || 14
+        });
+      }
+
+
+      pushRingRelay(palette, options={}) {
+        const count = options.count || 5;
+        const rx = options.rx || 72;
+        const ry = options.ry || 72;
+        const nodes = [];
+        const base = Math.random() * Math.PI * 2;
+        for (let i = 0; i < count; i++) {
+          nodes.push({
+            ang: base + (Math.PI * 2 * i / count),
+            dang: this.rand(options.d0 || 0.18, options.d1 || 0.42) * (Math.random() < .5 ? -1 : 1)
+          });
+        }
+        this.particles.push({
+          kind:'ringRelay',
+          nodes,
+          rx, ry,
+          life:this.rand(options.life0 || 60, options.life1 || 60),
+          age:0,
+          color:this.pick(palette),
+          nodeColor:this.pick(options.nodePalette || ['rgba(255,255,255,.96)']),
+          width:this.rand(options.w0 || 1.1, options.w1 || 1.8),
+          shadow: options.shadow || 12,
+          pulseEdge:0,
+          pulseT:0,
+          mode: options.mode || 'normal'
+        });
+      }
+
+      pushIrisSector(palette, options={}) {
+        this.particles.push({
+          kind:'irisSector',
+          ang:this.rand(0, Math.PI * 2),
+          sweep:this.rand(options.s0 || .34, options.s1 || .82),
+          inner:this.rand(options.in0 || 28, options.in1 || 48),
+          outer:this.rand(options.out0 || 58, options.out1 || 78),
+          rot:this.rand(-0.18, 0.18),
+          life:this.rand(options.life0 || 1.1, options.life1 || 2.2),
+          age:0,
+          color:this.pick(palette),
+          edgeColor:this.pick(options.edgePalette || ['rgba(255,255,255,.92)']),
+          shadow: options.shadow || 16
+        });
+      }
+
+      pushHypnoSpiral(palette, options={}) {
+        this.particles.push({
+          kind:'hypnoSpiral',
+          rot:Math.random() * Math.PI * 2,
+          spin:this.rand(options.spin0 || 0.32, options.spin1 || 0.72) * (Math.random() < .5 ? -1 : 1),
+          life:this.rand(options.life0 || 60, options.life1 || 60),
+          age:0,
+          color:this.pick(palette),
+          color2:this.pick(options.palette2 || palette),
+          turns:this.rand(options.t0 || 1.6, options.t1 || 2.5),
+          maxR:this.rand(options.r0 || 64, options.r1 || 78),
+          width:this.rand(options.w0 || 1.2, options.w1 || 2.0),
+          shadow: options.shadow || 14
+        });
+      }
+
+      pushAetherLoom(palette, options={}) {
+        this.particles.push({
+          kind:'aetherLoom',
+          life:this.rand(options.life0 || 60, options.life1 || 60),
+          age:0,
+          phase:Math.random() * Math.PI * 2,
+          drift:this.rand(options.d0 || 0.4, options.d1 || 0.8) * (Math.random() < .5 ? -1 : 1),
+          amp1:this.rand(options.a10 || 5, options.a11 || 9),
+          amp2:this.rand(options.a20 || 3, options.a21 || 7),
+          freq1:this.rand(options.f10 || 4.0, options.f11 || 6.2),
+          freq2:this.rand(options.f20 || 3.4, options.f21 || 5.4),
+          color:this.pick(palette),
+          color2:this.pick(options.palette2 || palette),
+          shadow: options.shadow || 14,
+          width:this.rand(options.w0 || 1.1, options.w1 || 2.0),
+          baseR:this.rand(options.r0 || 66, options.r1 || 74)
+        });
+      }
+
+      pushMobiusRibbon(palette, options={}) {
+        this.particles.push({
+          kind:'mobiusRibbon',
+          life:this.rand(options.life0 || 60, options.life1 || 60),
+          age:0,
+          rot:Math.random() * Math.PI * 2,
+          spin:this.rand(options.spin0 || 0.26, options.spin1 || 0.48) * (Math.random() < .5 ? -1 : 1),
+          band:this.rand(options.band0 || 18, options.band1 || 26),
+          scale:this.rand(options.s0 || 52, options.s1 || 64),
+          color:this.pick(palette),
+          color2:this.pick(options.palette2 || palette),
+          shadow: options.shadow || 16,
+          width:this.rand(options.w0 || 1.5, options.w1 || 2.6)
+        });
+      }
+
+      pushRosePulse(palette, options={}) {
+        this.particles.push({
+          kind:'rosePulse',
+          life:this.rand(options.life0 || 60, options.life1 || 60),
+          age:0,
+          rot:Math.random() * Math.PI * 2,
+          spin:this.rand(options.spin0 || 0.22, options.spin1 || 0.42) * (Math.random() < .5 ? -1 : 1),
+          petals:this.rand(options.p0 || 4, options.p1 || 7),
+          radius:this.rand(options.r0 || 44, options.r1 || 64),
+          amp:this.rand(options.a0 || 16, options.a1 || 24),
+          color:this.pick(palette),
+          color2:this.pick(options.palette2 || palette),
+          shadow: options.shadow || 16,
+          width:this.rand(options.w0 || 1.3, options.w1 || 2.4)
+        });
+      }
+
+      pushTriNet(palette, options={}) {
+        const mkPoint = () => {
+          const a = Math.random() * Math.PI * 2;
+          const r = this.rand(options.r0 || 42, options.r1 || 72);
+          return { a, r };
+        };
+        this.particles.push({
+          kind:'triNet',
+          points:[mkPoint(), mkPoint(), mkPoint()],
+          rot:Math.random() * Math.PI * 2,
+          spin:this.rand(-0.42,0.42),
+          life:this.rand(options.life0 || 1.9, options.life1 || 3.2),
+          age:0,
+          color:this.pick(palette),
+          nodeColor: this.pick(options.nodePalette || ['rgba(255,255,255,.96)']),
+          width:this.rand(options.w0 || 1.2, options.w1 || 2.2),
+          shadow: options.shadow || 14,
+          pulse:this.rand(.8,1.4)
+        });
+      }
+
+      pushWaveSlice(palette, options={}) {
+        this.particles.push({
+          kind:'waveSlice',
+          ang:this.rand(0, Math.PI * 2),
+          arc:this.rand(options.arc0 || .36, options.arc1 || .82),
+          r:this.rand(options.r0 || 54, options.r1 || 74),
+          vr:this.rand(options.vr0 || 24, options.vr1 || 42),
+          life:this.rand(options.life0 || .9, options.life1 || 1.6),
+          age:0,
+          width:this.rand(options.w0 || 1.4, options.w1 || 3.0),
+          color:this.pick(palette),
+          shadow: options.shadow || 14
+        });
+      }
+
+      pushScanAxis(palette, options={}) {
+        this.particles.push({
+          kind:'scanAxis',
+          ang:Math.random() * Math.PI * 2,
+          dang:this.rand(0.85, 1.2) * (Math.random() < .5 ? -1 : 1),
+          rx:this.rand(options.rx0 || 78, options.rx1 || 100),
+          ry:this.rand(options.ry0 || 26, options.ry1 || 38),
+          cyOff: options.cyOff ?? 6,
+          life:this.rand(options.life0 || 1.6, options.life1 || 2.8),
+          age:0,
+          color:this.pick(palette),
+          width:this.rand(options.w0 || 1.4, options.w1 || 2.6),
+          shadow: options.shadow || 12
+        });
+      }
+
+      spawnOne() {
+        switch(this.type){
+          case 'embers': return this.pushEmber();
+          case 'motesSilver': return this.pushDot(['#e2e8f0','#cbd5e1','#f8fafc'],'drift',{life0:1.8,life1:3,size0:2.2,size1:4});
+          case 'mistSoft':
+            return this.pushSmoke(['rgba(226,232,240,.26)','rgba(148,163,184,.20)','rgba(255,255,255,.18)'], {size0:12,size1:26,life0:2.2,life1:4.0,vy0:-8,vy1:-2});
+
+          case 'fireflies': return this.pushDot(['#86efac','#fde047','#22c55e'],'orb',{size0:3,size1:6,life0:1.4,life1:2.7});
+          case 'ashFall':
+            if (Math.random()<.7) return this.particles.push({kind:'fallDot', x:this.rand(8,this.w-8), y:this.rand(-18,0), vy:this.rand(38,82), vx:this.rand(-10,10), life:this.rand(1.4,2.3), age:0, size:this.rand(2.4,4.2), color:this.pick(['#a8a29e','#d6d3d1','#fb923c']), shadow:7});
+            return this.pushSmoke(['rgba(120,113,108,.36)','rgba(168,162,158,.30)'], {size0:14,size1:28});
+          case 'dew':
+            if (Math.random()<.84) return this.pushDot(['rgba(147,197,253,.78)','rgba(103,232,249,.72)','rgba(224,242,254,.68)'],'drift',{size0:1.7,size1:3.2,life0:.9,life1:1.6,minR:56,maxR:92,vy0:-8,vy1:6});
+            return this.pushRain(['rgba(186,230,253,.68)'],{x0:this.cx-70,x1:this.cx+70,vy0:130,vy1:220,len0:5,len1:12,width:1.0,alpha0:.28,alpha1:.58});
+
+          case 'snowDust':
+            if (Math.random()<.7) return this.particles.push({kind:'snow', x:this.rand(8,this.w-8), y:this.rand(-18,2), vx:this.rand(-12,12), vy:this.rand(28,70), life:this.rand(2.0,3.8), age:0, size:this.rand(2.4,4.8), color:'#f8fafc'});
+            return this.pushShard(['#dbeafe','#bfdbfe']);
+          case 'amberDust': return this.pushDot(['#facc15','#fde68a','#f59e0b'],'drift',{size0:2.6,size1:4.8});
+
+          case 'heavyRain':
+            if (Math.random()<.92) return this.pushRain(['rgba(147,197,253,.82)','rgba(186,230,253,.72)','rgba(96,165,250,.68)'], {x0:this.cx-78,x1:this.cx+78,vy0:220,vy1:350,len0:7,len1:16,width:1.15,alpha0:.38,alpha1:.78});
+            return this.pushDot(['#bfdbfe','#60a5fa'],'drift',{size0:1.4,size1:2.8,life0:.5,life1:1.0,minR:56,maxR:90});
+
+          case 'snowSquall':
+            return this.pushSnowParticle(['rgba(248,250,252,.92)','rgba(219,234,254,.86)','rgba(191,219,254,.78)'], {x0:this.cx-76,x1:this.cx+76,vx0:-12,vx1:12,vy0:34,vy1:72,size0:1.4,size1:3.0,life0:2.2,life1:4.2});
+
+          case 'midnightSnow':
+            if (Math.random()<.86) return this.pushSnowParticle(['rgba(17,24,39,.88)','rgba(49,46,129,.82)','rgba(167,139,250,.76)','rgba(100,116,139,.72)'], {x0:this.cx-74,x1:this.cx+74,vx0:-10,vx1:10,vy0:30,vy1:68,size0:1.4,size1:3.0,life0:2.1,life1:4.0});
+            return this.pushSmoke(['rgba(30,27,75,.24)','rgba(15,23,42,.28)'], {size0:12,size1:22,life0:1.8,life1:3.2});
+
+          case 'sootRain':
+            if (Math.random()<.86) return this.particles.push({kind:'fallDot', x:this.rand(this.cx-76,this.cx+76), y:this.rand(-18,0), vy:this.rand(36,78), vx:this.rand(-6,6), life:this.rand(1.4,2.8), age:0, size:this.rand(1.5,3.2), color:this.pick(['#020617','#111827','#292524','#44403c']), shadow:4});
+            return this.pushSmoke(['rgba(15,23,42,.28)','rgba(68,64,60,.20)'], {size0:12,size1:24});
+
+          case 'obsidianSplinters':
+            if (Math.random()<.82) return this.pushFallingShard(['#020617','#111827','#4c1d95','#7c3aed'], {vx0:-22,vx1:22,vy0:74,vy1:150,size0:6,size1:13});
+            return this.pushDot(['#a78bfa','#4c1d95'],'drift',{size0:2.2,size1:4.2,life0:.8,life1:1.4});
+          case 'arcSparks':
+            if (Math.random()<.45) return this.pushArc(['rgba(96,165,250,.95)','rgba(191,219,254,.8)'], {w0:1.4,w1:2.7});
+            return this.pushDot(['#60a5fa','#dbeafe'],'drift',{life0:.8,life1:1.5});
+          case 'thornBloom':
+            if (Math.random()<.62) return this.pushLeaf(['#86efac','#22c55e','#fef08a']);
+            return this.pushShard(['#bef264','#65a30d','#84cc16']);
+          case 'moonSigils': return this.pushText(['☽','✧','✦','⭒'], ['rgba(226,232,240,1)','rgba(196,181,253,1)','rgba(191,219,254,1)'], {vy0:-34,vy1:-10});
+          case 'toxicDrizzle':
+            if (Math.random()<.82) return this.pushRain(['rgba(74,222,128,.78)','rgba(110,231,183,.70)'],{x0:this.cx-72,x1:this.cx+72,vy0:150,vy1:260,len0:6,len1:14,width:1.2,alpha0:.32,alpha1:.68});
+            return this.pushDot(['#86efac','#4ade80'],'drift',{size0:1.4,size1:3.0,life0:.8,life1:1.4,minR:56,maxR:88});
+
+          case 'starChorus':
+            if (Math.random()<.72) return this.pushText(['✦','✧','✶','·'], ['rgba(219,234,254,.9)','rgba(191,219,254,.86)','rgba(253,230,138,.82)','rgba(255,255,255,.88)'], {vy0:-8,vy1:4,size0:10,size1:18,life0:1.4,life1:2.8,shadow:10,minR:58,maxR:96});
+            return this.pushDot(['#fef3c7','#dbeafe','#c4b5fd'],'drift',{size0:1.4,size1:3.2,life0:1.2,life1:2.4,minR:62,maxR:96,vy0:-8,vy1:6});
+
+          case 'frostOrbit':
+            if (Math.random()<.6) return this.pushOrbitDot(['#dbeafe','#bfdbfe']);
+            return this.pushShard(['#dbeafe','#93c5fd']);
+          case 'spiritLanterns':
+            if (Math.random()<.52) return this.particles.push({kind:'lantern', ang:Math.random()*Math.PI*2, r:this.rand(78,112), dang:this.rand(-.6,.6), life:this.rand(2.2,3.5), age:0, size:this.rand(10,16), color:this.pick(['rgba(165,243,252,.95)','rgba(196,181,253,.95)','rgba(254,240,138,.95)'])});
+            return this.pushSmoke(['rgba(165,243,252,.22)','rgba(196,181,253,.20)'], {size0:14,size1:26});
+          case 'sunShards':
+            if (Math.random()<.6) return this.pushShard(['#fde68a','#facc15','#fb923c']);
+            return this.pushText(['✦','✶','✹'], ['rgba(254,240,138,1)','rgba(253,224,71,1)'], {vy0:-24,vy1:-6});
+          case 'inkPetals':
+            if (Math.random()<.65) return this.pushLeaf(['#a855f7','#7c3aed','#4338ca']);
+            return this.pushSmoke(['rgba(91,33,182,.38)','rgba(30,27,75,.32)'], {size0:18,size1:32});
+          case 'coinWhirl':
+            if (Math.random()<.68) return this.particles.push({kind:'orbiterText', char:this.pick(['◍','●','¤']), ang:Math.random()*Math.PI*2, r:this.rand(72,92), dang:this.rand(-.48,.48), life:this.rand(2.8,4.6), age:0, size:this.rand(12,18), color:this.pick(['#facc15','#fde68a','#f59e0b']), rot:0, spin:this.rand(-.8,.8), shadow:12});
+            return this.pushDot(['#fde68a','#facc15','#f59e0b'],'orb',{size0:1.8,size1:3.6,life0:1.4,life1:2.4,minR:62,maxR:92});
+
+          case 'stormLash':
+            if (Math.random()<.45) return this.pushBolt(['#dbeafe','#93c5fd'],1);
+            return this.pushDot(['#60a5fa','#dbeafe'],'drift',{size0:3,size1:6,life0:.7,life1:1.2});
+          case 'verdantHalo':
+            if (Math.random()<.55) return this.pushRingPulse(['rgba(34,197,94,.9)','rgba(134,239,172,.85)']);
+            return this.pushLeaf(['#22c55e','#86efac','#bbf7d0']);
+          case 'bloodRite': {
+            if (Math.random()<.22) return this.pushText(['⛧','☽','✦'], ['rgba(248,113,113,1)','rgba(185,28,28,1)','rgba(127,29,29,1)'], {vy0:-18,vy1:-3});
+            const p = this.posOnRing(60,118);
+            return this.particles.push({kind:'blood', x:p.x, y:p.y-8, vx:this.rand(-5,5), vy:this.rand(8,26), life:this.rand(1.7,2.7), age:0, size:this.rand(5,10), color:this.pick(['#ef4444','#dc2626','#991b1b','#7f1d1d']), fadeIn:.28});
+          }
+          case 'riftGlass':
+            if (Math.random()<.4) return this.pushArc(['rgba(103,232,249,.95)','rgba(216,180,254,.82)'], {w0:1.8,w1:3.4});
+            return this.pushShard(['#67e8f9','#a5f3fc','#c4b5fd']);
+          case 'dragonCinders':
+            if (Math.random()<.28) return this.pushArc(['rgba(251,146,60,.95)','rgba(254,215,170,.8)'], {w0:2,w1:4});
+            return this.pushDot(['#f97316','#fb923c','#facc15'],'rise',{size0:3,size1:6});
+          case 'oracleGlyphs': return this.pushText(['ᚠ','ᚢ','ᚱ','ᚨ','ᛞ','ᛟ','✶','✧'], ['rgba(196,181,253,1)','rgba(191,219,254,1)','rgba(165,243,252,1)'], {vy0:-42,vy1:-16,size0:16,size1:28});
+          case 'clockHalo':
+            if (Math.random()<.58) return this.pushOrbitText(['⚙','⛭','✶'], ['#f8fafc','#cbd5e1','#facc15']);
+            return this.pushOrbitDot(['#cbd5e1','#fde68a']);
+          case 'seafoam':
+            if (Math.random()<.42) return this.pushArc(['rgba(165,243,252,.95)','rgba(125,211,252,.82)'], {w0:1.8,w1:3.2});
+            return this.pushDot(['#67e8f9','#a5f3fc','#e0f2fe'],'drift');
+          case 'graveCandles': {
+            if (Math.random()<.48) {
+              const p = this.posOnRing(62,118);
+              return this.particles.push({kind:'candle', x:p.x, y:p.y+6, vx:this.rand(-3,3), vy:this.rand(-7,2), life:this.rand(2.2,3.4), age:0, size:this.rand(10,15), fadeIn:.35});
+            }
+            return this.pushSmoke(['rgba(196,181,253,.30)','rgba(241,245,249,.24)'], {size0:16,size1:28});
+          }
+          case 'crystalPulse':
+            if (Math.random()<.72) return this.pushShard(['#67e8f9','#a5f3fc','#dbeafe']);
+            return this.pushDot(['#67e8f9','#a5f3fc','#dbeafe'],'drift',{size0:3,size1:6,life0:.8,life1:1.4});
+
+          case 'shadowDust':
+            if (Math.random()<.62) return this.pushSmoke(['rgba(30,27,75,.38)','rgba(15,23,42,.42)','rgba(88,28,135,.28)'], {size0:16,size1:34});
+            return this.pushDot(['#a78bfa','#6d28d9','#334155'],'drift',{size0:2.4,size1:4.4,life0:1.1,life1:2.2});
+          case 'graveWhispers':
+            if (Math.random()<.42) return this.pushText(['☠','☽','✧','ᛟ'], ['rgba(226,232,240,1)','rgba(196,181,253,1)','rgba(134,239,172,1)'], {vy0:-32,vy1:-8,size0:14,size1:23});
+            return this.pushSmoke(['rgba(148,163,184,.30)','rgba(196,181,253,.24)','rgba(22,101,52,.22)'], {size0:16,size1:30});
+          case 'blackRain':
+            if (Math.random()<.88) return this.pushRain(['rgba(15,23,42,.86)','rgba(30,41,59,.82)','rgba(76,29,149,.72)'], {x0:this.cx-76,x1:this.cx+76,vy0:190,vy1:315,len0:7,len1:16,width:1.25,alpha0:.35,alpha1:.75});
+            return this.pushDot(['#a78bfa','#64748b'],'drift',{size0:1.4,size1:2.8,life0:.7,life1:1.2,minR:56,maxR:88});
+
+          case 'shadowChains':
+            if (Math.random()<.55) return this.pushOrbitText(['⛓','⌁','⛓'], ['#cbd5e1','#94a3b8','#a78bfa']);
+            if (Math.random()<.55) return this.pushText(['⛓','⌁'], ['rgba(203,213,225,1)','rgba(167,139,250,1)'], {vy0:-24,vy1:-8,size0:14,size1:22});
+            return this.pushSmoke(['rgba(15,23,42,.46)','rgba(88,28,135,.24)'], {size0:16,size1:30});
+          case 'necroticAsh':
+            if (Math.random()<.36) return this.pushText(['☠','✣','ᚱ','✧'], ['rgba(134,239,172,1)','rgba(74,222,128,1)','rgba(203,213,225,1)'], {vy0:-30,vy1:-6,size0:14,size1:22});
+            if (Math.random()<.65) return this.pushDot(['#86efac','#4ade80','#a3a3a3'],'rise',{size0:2.4,size1:5.0,life0:1.1,life1:2.0});
+            return this.pushSmoke(['rgba(22,101,52,.28)','rgba(63,63,70,.30)'], {size0:16,size1:32});
+          case 'voidShards':
+            if (Math.random()<.68) return this.pushShard(['#a78bfa','#7c3aed','#4c1d95','#e879f9']);
+            return this.pushSmoke(['rgba(76,29,149,.32)','rgba(15,23,42,.44)'], {size0:18,size1:34});
+          case 'shadowNeedles':
+            if (Math.random()<.86) return this.pushFallingShard(['#020617','#111827','#312e81','#6d28d9'], {vx0:-8,vx1:8,vy0:105,vy1:190,size0:7,size1:15,life0:1.0,life1:1.9});
+            return this.pushDot(['#a78bfa','#4c1d95'],'drift',{size0:2,size1:4});
+          case 'inkComets':
+            if (Math.random()<.72) return this.pushComet(['#020617','#111827','#312e81','#4c1d95'], {vx0:70,vx1:125,vy0:45,vy1:100,size0:4.5,size1:8.5,trail:['rgba(15,23,42,.55)','rgba(88,28,135,.36)','rgba(2,6,23,.62)']});
+            return this.pushSmoke(['rgba(15,23,42,.42)','rgba(88,28,135,.24)'], {size0:16,size1:30});
+          case 'nightScript':
+            if (Math.random()<.55) return this.pushText(['ᚾ','ᛟ','☽','✧','⛧'], ['rgba(15,23,42,1)','rgba(49,46,129,1)','rgba(167,139,250,1)'], {vy0:-28,vy1:-8,size0:15,size1:25,shadow:16});
+            return this.pushSmoke(['rgba(15,23,42,.44)','rgba(49,46,129,.25)'], {size0:14,size1:28});
+          case 'neonRain':
+            if (Math.random()<.94) return this.pushNeonRain({x0:this.cx-76,x1:this.cx+76,vy0:185,vy1:320,len0:6,len1:15,w0:1.0,w1:1.6,alpha0:.34,alpha1:.72});
+            return this.pushDot(['#22d3ee','#f472b6','#60a5fa'],'drift',{size0:1.4,size1:2.8,life0:.6,life1:1.2,minR:58,maxR:90});
+
+          case 'holoGlitch':
+            return this.pushGlitchRect(['rgba(34,211,238,.74)','rgba(244,114,182,.70)','rgba(255,255,255,.58)'], {x0:this.cx-66,x1:this.cx+66,y0:this.cy-66,y1:this.cy+66,w0:10,w1:34,h0:1,h1:4,life0:.14,life1:.32,vx0:-8,vx1:8,vy0:-4,vy1:4,clipAvatar:true});
+
+          case 'dataSparks':
+            if (Math.random()<.55) return this.pushText(['0','1','{ }','<>','▢','▣'], ['rgba(34,211,238,1)','rgba(74,222,128,1)','rgba(244,114,182,1)'], {vy0:-34,vy1:-8,size0:12,size1:20,life0:.9,life1:1.7,shadow:12});
+            return this.pushDot(['#22d3ee','#4ade80','#f472b6'],'rise',{size0:2.4,size1:4.8,life0:.8,life1:1.5});
+          case 'laserSights':
+            if (Math.random()<.78) return this.pushLaserLine(['rgba(239,68,68,.95)','rgba(248,113,113,.95)','rgba(244,114,182,.85)']);
+            return this.pushDot(['#ef4444','#f472b6'],'drift',{size0:2,size1:4,life0:.5,life1:1.0});
+          case 'plasmaCircuit':
+            if (Math.random()<.48) return this.pushArc(['rgba(34,211,238,.98)','rgba(59,130,246,.84)'], {w0:1.8,w1:3.8,life0:.45,life1:.9});
+            if (Math.random()<.55) return this.pushGlitchRect(['rgba(34,211,238,.72)','rgba(59,130,246,.68)'], {w0:12,w1:36,h0:2,h1:5,life0:.18,life1:.38});
+            return this.pushDot(['#22d3ee','#60a5fa','#e0f2fe'],'drift',{size0:2.5,size1:5.2,life0:.7,life1:1.3});
+          case 'quantumPixels':
+            if (Math.random()<.84) return this.pushFrameGlitch(['rgba(167,139,250,.72)','rgba(34,211,238,.68)','rgba(248,250,252,.62)']);
+            return this.pushDot(['#a78bfa','#22d3ee','#f8fafc'],'orb',{size0:1.6,size1:3.2,life0:.8,life1:1.4,minR:72,maxR:92});
+
+          case 'orbitalScan':
+            if (Math.random() < .72) {
+              const horizontal = Math.random() < .6;
+              const pos = horizontal ? this.rand(this.cy - 84, this.cy + 84) : this.rand(this.cx - 84, this.cx + 84);
+              return this.particles.push({
+                kind:'laserLine',
+                horizontal,
+                pos,
+                offset:this.rand(-3,3),
+                life:this.rand(.36, .82),
+                age:0,
+                width:this.rand(2.6, 5.2),
+                color:this.pick(['rgba(125,211,252,.98)','rgba(34,211,238,.96)','rgba(255,255,255,.92)'])
+              });
+            }
+            if (Math.random() < .55) return this.pushGlitchRect(['rgba(34,211,238,.66)','rgba(125,211,252,.62)','rgba(255,255,255,.44)'], {w0:36,w1:104,h0:1,h1:3,life0:.24,life1:.60});
+            return this.pushText(['SCAN','▣','//'], ['rgba(34,211,238,1)','rgba(125,211,252,1)','rgba(255,255,255,.95)'], {vy0:-12,vy1:8,size0:11,size1:16,life0:.45,life1:.9,shadow:10});
+          case 'cyberGhost':
+            if (Math.random()<.46) return this.pushText(['ghost','404','▣','░'], ['rgba(167,139,250,1)','rgba(34,211,238,1)','rgba(148,163,184,.95)'], {vy0:-22,vy1:4,size0:12,size1:18,life0:.7,life1:1.4,shadow:16});
+            if (Math.random()<.58) return this.pushGlitchRect(['rgba(167,139,250,.62)','rgba(15,23,42,.74)','rgba(34,211,238,.48)'], {w0:10,w1:46,h0:3,h1:9,life0:.18,life1:.44});
+            return this.pushSmoke(['rgba(15,23,42,.42)','rgba(76,29,149,.28)'], {size0:16,size1:34});
+          case 'ionTrails':
+            return this.pushComet(['#22d3ee','#60a5fa','#a5f3fc'], {vx0:92,vx1:170,vy0:36,vy1:86,size0:3.5,size1:7,life0:.8,life1:1.35,trail:['rgba(34,211,238,.38)','rgba(96,165,250,.32)']});
+          case 'glitchFrame':
+            if (Math.random() < .74) return this.pushFrameGlitch(['rgba(34,211,238,.92)','rgba(244,114,182,.86)','rgba(255,255,255,.86)','rgba(167,139,250,.82)']);
+            return this.pushLaserLine(['rgba(34,211,238,.72)','rgba(244,114,182,.66)','rgba(255,255,255,.68)']);
+          case 'phaseOrbit':
+            if (Math.random() < .72) return this.pushPhaseOrbiter(['#22d3ee','#c4b5fd','#f8fafc','#f472b6']);
+            return this.pushDot(['#22d3ee','#c4b5fd','#e0f2fe'],'drift',{size0:1.8,size1:3.8,life0:.7,life1:1.3,minR:78,maxR:110,vy0:-8,vy1:8});
+          case 'meridianOrbit':
+            if (Math.random() < .74) return this.pushMeridianOrbiter(['#22d3ee','#c4b5fd','#f8fafc','#f472b6']);
+            return this.pushDot(['#22d3ee','#c4b5fd','#e0f2fe'],'drift',{size0:1.8,size1:3.4,life0:.7,life1:1.2,minR:58,maxR:94,vy0:-10,vy1:6});
+          case 'tracerTail':
+            return this.pushComet(['#f8fafc','#22d3ee','#60a5fa','#f472b6'], {vx0:70,vx1:130,vy0:-14,vy1:72,size0:4.0,size1:7.5,life0:.9,life1:1.55,trail:['rgba(125,211,252,.42)','rgba(244,114,182,.30)','rgba(255,255,255,.28)']});
+          case 'infernoCrown':
+            if (Math.random() < .52) return this.pushFlameTongue();
+            if (Math.random() < .74) return this.pushSmoke(['rgba(68,12,0,.28)','rgba(120,53,15,.24)','rgba(38,38,38,.20)'], {size0:18,size1:32,vy0:-28,vy1:-6});
+            return this.pushEmber();
+          case 'hyperspaceJump':
+            if (Math.random() < .82) return this.pushPerimeterStreak(['rgba(255,255,255,.98)','rgba(125,211,252,.98)','rgba(96,165,250,.92)','rgba(196,181,253,.90)']);
+            return this.pushDot(['#ffffff','#bfdbfe','#c4b5fd'],'drift',{size0:1.8,size1:4.2,life0:.42,life1:.82,minR:84,maxR:104,vy0:-5,vy1:5});
+          case 'blackIce':
+
+            if (Math.random()<.38) return this.pushGlitchRect(['rgba(2,6,23,.9)','rgba(239,68,68,.8)','rgba(15,23,42,.86)'], {w0:18,w1:60,h0:3,h1:9,life0:.2,life1:.55});
+            if (Math.random()<.65) return this.pushFallingShard(['#020617','#111827','#ef4444','#7f1d1d'], {vx0:-12,vx1:12,vy0:80,vy1:155,size0:6,size1:12});
+            return this.pushText(['ERR','404','!','▣'], ['rgba(239,68,68,1)','rgba(248,113,113,1)','rgba(15,23,42,1)'], {vy0:-18,vy1:5,size0:12,size1:18,life0:.7,life1:1.4,shadow:16});
+
+          case 'ghostFireflies':
+            return this.pushFirefly(['rgba(191,219,254,.98)','rgba(165,243,252,.94)','rgba(255,255,255,.92)'], {size0:2.8,size1:4.8,life0:2.1,life1:3.8,vy0:-20,vy1:-6});
+          case 'goldenFireflies':
+            return this.pushFirefly(['rgba(253,224,71,.98)','rgba(255,244,180,.95)','rgba(251,191,36,.90)'], {size0:2.8,size1:5.2,life0:2.0,life1:3.6,vy0:-18,vy1:-4});
+          case 'equatorOrbit':
+            if (Math.random() < .78) return this.pushEquatorOrbiter(['#e0f2fe','#c4b5fd','#f8fafc'], {cyOff:4, rx0:78, rx1:100, ry0:22, ry1:34});
+            return this.pushDot(['#e0f2fe','#c4b5fd'],'drift',{size0:1.4,size1:3.0,life0:.8,life1:1.35,minR:70,maxR:104,vy0:-6,vy1:5});
+          case 'goldenGlint':
+            return this.pushGemGlint(['rgba(255,244,180,.98)','rgba(253,224,71,.98)','rgba(251,191,36,.92)'], {withinAvatar:true,maxR:74,size0:2.2,size1:4.8,life0:1.0,life1:1.8,shadow:8});
+          case 'violetAether':
+            if (Math.random() < .58) return this.pushSmoke(['rgba(88,28,135,.26)','rgba(167,139,250,.28)','rgba(76,29,149,.22)'], {size0:18,size1:32,vy0:-18,vy1:-4});
+            if (Math.random() < .82) return this.pushDot(['#c4b5fd','#e9d5ff','#a78bfa'],'rise',{size0:2.0,size1:4.8,life0:1.0,life1:1.9,minR:56,maxR:104,vy0:-42,vy1:-12});
+            return this.pushSparkle(['rgba(196,181,253,.95)','rgba(233,213,255,.92)'], {size0:4,size1:8});
+          case 'amethystDust':
+            if (Math.random() < .74) return this.pushDot(['#a78bfa','#c4b5fd','#ddd6fe'],'drift',{size0:1.6,size1:3.2,life0:.9,life1:1.7,minR:58,maxR:102,vy0:-10,vy1:6});
+            return this.pushSmoke(['rgba(109,40,217,.18)','rgba(167,139,250,.18)'], {size0:16,size1:28,vy0:-10,vy1:-2});
+          case 'retroSunset':
+            if (Math.random() < .45) return this.pushLaserLine(['rgba(244,114,182,.82)','rgba(34,211,238,.72)','rgba(253,186,116,.68)']);
+            if (Math.random() < .75) return this.pushGlitchRect(['rgba(244,114,182,.72)','rgba(34,211,238,.68)','rgba(251,146,60,.55)'], {w0:22,w1:72,h0:2,h1:6,life0:.16,life1:.5});
+            return this.pushRingPulse(['rgba(244,114,182,.72)','rgba(34,211,238,.68)','rgba(251,146,60,.55)']);
+          case 'vhsGlitch':
+            if (Math.random() < .62) return this.pushGlitchRect(['rgba(239,68,68,.62)','rgba(34,211,238,.62)','rgba(255,255,255,.52)'], {w0:30,w1:96,h0:1,h1:4,life0:.12,life1:.36});
+            return this.pushText(['REC','//','▣','||'], ['rgba(239,68,68,.92)','rgba(34,211,238,.88)','rgba(255,255,255,.82)'], {vy0:-8,vy1:8,size0:10,size1:15,life0:.45,life1:.9,shadow:10});
+          case 'haloDawn':
+            if (Math.random() < .68) return this.pushHaloArc(['rgba(255,244,180,.96)','rgba(255,255,255,.92)','rgba(253,224,71,.88)'], {yOff:-76,rx0:34,rx1:48,ry0:7,ry1:12});
+            return this.pushDot(['#fde68a','#ffffff','#fef3c7'],'rise',{size0:1.6,size1:3.2,life0:.9,life1:1.5,minR:62,maxR:96,vy0:-28,vy1:-10});
+          case 'umbraCrown':
+            if (Math.random() < .66) return this.pushHaloArc(['rgba(2,6,23,.94)','rgba(88,28,135,.72)','rgba(124,58,237,.66)'], {yOff:-76,rx0:36,rx1:50,ry0:8,ry1:14,dark:true,shadow:12});
+            return this.pushSmoke(['rgba(2,6,23,.30)','rgba(76,29,149,.24)','rgba(88,28,135,.18)'], {size0:18,size1:30,vy0:-12,vy1:-2});
+          case 'chronoDial':
+            if (Math.random() < .42) return this.pushOrbitText(['I','II','III','VI','IX','XII'], ['rgba(255,244,180,.94)','rgba(191,219,254,.88)','rgba(255,255,255,.88)']);
+            if (Math.random() < .74) return this.pushRingPulse(['rgba(191,219,254,.74)','rgba(255,244,180,.65)','rgba(196,181,253,.62)']);
+            return this.pushArc(['rgba(191,219,254,.78)','rgba(255,244,180,.65)'], {life0:.45,life1:.92,w0:1.2,w1:2.6});
+          case 'timeSands':
+            if (Math.random() < .72) return this.pushFirefly(['rgba(255,244,180,.92)','rgba(253,224,71,.88)','rgba(245,158,11,.84)'], {size0:1.8,size1:3.6,life0:1.6,life1:2.8,vy0:-8,vy1:12,ampX0:4,ampX1:12,ampY0:4,ampY1:10});
+            return this.pushSparkle(['rgba(255,244,180,.88)','rgba(245,158,11,.76)'], {size0:3,size1:6,life0:.35,life1:.8});
+          case 'runeAscent':
+            return this.pushText(['ᚱ','ᛟ','ᚨ','ᛉ','✧','ᚾ'], ['rgba(196,181,253,.96)','rgba(255,255,255,.92)','rgba(34,211,238,.88)'], {vy0:-34,vy1:-12,size0:14,size1:22,life0:1.1,life1:2.1,shadow:14});
+          case 'arcaneWreath':
+            if (Math.random() < .42) return this.pushText(['ᚱ','ᛟ','ᛇ','ᚨ','✦'], ['rgba(196,181,253,.96)','rgba(233,213,255,.94)','rgba(34,211,238,.88)'], {vy0:-28,vy1:-8,size0:14,size1:24,life0:1.2,life1:2.2,shadow:16});
+            if (Math.random() < .72) return this.pushArc(['rgba(167,139,250,.82)','rgba(34,211,238,.66)'], {life0:.35,life1:.86,w0:1.2,w1:2.6});
+            return this.pushRingPulse(['rgba(167,139,250,.72)','rgba(34,211,238,.62)','rgba(255,255,255,.52)']);
+          case 'tacticalLock':
+            if (Math.random() < .48) return this.pushLaserLine(['rgba(248,113,113,.92)','rgba(255,255,255,.82)','rgba(148,163,184,.62)']);
+            if (Math.random() < .78) return this.pushGlitchRect(['rgba(248,113,113,.68)','rgba(255,255,255,.55)','rgba(148,163,184,.55)'], {w0:18,w1:58,h0:2,h1:5,life0:.15,life1:.42});
+            return this.pushText(['LOCK','ARM','//','01'], ['rgba(248,113,113,.94)','rgba(255,255,255,.88)','rgba(148,163,184,.82)'], {vy0:-10,vy1:6,size0:10,size1:15,life0:.45,life1:.9,shadow:8});
+          case 'brutalistHud':
+            return this.pushGlitchRect(['rgba(245,158,11,.62)','rgba(255,255,255,.46)','rgba(100,116,139,.52)'], {x0:this.cx-68,x1:this.cx+68,y0:this.cy-68,y1:this.cy+68,w0:16,w1:48,h0:3,h1:7,life0:.18,life1:.46,vx0:-6,vx1:6,vy0:-4,vy1:4,clipAvatar:true});
+
+          case 'corporateVeil':
+            if (Math.random() < .72) return this.pushGlitchRect(['rgba(229,231,235,.56)','rgba(148,163,184,.48)','rgba(220,38,38,.38)'], {x0:this.cx-68,x1:this.cx+68,y0:this.cy-68,y1:this.cy+68,w0:14,w1:44,h0:2,h1:5,life0:.16,life1:.40,vx0:-5,vx1:5,vy0:-3,vy1:3,clipAvatar:true});
+            return this.pushText(['SEC','NET','01'], ['rgba(229,231,235,.80)','rgba(148,163,184,.76)','rgba(220,38,38,.64)'], {vy0:-4,vy1:4,size0:9,size1:13,life0:.65,life1:1.05,shadow:7,minR:54,maxR:72});
+
+          case 'kanjiStream':
+            return this.pushText(['企','戦','安','全','網','技','社'], ['rgba(34,211,238,.96)','rgba(255,255,255,.90)','rgba(248,113,113,.86)'], {vy0:10,vy1:24,size0:12,size1:18,life0:.7,life1:1.45,shadow:10});
+          case 'gearOrbit':
+            if (Math.random() < .78) return this.particles.push({kind:'orbiterText', char:this.pick(['⚙','⛭','⛯']), ang:Math.random()*Math.PI*2, r:this.rand(72,90), dang:this.rand(-.36,.36), life:this.rand(3.0,5.0), age:0, size:this.rand(12,17), color:this.pick(['rgba(245,158,11,.82)','rgba(251,191,36,.76)','rgba(255,244,180,.70)']), rot:0, spin:this.rand(-.5,.5), shadow:10});
+            return this.pushSparkle(['rgba(245,158,11,.62)','rgba(255,244,180,.58)'], {size0:2.2,size1:4.6,life0:.45,life1:1.0,minR:64,maxR:88});
+
+          case 'steamValves':
+            if (Math.random() < .56) return this.pushSmoke(['rgba(180,83,9,.22)','rgba(148,163,184,.26)','rgba(120,53,15,.20)'], {size0:18,size1:34,vy0:-18,vy1:-4});
+            if (Math.random() < .84) return this.pushOrbitText(['⚙','•','⛭'], ['rgba(180,83,9,.88)','rgba(255,244,180,.74)','rgba(148,163,184,.66)']);
+            return this.pushSparkle(['rgba(245,158,11,.72)','rgba(255,244,180,.72)'], {size0:3,size1:7,life0:.3,life1:.7});
+
+          case 'silverGlint':
+            return this.pushGemGlint(['rgba(255,255,255,.98)','rgba(226,232,240,.96)','rgba(191,219,254,.92)'], {withinAvatar:true,maxR:74,size0:2.1,size1:4.5,life0:1.0,life1:1.8,shadow:8});
+          case 'gemGrotto':
+            return this.pushGemGlint(['rgba(34,211,238,.96)','rgba(196,181,253,.94)','rgba(253,224,71,.92)','rgba(244,114,182,.92)'], {withinAvatar:true,maxR:74,size0:2.3,size1:4.9,life0:1.0,life1:1.9,shadow:9});
+          case 'lowEquatorOrbit':
+            if (Math.random() < .82) return this.pushEquatorOrbiter(['#e0f2fe','#c4b5fd','#f8fafc'], {cyOff:10, rx0:72, rx1:90, ry0:18, ry1:26, size0:2.4, size1:4.0, d0:.72,d1:1.10, trails:['rgba(34,211,238,.14)','rgba(196,181,253,.12)','rgba(255,255,255,.10)']});
+            return this.pushDot(['#e0f2fe','#c4b5fd'],'drift',{size0:1.0,size1:2.1,life0:.8,life1:1.2,minR:66,maxR:88,vy0:-3,vy1:4});
+
+          case 'redEquatorScan':
+            if (!this.particles.some(p => p.kind === 'crossScan')) return this.pushCrossScan(['rgba(248,113,113,.96)','rgba(239,68,68,.92)'], {rx0:76,rx1:82,ry0:76,ry1:82,w0:1.6,w1:2.2,rangeFactor:.54,life0:60,life1:60,sx0:40,sx1:66,sy0:40,sy1:66});
+            return;
+          case 'matrixRain':
+            return this.pushMatrixGlyph(['rgba(34,197,94,.96)','rgba(74,222,128,.92)','rgba(187,247,208,.88)'], ['0','1','ア','ネ','ﾊ','ｦ','ｶ','ｻ','ﾂ','ｵ','ﾏ','ﾘ','ﾄ','ﾖ'], {clipR:76});
+          case 'diamondShimmer':
+            return this.pushGemGlint(['rgba(255,255,255,.98)','rgba(224,231,255,.94)','rgba(191,219,254,.92)'], {withinAvatar:true,maxR:74,size0:1.9,size1:4.4,life0:.95,life1:1.75,shadow:8});
+          case 'matrixRainCyan':
+            return this.pushMatrixGlyph(['rgba(34,211,238,.96)','rgba(125,211,252,.92)','rgba(224,242,254,.88)'], ['0','1','<>','//','::','[]','{}','*'], {clipR:76});
+          case 'matrixRainViolet':
+            return this.pushMatrixGlyph(['rgba(196,181,253,.96)','rgba(167,139,250,.92)','rgba(233,213,255,.88)'], ['0','1','ᚱ','ᛟ','✦','◇','⊙','ᚨ'], {clipR:76});
+          case 'matrixRainGold':
+            return this.pushMatrixGlyph(['rgba(253,224,71,.96)','rgba(251,191,36,.92)','rgba(255,244,180,.88)'], ['0','1','¥','¤','+',':','//','□'], {clipR:76});
+          case 'prismaticRibbons':
+            return this.pushRibbon(['rgba(34,211,238,.88)','rgba(244,114,182,.86)','rgba(253,224,71,.78)','rgba(196,181,253,.86)']);
+          case 'matrixOrbit':
+            return this.pushOrbitGlyph(['rgba(34,197,94,.92)','rgba(74,222,128,.88)','rgba(187,247,208,.84)'], ['0','1','ア','ネ','ﾊ','ｦ','ｶ','ｻ','ﾂ','ｵ','ﾏ','ﾘ','ﾄ','ﾖ','<>','//'], {d0:0.22,d1:0.48,r0:88,r1:100,size0:9,size1:13,life0:2.2,life1:4.2,shadow:13});
+          case 'quantumHex':
+            return this.pushHexCell(['rgba(34,211,238,.78)','rgba(125,211,252,.72)','rgba(196,181,253,.68)','rgba(255,255,255,.72)'], {minR:70,maxR:84,size0:4,size1:8,life0:.9,life1:1.6,shadow:10});
+
+          case 'hexBeacon':
+            return this.pushHexCell(['rgba(56,189,248,.88)','rgba(224,231,255,.86)','rgba(196,181,253,.8)'], {minR:40,maxR:88,size0:7,size1:11,life0:.8,life1:1.5,shadow:10});
+          case 'signalWave':
+            if (Math.random() < .78) return this.pushWaveSlice(['rgba(248,113,113,.92)','rgba(56,189,248,.88)','rgba(255,255,255,.82)'], {r0:56,r1:72,vr0:22,vr1:36,arc0:.32,arc1:.68});
+            return this.pushDot(['#fca5a5','#93c5fd','#ffffff'],'drift',{size0:1.1,size1:2.8,life0:.5,life1:1.1,minR:58,maxR:78,vy0:-4,vy1:4});
+          case 'ringGlints':
+            return this.pushGemGlint(['rgba(255,255,255,.98)','rgba(253,224,71,.94)','rgba(191,219,254,.92)','rgba(196,181,253,.90)'], {minR:58,maxR:74,size0:2.0,size1:4.5,life0:1.0,life1:1.8,shadow:8});
+          case 'triNet':
+            if (!this.particles.some(p => p.kind === 'triNet')) return this.pushTriNet(['rgba(56,189,248,.82)','rgba(244,114,182,.76)','rgba(196,181,253,.78)'], {nodePalette:['rgba(255,255,255,.96)','rgba(224,231,255,.92)'], r0:42,r1:72, life0:2.1, life1:3.4});
+            return;
+          case 'starConstellations':
+            return this.pushConstellation(['rgba(191,219,254,.92)','rgba(196,181,253,.88)','rgba(167,243,208,.82)'], {nodePalette:['rgba(255,255,255,.98)','rgba(219,234,254,.95)'], maxR:74, life0:2.4, life1:4.1});
+          case 'webRunner':
+            if (!this.particles.some(p => p.kind === 'webSwarm')) return this.pushWebSwarm('webSwarm', ['rgba(34,211,238,.82)','rgba(96,165,250,.82)','rgba(244,114,182,.74)'], {count:4, radius:66, connectDist:82, life0:60, life1:60, nodePalette:['rgba(255,255,255,.96)','rgba(191,219,254,.94)']});
+            return;
+          case 'relayMesh':
+            if (!this.particles.some(p => p.kind === 'ringRelay')) return this.pushRingRelay(['rgba(56,189,248,.80)','rgba(196,181,253,.76)'], {count:5, rx:74, ry:74, life0:60, life1:60, nodePalette:['rgba(255,255,255,.96)','rgba(224,231,255,.94)'], d0:0.12, d1:0.28});
+            return;
+          case 'fractureBloom':
+            return this.pushFractureBloom(['rgba(244,114,182,.90)','rgba(125,211,252,.88)','rgba(250,204,21,.84)'], {corePalette:['rgba(255,255,255,.98)','rgba(254,249,195,.95)'], maxR:34, life0:1.8, life1:3.0});
+          case 'holoIris':
+            return this.pushIrisSector(['rgba(34,211,238,.16)','rgba(196,181,253,.17)','rgba(56,189,248,.14)','rgba(244,114,182,.12)'], {edgePalette:['rgba(255,255,255,.76)','rgba(224,231,255,.70)'], in0:58, in1:66, out0:72, out1:84, life0:.75, life1:1.35, s0:.18, s1:.34, shadow:10});
+
+          case 'solarIris':
+            return this.pushIrisSector(['rgba(253,224,71,.24)','rgba(251,191,36,.20)','rgba(255,244,180,.18)'], {edgePalette:['rgba(255,251,235,.96)','rgba(254,240,138,.92)'], in0:26, in1:46, out0:60, out1:80, life0:1.0, life1:1.8, s0:.34, s1:.62, shadow:14});
+          case 'violetIris':
+            return this.pushIrisSector(['rgba(196,181,253,.24)','rgba(167,139,250,.22)','rgba(244,114,182,.16)'], {edgePalette:['rgba(233,213,255,.94)','rgba(255,255,255,.84)'], in0:22, in1:42, out0:58, out1:78, life0:1.05, life1:1.9, s0:.28, s1:.54, shadow:15});
+          case 'sentinelRelay':
+            if (!this.particles.some(p => p.kind === 'ringRelay')) return this.pushRingRelay(['rgba(34,211,238,.80)','rgba(224,242,254,.76)'], {count:4, rx:74, ry:74, life0:60, life1:60, nodePalette:['rgba(255,255,255,.96)','rgba(186,230,253,.92)'], d0:0.10, d1:0.22, w0:1.0, w1:1.5});
+            return;
+          case 'violetRelay':
+            if (!this.particles.some(p => p.kind === 'ringRelay')) return this.pushRingRelay(['rgba(196,181,253,.82)','rgba(244,114,182,.72)'], {count:6, rx:74, ry:74, life0:60, life1:60, nodePalette:['rgba(255,255,255,.94)','rgba(233,213,255,.92)'], d0:0.10, d1:0.22, w0:1.0, w1:1.5, mode:'violet'});
+            return;
+          case 'hypnoSpiral':
+            if (!this.particles.some(p => p.kind === 'hypnoSpiral')) return this.pushHypnoSpiral(['rgba(34,211,238,.92)','rgba(196,181,253,.88)','rgba(253,224,71,.78)'], {palette2:['rgba(255,255,255,.96)','rgba(244,114,182,.80)'], t0:1.7, t1:2.6, r0:66, r1:80, w0:1.3, w1:2.2, shadow:16, life0:60, life1:60});
+            return;
+          case 'aetherLoom':
+            if (!this.particles.some(p => p.kind === 'aetherLoom')) return this.pushAetherLoom(['rgba(34,211,238,.90)','rgba(196,181,253,.88)','rgba(255,255,255,.84)'], {palette2:['rgba(244,114,182,.74)','rgba(125,211,252,.78)'], a10:6,a11:9,a20:3,a21:7,f10:4.2,f11:6.0,f20:3.4,f21:5.2,w0:1.2,w1:2.0,shadow:15,r0:67,r1:74,life0:60,life1:60});
+            return;
+          case 'mobiusRibbon':
+            if (!this.particles.some(p => p.kind === 'mobiusRibbon')) return this.pushMobiusRibbon(['rgba(34,211,238,.96)','rgba(244,114,182,.90)','rgba(255,255,255,.92)'], {palette2:['rgba(196,181,253,.90)','rgba(125,211,252,.86)'], band0:22,band1:30,s0:58,s1:70,w0:2.1,w1:3.0,shadow:18,life0:60,life1:60,spin0:0.32,spin1:0.52});
+            return;
+          case 'pulsarRose':
+            if (!this.particles.some(p => p.kind === 'rosePulse')) return this.pushRosePulse(['rgba(34,211,238,.92)','rgba(196,181,253,.90)','rgba(255,255,255,.88)'], {palette2:['rgba(250,204,21,.78)','rgba(244,114,182,.76)'], p0:4,p1:7,r0:48,r1:66,a0:14,a1:22,w0:1.5,w1:2.4,shadow:16,life0:60,life1:60});
+            return;
+          case 'eclipseCrown':
+            if (Math.random()<.4) return this.pushOrbitDot(['#f8fafc','#c4b5fd','#fde68a']);
+            return this.pushSmoke(['rgba(168,85,247,.36)','rgba(30,27,75,.32)'], {size0:18,size1:34});
+          case 'celestialChoir':
+            if (Math.random()<.5) return this.pushText(['✦','✶','☼','✹'], ['rgba(254,240,138,1)','rgba(255,251,235,1)','rgba(253,224,71,1)'], {vy0:-30,vy1:-6,size0:16,size1:28});
+            return this.pushArc(['rgba(254,240,138,.95)','rgba(255,251,235,.8)'], {w0:1.8,w1:3.4});
+          case 'phoenixTrail':
+            if (Math.random()<.32) return this.particles.push({kind:'feather', x:this.posOnRing().x, y:this.posOnRing().y, vx:this.rand(-8,8), vy:this.rand(-40,-12), rot:Math.random()*Math.PI*2, spin:this.rand(-2,2), life:this.rand(1.4,2.2), age:0, size:this.rand(11,20), color:this.pick(['#fb923c','#facc15','#fca5a5'])});
+            return this.pushDot(['#f97316','#fb923c','#fde68a'],'rise',{size0:3,size1:6});
+          case 'worldTreeVeins':
+            if (Math.random()<.5) return this.pushRingPulse(['rgba(34,197,94,.9)','rgba(110,231,183,.85)']);
+            return this.pushLeaf(['#22c55e','#bbf7d0','#fef08a']);
+          case 'prismMonarch':
+            if (Math.random()<.5) return this.pushArc([this.pick(['rgba(96,165,250,.95)','rgba(244,114,182,.95)','rgba(250,204,21,.95)']), this.pick(['rgba(34,211,238,.82)','rgba(192,132,252,.82)','rgba(253,186,116,.82)'])], {w0:2,w1:4});
+            return this.pushDot(['#60a5fa','#f472b6','#facc15','#22d3ee','#c084fc'],'drift',{size0:3,size1:6});
+          case 'nightfall':
+            if (Math.random()<.62) return this.pushRain(['rgba(2,6,23,.84)','rgba(15,23,42,.78)','rgba(49,46,129,.70)'], {x0:this.cx-78,x1:this.cx+78,vy0:170,vy1:300,len0:7,len1:16,width:1.25,alpha0:.32,alpha1:.70});
+            if (Math.random()<.5) return this.pushText(['✦','✧','·'], ['rgba(100,116,139,.84)','rgba(167,139,250,.80)','rgba(226,232,240,.72)'], {vy0:-8,vy1:6,size0:10,size1:16,life0:1.0,life1:1.8,shadow:10,minR:58,maxR:90});
+            return this.pushSmoke(['rgba(2,6,23,.42)','rgba(49,46,129,.24)'], {size0:14,size1:28});
+
+          case 'oblivionScript':
+            if (Math.random()<.62) return this.pushText(['ᛟ','ᚱ','⛧','☽','𓂀'], ['rgba(15,23,42,1)','rgba(88,28,135,1)','rgba(216,180,254,1)'], {vy0:-34,vy1:-10,size0:18,size1:30,shadow:18});
+            return this.pushSmoke(['rgba(15,23,42,.58)','rgba(88,28,135,.34)'], {size0:18,size1:38});
+          case 'blackAurora':
+            if (Math.random()<.46) return this.pushArc(['rgba(15,23,42,.9)','rgba(167,139,250,.72)'], {w0:2,w1:4.5,life0:.8,life1:1.5});
+            if (Math.random()<.6) return this.pushDot(['#a78bfa','#4c1d95','#111827'],'drift',{size0:2.5,size1:5.5,life0:1.0,life1:1.8});
+            return this.pushSmoke(['rgba(15,23,42,.52)','rgba(76,29,149,.28)'], {size0:18,size1:36});
+          case 'thunderThrone':
+            if (Math.random()<.55) return this.pushBolt(['#ffffff','#93c5fd'], 2 + Math.floor(Math.random()*2));
+            return this.pushDot(['#dbeafe','#60a5fa'],'drift',{size0:3,size1:6});
+          case 'netherSigil':
+            if (Math.random()<.35) return this.pushText(['⛧','✦','☽','✶'], ['rgba(248,113,113,1)','rgba(234,88,12,1)','rgba(168,85,247,1)'], {vy0:-32,vy1:-6,size0:16,size1:28});
+            return this.pushSmoke(['rgba(127,29,29,.34)','rgba(88,28,135,.30)'], {size0:18,size1:34});
+        }
+      }
+
+      update(now) {
+        try {
+          const dt = Math.min((now - this.last) / 1000, 0.033);
+          this.last = now;
+          const ctx = this.ctx;
+          ctx.clearRect(0,0,this.w,this.h);
+
+          if (!this.active) return;
+          if (paused) {
+            this.drawPause();
+            return;
+          }
+
+          this.spawn(dt * 1000);
+          const next = [];
+
+          for (const p of this.particles) {
+            p.age += dt;
+            if (p.age > p.life) continue;
+            const t = p.age / p.life;
+
+            switch (p.kind) {
+              case 'text':
+              case 'smoke':
+              case 'leaf':
+              case 'shard':
+              case 'blood':
+              case 'candle':
+              case 'feather':
+              case 'flame':
+                p.x += (p.vx || 0) * dt;
+                p.y += (p.vy || 0) * dt;
+                if (p.kind === 'leaf' || p.kind === 'shard' || p.kind === 'feather' || p.kind === 'text') p.rot += (p.spin || 0) * dt;
+                if (p.kind === 'smoke') p.x += Math.sin(p.age * 1.8 + (p.phase || 0)) * 0.25;
+                if (p.kind === 'flame') p.x = p.x0 + Math.sin(p.age * (p.freq || 5) + (p.phase || 0)) * (p.amp || 6);
+                break;
+              case 'ember':
+                p.y += p.vy * dt;
+                p.x = p.x0 + Math.sin(p.age * p.freq + p.phase) * p.amp;
+                break;
+              case 'dot':
+                if (p.mode === 'rise') {
+                  p.y += p.vy * dt;
+                  p.x = p.x0 + Math.sin(p.age * p.freq + p.phase) * p.amp;
+                } else if (p.mode === 'orb') {
+                  p.x += Math.cos(p.age * 2 + p.phase) * 0.55;
+                  p.y += Math.sin(p.age * 2 + p.phase) * 0.55;
+                } else {
+                  p.x += (p.vx || 0) * dt;
+                  p.y += (p.vy || 0) * dt * 0.25;
+                }
+                break;
+              case 'comet':
+                p.px = p.x;
+                p.py = p.y;
+                p.x += (p.vx || 0) * dt;
+                p.y += (p.vy || 0) * dt;
+                break;
+              case 'glitchRect':
+                p.x += (p.vx || 0) * dt;
+                p.y += (p.vy || 0) * dt;
+                break;
+              case 'rain':
+                p.y += (p.vy || 0) * dt;
+                break;
+              case 'snow':
+                p.y += (p.vy || 0) * dt;
+                p.x += (p.vx || 0) * dt + Math.sin(p.age * 2.2 + (p.phase || 0)) * 0.34;
+                break;
+              case 'fallDot':
+                p.y += (p.vy || 0) * dt;
+                p.x += (p.vx || 0) * dt;
+                break;
+              case 'orbiterText':
+              case 'orbiterDot':
+              case 'lantern':
+              case 'orbitStreak':
+                p.ang += (p.dang || 0) * dt;
+                if (p.spin) p.rot = (p.rot || 0) + p.spin * dt;
+                break;
+              case 'meridianOrbiter':
+              case 'equatorOrbiter':
+                p.ang += (p.dang || 0) * dt;
+                break;
+              case 'firefly':
+                p.x = p.x0 + Math.sin(p.age * p.freqX + p.phase) * p.ampX + (p.driftX || 0) * p.age;
+                p.y = p.y0 + Math.cos(p.age * p.freqY + p.phaseY) * p.ampY + (p.driftY || 0) * p.age;
+                break;
+              case 'sparkle':
+                p.x += (p.vx || 0) * dt;
+                p.y += (p.vy || 0) * dt;
+                p.rot = (p.rot || 0) + (p.spin || 0) * dt;
+                break;
+              case 'haloArc':
+                break;
+              case 'matrixGlyph':
+                p.y += (p.vy || 80) * dt;
+                p.nextSwap -= dt;
+                if (p.nextSwap <= 0) {
+                  p.char = this.pick(p.glyphs || ['0','1']);
+                  p.nextSwap = this.rand(.05,.18);
+                }
+                break;
+              case 'scanAxis':
+                p.ang += (p.dang || 0) * dt;
+                break;
+              case 'crossScan': {
+                const moveAxis = (posKey, targetKey, speedKey, holdKey, minV, maxV) => {
+                  if (p[holdKey] > 0) { p[holdKey] -= dt; return; }
+                  const d = p[targetKey] - p[posKey];
+                  const step = p[speedKey] * dt;
+                  if (Math.abs(d) <= Math.abs(step)) {
+                    p[posKey] = p[targetKey];
+                    p[holdKey] = this.rand(.32,.85);
+                    p[targetKey] = this.rand(minV, maxV);
+                    p[speedKey] = this.rand(46, 82) * (p[targetKey] > p[posKey] ? 1 : -1);
+                  } else {
+                    p[posKey] += step;
+                  }
+                };
+                const f = p.rangeFactor || .68;
+                moveAxis('xPos','targetX','speedX','holdX', this.cx - p.rx * f, this.cx + p.rx * f);
+                moveAxis('yPos','targetY','speedY','holdY', this.cy - p.ry * f, this.cy + p.ry * f);
+                break;
+              }
+              case 'waveSlice':
+                p.r += (p.vr || 30) * dt;
+                break;
+              case 'triNet':
+                p.rot += (p.spin || 0) * dt;
+                break;
+              case 'webSwarm':
+              case 'relayMesh': {
+                const limit = p.radius || 60;
+                p.nodes.forEach(node => {
+                  node.x += node.vx * dt;
+                  node.y += node.vy * dt;
+                  const dx = node.x - this.cx;
+                  const dy = node.y - this.cy;
+                  const dist = Math.hypot(dx, dy);
+                  if (dist > limit) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    node.x = this.cx + nx * limit;
+                    node.y = this.cy + ny * limit;
+                    const dot = node.vx * nx + node.vy * ny;
+                    node.vx -= 2 * dot * nx;
+                    node.vy -= 2 * dot * ny;
+                  }
+                });
+                if (p.kind === 'relayMesh') {
+                  p.pulseT += dt * 0.9;
+                  if (p.pulseT >= 1) {
+                    p.pulseT = 0;
+                    p.pulseEdge = (p.pulseEdge + 1) % p.nodes.length;
+                  }
+                }
+                break;
+              }
+              case 'ringRelay':
+                p.nodes.forEach(node => node.ang += (node.dang || 0) * dt);
+                p.pulseT += dt * 1.15;
+                if (p.pulseT >= 1) {
+                  p.pulseT = 0;
+                  p.pulseEdge = (p.pulseEdge + 1) % p.nodes.length;
+                }
+                break;
+              case 'irisSector':
+                p.ang += (p.rot || 0) * dt;
+                break;
+              case 'hypnoSpiral':
+                p.rot += (p.spin || 0) * dt;
+                break;
+              case 'aetherLoom':
+                p.phase += (p.drift || 0.9) * dt;
+                break;
+              case 'mobiusRibbon':
+                p.rot += (p.spin || 0.36) * dt;
+                break;
+              case 'rosePulse':
+                p.rot += (p.spin || 0.3) * dt;
+                break;
+              case 'orbitGlyph':
+                p.ang += (p.dang || 0) * dt;
+                p.nextSwap -= dt;
+                if (p.nextSwap <= 0) {
+                  p.char = this.pick(p.glyphs || ['0','1']);
+                  p.nextSwap = this.rand(.08,.24);
+                }
+                break;
+              case 'hexCell':
+                p.rot += (p.spin || 0) * dt;
+                break;
+              case 'ribbon':
+                p.ang += (p.spin || 0) * dt;
+                break;
+              case 'streak':
+                p.r += (p.speed || 0) * dt;
+                break;
+            }
+
+            try {
+              this.drawParticle(p, t);
+              next.push(p);
+            } catch (particleError) {
+              // битая частица не ломает весь предпросмотр
+            }
+          }
+
+          this.particles = next;
+        } catch (effectError) {
+          this.particles = [];
+          this.spawnAcc = 0;
+          try { this.ctx.clearRect(0,0,this.w,this.h); } catch (_) {}
+        }
+      }
+
+      drawParticle(p,t){
+        const ctx = this.ctx;
+        let alpha = Math.max(0, 1 - t);
+
+        switch(p.kind){
+          case 'text': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot || 0);
+            ctx.font = `${p.size}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.fillText(p.char, 0, 0);
+            ctx.restore();
+            break;
+          }
+          case 'ember': {
+            const emberIn = Math.min(1, t / 0.18);
+            const emberAlpha = alpha * emberIn;
+            const emberColor = t < 0.28 ? p.hot : (t < 0.62 ? p.mid : p.cold);
+            const emberSize = Math.max(1.1, p.size * (1 - t * 0.42));
+            ctx.save();
+            ctx.globalAlpha = emberAlpha;
+            ctx.fillStyle = emberColor;
+            ctx.shadowColor = emberColor;
+            ctx.shadowBlur = t < 0.62 ? 16 : 4;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,emberSize,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'flame': {
+            const fadeIn = Math.min(1, t / 0.12);
+            const flameAlpha = alpha * fadeIn;
+            const h = p.size * (1.55 - t * 0.25);
+            const w = p.size * (0.58 + Math.sin(p.age * 10 + p.phase) * 0.08);
+            ctx.save();
+            ctx.globalAlpha = flameAlpha;
+            ctx.translate(p.x, p.y);
+            ctx.beginPath();
+            ctx.moveTo(0, -h);
+            ctx.bezierCurveTo(w * .95, -h * .35, w * .78, h * .18, 0, h * .9);
+            ctx.bezierCurveTo(-w * .78, h * .18, -w * .95, -h * .35, 0, -h);
+            const g = ctx.createLinearGradient(0, -h, 0, h);
+            g.addColorStop(0, p.inner);
+            g.addColorStop(.38, p.core);
+            g.addColorStop(1, p.outer);
+            ctx.fillStyle = g;
+            ctx.shadowColor = p.core;
+            ctx.shadowBlur = 18;
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(0, -h * .62);
+            ctx.bezierCurveTo(w * .42, -h * .18, w * .32, h * .10, 0, h * .48);
+            ctx.bezierCurveTo(-w * .32, h * .10, -w * .42, -h * .18, 0, -h * .62);
+            ctx.fillStyle = 'rgba(255,248,200,.72)';
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'dot':
+          case 'fallDot': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 10;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'orbiterDot': {
+            const x = this.cx + Math.cos(p.ang) * p.r;
+            const y = this.cy + Math.sin(p.ang) * p.r;
+            const front = Math.sin(p.ang) > 0;
+            if (p.avatarOcclude && !front) alpha *= 0.20;
+            if (p.trailColor) {
+              ctx.save();
+              ctx.globalAlpha = alpha * (front ? 0.48 : 0.16);
+              ctx.strokeStyle = p.trailColor;
+              ctx.lineWidth = Math.max(1.5, p.size * .42);
+              ctx.lineCap = 'round';
+              ctx.shadowColor = p.trailColor;
+              ctx.shadowBlur = 8;
+              ctx.beginPath();
+              for (let i = 0; i < 6; i++) {
+                const aa = p.ang - (p.dang > 0 ? 1 : -1) * i * 0.15;
+                const tx = this.cx + Math.cos(aa) * p.r;
+                const ty = this.cy + Math.sin(aa) * p.r;
+                if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            ctx.beginPath();
+            ctx.arc(x,y, front ? p.size : p.size * .86, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'orbiterText': {
+            const x = this.cx + Math.cos(p.ang) * p.r;
+            const y = this.cy + Math.sin(p.ang) * p.r;
+            const front = Math.sin(p.ang) > 0;
+            const localAlpha = alpha * (front ? 1 : 0.22);
+            ctx.save();
+            ctx.globalAlpha = localAlpha;
+            ctx.translate(x, y);
+            ctx.rotate(p.rot || 0);
+            ctx.font = `${p.size}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.fillText(p.char, 0, 0);
+            ctx.restore();
+            break;
+          }
+          case 'orbitStreak': {
+            const x1 = this.cx + Math.cos(p.ang) * p.r;
+            const y1 = this.cy + Math.sin(p.ang) * p.r;
+            const tangent = p.ang + (p.dang >= 0 ? Math.PI / 2 : -Math.PI / 2);
+            const x0 = x1 - Math.cos(tangent) * p.len;
+            const y0 = y1 - Math.sin(tangent) * p.len;
+            const front = Math.sin(p.ang) > 0;
+            const localAlpha = alpha * (front ? 1 : 0.24);
+            ctx.save();
+            ctx.globalAlpha = localAlpha;
+            const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+            grad.addColorStop(0, 'rgba(255,255,255,0)');
+            grad.addColorStop(.55, p.color);
+            grad.addColorStop(1, 'rgba(255,255,255,.98)');
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = p.width || 2.5;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.beginPath();
+            ctx.moveTo(x0,y0);
+            ctx.lineTo(x1,y1);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'meridianOrbiter': {
+            const x = this.cx + Math.cos(p.ang) * p.rx;
+            const y = this.cy + Math.sin(p.ang) * p.ry;
+            const front = Math.cos(p.ang) > 0;
+            const localAlpha = alpha * (front ? 1 : 0.22);
+            if (p.trailColor) {
+              ctx.save();
+              ctx.globalAlpha = localAlpha * .45;
+              ctx.strokeStyle = p.trailColor;
+              ctx.lineWidth = Math.max(1.5, (p.size || 5) * .42);
+              ctx.lineCap = 'round';
+              ctx.shadowColor = p.trailColor;
+              ctx.shadowBlur = 8;
+              ctx.beginPath();
+              for (let i = 0; i < 6; i++) {
+                const aa = p.ang - (p.dang > 0 ? 1 : -1) * i * 0.18;
+                const tx = this.cx + Math.cos(aa) * p.rx;
+                const ty = cy + Math.sin(aa) * p.ry;
+                if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+            ctx.save();
+            ctx.globalAlpha = localAlpha;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.beginPath();
+            ctx.arc(x, y, front ? p.size : p.size * .86, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+
+          case 'equatorOrbiter': {
+            const cy = this.cy + (p.cyOff || 0);
+            const x = this.cx + Math.cos(p.ang) * p.rx;
+            const y = cy + Math.sin(p.ang) * p.ry;
+            const front = Math.sin(p.ang) > 0;
+            const localAlpha = alpha * (front ? 1 : 0.20);
+            if (p.trailColor) {
+              ctx.save();
+              ctx.globalAlpha = localAlpha * .42;
+              ctx.strokeStyle = p.trailColor;
+              ctx.lineWidth = Math.max(1.2, (p.size || 4) * .34);
+              ctx.lineCap = 'round';
+              ctx.shadowColor = p.trailColor;
+              ctx.shadowBlur = 6;
+              ctx.beginPath();
+              for (let i = 0; i < 6; i++) {
+                const aa = p.ang - (p.dang > 0 ? 1 : -1) * i * 0.18;
+                const tx = this.cx + Math.cos(aa) * p.rx;
+                const ty = cy + Math.sin(aa) * p.ry;
+                if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+            ctx.save();
+            ctx.globalAlpha = localAlpha;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.beginPath();
+            ctx.arc(x, y, front ? p.size : p.size * .82, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'firefly': {
+            const pulse = 0.45 + Math.sin(p.age * 4.8 + p.phase) * 0.25;
+            ctx.save();
+            ctx.globalAlpha = alpha * (0.55 + pulse);
+            const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size * 3.2);
+            g.addColorStop(0,p.color);
+            g.addColorStop(.35,p.color);
+            g.addColorStop(1,'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,p.size * 3.2,0,Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,.92)';
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'sparkle': {
+            const flare = 0.4 + Math.sin(t * Math.PI) * 0.9;
+            const s = p.size * flare;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot || 0);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 1.4;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.beginPath();
+            ctx.moveTo(-s,0); ctx.lineTo(s,0);
+            ctx.moveTo(0,-s); ctx.lineTo(0,s);
+            ctx.moveTo(-s*.65,-s*.65); ctx.lineTo(s*.65,s*.65);
+            ctx.moveTo(-s*.65,s*.65); ctx.lineTo(s*.65,-s*.65);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'haloArc': {
+            ctx.save();
+            ctx.globalAlpha = alpha * (.55 + Math.sin((p.age || 0) * 4 + p.phase) * .12);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 2.2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.beginPath();
+            ctx.ellipse(this.cx, this.cy + p.yOff, p.rx, p.ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            if (!p.dark) {
+              ctx.globalAlpha *= .22;
+              ctx.beginPath();
+              ctx.ellipse(this.cx, this.cy + p.yOff, p.rx * .75, p.ry * .55, 0, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+            ctx.restore();
+            break;
+          }
+
+          case 'gemGlint': {
+            const fade = Math.sin(Math.min(1, t) * Math.PI);
+            const s = p.size * (.35 + fade * p.flare);
+            ctx.save();
+            ctx.globalAlpha = alpha * (.12 + fade * .78);
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rot || 0) + t * (p.spin || 0));
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 1.05;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            ctx.beginPath();
+            ctx.moveTo(-s,0); ctx.lineTo(s,0);
+            ctx.moveTo(0,-s); ctx.lineTo(0,s);
+            ctx.stroke();
+            ctx.globalAlpha *= .4;
+            ctx.beginPath();
+            ctx.moveTo(-s*.46,-s*.46); ctx.lineTo(s*.46,s*.46);
+            ctx.moveTo(-s*.46,s*.46); ctx.lineTo(s*.46,-s*.46);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'matrixGlyph': {
+            const fadeIn = Math.min(1, t / .12);
+            const fadeOut = Math.max(0, 1 - Math.max(0, t - .76) / .24);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, p.clipR || 76, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.globalAlpha = alpha * fadeIn * fadeOut;
+            ctx.font = `${p.size}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.fillText(p.char, p.x, p.y);
+            ctx.globalAlpha *= .24;
+            ctx.fillText(p.char, p.x, p.y - p.size * 1.1);
+            ctx.restore();
+            break;
+          }
+          case 'scanAxis': {
+            const cy = this.cy + (p.cyOff || 0);
+            const x = this.cx + Math.cos(p.ang) * p.rx;
+            const y = cy + Math.sin(p.ang) * p.ry;
+            ctx.save();
+            ctx.globalAlpha = alpha * .95;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            ctx.beginPath();
+            ctx.moveTo(this.cx - p.rx, cy);
+            ctx.lineTo(this.cx + p.rx, cy);
+            ctx.moveTo(this.cx, cy - p.ry);
+            ctx.lineTo(this.cx, cy + p.ry);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,.96)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(248,113,113,.9)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y);
+            ctx.moveTo(x, y - 7); ctx.lineTo(x, y + 7);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'crossScan': {
+            const glow = (p.holdX > 0 && p.holdY > 0) ? 1 : 0.52;
+            const r = 72;
+            const dy = p.yPos - this.cy;
+            const dx = p.xPos - this.cx;
+            const halfW = Math.sqrt(Math.max(0, r * r - dy * dy));
+            const halfH = Math.sqrt(Math.max(0, r * r - dx * dx));
+            ctx.save();
+            ctx.globalAlpha = .96;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.8;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            ctx.beginPath();
+            ctx.moveTo(this.cx - halfW, p.yPos);
+            ctx.lineTo(this.cx + halfW, p.yPos);
+            ctx.moveTo(p.xPos, this.cy - halfH);
+            ctx.lineTo(p.xPos, this.cy + halfH);
+            ctx.stroke();
+            ctx.globalAlpha = .38 + glow * .62;
+            const g = ctx.createRadialGradient(p.xPos,p.yPos,0,p.xPos,p.yPos,15);
+            g.addColorStop(0,'rgba(255,255,255,.98)');
+            g.addColorStop(.34,'rgba(248,113,113,.92)');
+            g.addColorStop(1,'rgba(248,113,113,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.xPos,p.yPos,15,0,Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,.95)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(p.xPos-6,p.yPos); ctx.lineTo(p.xPos+6,p.yPos);
+            ctx.moveTo(p.xPos,p.yPos-6); ctx.lineTo(p.xPos,p.yPos+6);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'ringRelay': {
+            const pts = (p.nodes || []).map(n => ({
+              x: this.cx + Math.cos(n.ang) * p.rx,
+              y: this.cy + Math.sin(n.ang) * p.ry
+            }));
+            ctx.save();
+            ctx.globalAlpha = .86;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.3;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            if (pts.length > 1) {
+              ctx.beginPath();
+              ctx.moveTo(pts[0].x, pts[0].y);
+              for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+              ctx.closePath();
+              ctx.stroke();
+              if (p.mode === 'violet' && pts.length >= 5) {
+                ctx.globalAlpha = .42;
+                ctx.strokeStyle = 'rgba(244,114,182,.72)';
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i = 2; i < pts.length + 2; i += 2) {
+                  const q = pts[i % pts.length];
+                  ctx.lineTo(q.x, q.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.globalAlpha = .18;
+                ctx.fillStyle = 'rgba(196,181,253,.38)';
+                ctx.fill();
+                ctx.globalAlpha = .86;
+                ctx.strokeStyle = p.color;
+              }
+              const edgeIndex = p.pulseEdge % pts.length;
+              const a = pts[edgeIndex];
+              const b = pts[(edgeIndex + 1) % pts.length];
+              const x = a.x + (b.x - a.x) * (p.pulseT || 0);
+              const y = a.y + (b.y - a.y) * (p.pulseT || 0);
+              ctx.fillStyle = 'rgba(255,255,255,.98)';
+              ctx.shadowColor = p.nodeColor || 'rgba(255,255,255,.96)';
+              ctx.shadowBlur = 14;
+              ctx.beginPath(); ctx.arc(x, y, p.mode === 'violet' ? 3.8 : 3.2, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.fillStyle = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowColor = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowBlur = 10;
+            pts.forEach((pt, idx) => { 
+              ctx.beginPath(); 
+              ctx.arc(pt.x, pt.y, p.mode === 'violet' && idx % 2 === 0 ? 3.0 : 2.5, 0, Math.PI * 2); 
+              ctx.fill(); 
+            });
+            ctx.restore();
+            break;
+          }
+          case 'irisSector': {
+            const fade = Math.sin(Math.min(1, t) * Math.PI);
+            const a0 = p.ang - p.sweep * .5;
+            const a1 = p.ang + p.sweep * .5;
+            ctx.save();
+            ctx.globalAlpha = alpha * (.18 + fade * .82);
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, p.outer, a0, a1);
+            ctx.arc(this.cx, this.cy, p.inner, a1, a0, true);
+            ctx.closePath();
+            const g = ctx.createRadialGradient(this.cx, this.cy, p.inner, this.cx, this.cy, p.outer);
+            g.addColorStop(0, 'rgba(255,255,255,0)');
+            g.addColorStop(.38, p.color);
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = g;
+            ctx.shadowColor = p.edgeColor || 'rgba(255,255,255,.9)';
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.fill();
+            ctx.strokeStyle = p.edgeColor || 'rgba(255,255,255,.92)';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'hypnoSpiral': {
+            const clipR = 76;
+            const pulse = .75 + Math.sin(p.age * 2.8) * .18;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, clipR, 0, Math.PI * 2);
+            ctx.clip();
+            const drawSpiral = (baseRot, color, phaseShift=0) => {
+              ctx.beginPath();
+              const steps = 88;
+              for (let i = 0; i <= steps; i++) {
+                const t2 = i / steps;
+                const ang = baseRot + phaseShift + t2 * p.turns * Math.PI * 2;
+                const r = 8 + t2 * (p.maxR - 8);
+                const wobble = Math.sin(t2 * Math.PI * 6 + p.rot * 1.8 + phaseShift) * 2.8;
+                const x = this.cx + Math.cos(ang) * (r + wobble);
+                const y = this.cy + Math.sin(ang) * (r + wobble);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+              }
+              ctx.strokeStyle = color;
+              ctx.lineWidth = (p.width || 1.6) * pulse;
+              ctx.shadowColor = color;
+              ctx.shadowBlur = p.shadow || 14;
+              ctx.stroke();
+            };
+            ctx.globalAlpha = .88;
+            drawSpiral(p.rot, p.color, 0);
+            ctx.globalAlpha = .72;
+            drawSpiral(-p.rot * 1.08 + Math.sin(p.age * 1.2) * .12, p.color2 || p.color, Math.PI);
+            ctx.globalAlpha = .92;
+            ctx.fillStyle = 'rgba(255,255,255,.92)';
+            ctx.shadowColor = p.color2 || p.color;
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, 2.2 + pulse * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'aetherLoom': {
+            ctx.save();
+            const drawRingWeave = (baseR, amp, freq, phase, color, alphaMul=1, widthMul=1) => {
+              ctx.beginPath();
+              const steps = 220;
+              for (let i = 0; i <= steps; i++) {
+                const u = i / steps;
+                const ang = u * Math.PI * 2;
+                const r = baseR + Math.sin(ang * freq + phase) * amp + Math.cos(ang * (freq * .5) - phase * .8) * amp * .42;
+                const x = this.cx + Math.cos(ang) * r;
+                const y = this.cy + Math.sin(ang) * r;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+              }
+              ctx.closePath();
+              ctx.globalAlpha = alphaMul;
+              ctx.strokeStyle = color;
+              ctx.lineWidth = (p.width || 1.9) * widthMul;
+              ctx.shadowColor = color;
+              ctx.shadowBlur = p.shadow || 16;
+              ctx.stroke();
+            };
+            drawRingWeave(p.baseR + 2, p.amp1 + 1.5, p.freq1, p.phase, p.color, .95, 1.15);
+            drawRingWeave(p.baseR + 0.5, p.amp2 + 1, p.freq2, -p.phase * 1.05, p.color2 || p.color, .82, 1);
+            drawRingWeave(p.baseR - 1.8, p.amp2 * .76, p.freq2 + .9, p.phase + Math.PI * .5, 'rgba(255,255,255,.72)', .42, .78);
+            ctx.restore();
+            break;
+          }
+          case 'mobiusRibbon': {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, 82, 0, Math.PI * 2);
+            ctx.clip();
+            const drawRibbon = (phaseShift, color, widthMul=1) => {
+              ctx.beginPath();
+              const steps = 240;
+              for (let i = 0; i <= steps; i++) {
+                const t3 = (i / steps) * Math.PI * 2;
+                const a = t3 + p.rot + phaseShift;
+                const radius = p.scale + Math.sin(t3 * 2 + p.rot + phaseShift) * (p.band * .32);
+                const x = this.cx + Math.cos(a) * radius;
+                const y = this.cy + Math.sin(a) * (p.scale * .62) + Math.cos(t3 * 2 + phaseShift) * (p.band * .52);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+              }
+              ctx.strokeStyle = color;
+              ctx.lineWidth = (p.width || 2.2) * widthMul;
+              ctx.shadowColor = color;
+              ctx.shadowBlur = p.shadow || 18;
+              ctx.stroke();
+            };
+            ctx.globalAlpha = .92;
+            drawRibbon(0, p.color, 1);
+            ctx.globalAlpha = .82;
+            drawRibbon(Math.PI, p.color2 || p.color, .88);
+            ctx.globalAlpha = .42;
+            ctx.strokeStyle = 'rgba(255,255,255,.78)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, 12 + Math.sin(p.age * 2.4) * 2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'rosePulse': {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, 80, 0, Math.PI * 2);
+            ctx.clip();
+            const drawRose = (k, radius, rot, color, alphaMul=1, widthMul=1) => {
+              ctx.beginPath();
+              const steps = 260;
+              for (let i = 0; i <= steps; i++) {
+                const ang = (i / steps) * Math.PI * 2;
+                const r = radius * Math.cos(k * ang + rot);
+                const x = this.cx + Math.cos(ang) * r;
+                const y = this.cy + Math.sin(ang) * r;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+              }
+              ctx.globalAlpha = alphaMul;
+              ctx.strokeStyle = color;
+              ctx.lineWidth = (p.width || 1.8) * widthMul;
+              ctx.shadowColor = color;
+              ctx.shadowBlur = p.shadow || 16;
+              ctx.stroke();
+            };
+            drawRose(Math.round(p.petals), p.radius, p.rot, p.color, .86, 1);
+            drawRose(Math.round(p.petals)+1, p.radius * .72, -p.rot * 1.2, p.color2 || p.color, .66, .86);
+            ctx.restore();
+            break;
+          }
+          case 'constellation': {
+            const fade = Math.sin(Math.min(1, t) * Math.PI);
+            ctx.save();
+            ctx.globalAlpha = alpha * (.18 + fade * .82);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            p.edges.forEach(([a,b]) => {
+              const p0 = p.points[a], p1 = p.points[b];
+              ctx.beginPath();
+              ctx.moveTo(p0.x, p0.y);
+              ctx.lineTo(p1.x, p1.y);
+              ctx.stroke();
+            });
+            ctx.fillStyle = p.nodeColor || 'rgba(255,255,255,.98)';
+            ctx.shadowColor = p.nodeColor || 'rgba(255,255,255,.98)';
+            ctx.shadowBlur = 10;
+            p.points.forEach(pt => {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+              ctx.fill();
+            });
+            ctx.restore();
+            break;
+          }
+          case 'webSwarm': {
+            const nodes = p.nodes || [];
+            ctx.save();
+            ctx.globalAlpha = .94;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 12;
+            // fill triangles when all three nodes are close enough
+            for (let i = 0; i < nodes.length; i++) {
+              for (let j = i + 1; j < nodes.length; j++) {
+                for (let k = j + 1; k < nodes.length; k++) {
+                  const a = nodes[i], b = nodes[j], c = nodes[k];
+                  const d1 = Math.hypot(a.x-b.x, a.y-b.y);
+                  const d2 = Math.hypot(a.x-c.x, a.y-c.y);
+                  const d3 = Math.hypot(b.x-c.x, b.y-c.y);
+                  if (d1 < p.connectDist && d2 < p.connectDist && d3 < p.connectDist) {
+                    ctx.globalAlpha = .10;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.closePath();
+                    ctx.fill();
+                    ctx.globalAlpha = .88;
+                    ctx.strokeStyle = p.color;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.closePath();
+                    ctx.stroke();
+                  }
+                }
+              }
+            }
+            ctx.globalAlpha = .96;
+            ctx.fillStyle = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowColor = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowBlur = 9;
+            nodes.forEach(n => { ctx.beginPath(); ctx.arc(n.x,n.y,2.4,0,Math.PI*2); ctx.fill(); });
+            ctx.restore();
+            break;
+          }
+          case 'relayMesh': {
+            const nodes = p.nodes || [];
+            ctx.save();
+            ctx.globalAlpha = .9;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.1;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 10;
+            const edges = [];
+            for (let i = 0; i < nodes.length; i++) {
+              for (let j = i + 1; j < nodes.length; j++) {
+                const a = nodes[i], b = nodes[j];
+                const d = Math.hypot(a.x-b.x, a.y-b.y);
+                if (d < p.connectDist) {
+                  edges.push([i,j,d]);
+                  ctx.globalAlpha = .22;
+                  ctx.beginPath();
+                  ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+                }
+              }
+            }
+            ctx.globalAlpha = .92;
+            ctx.fillStyle = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowColor = p.nodeColor || 'rgba(255,255,255,.96)';
+            nodes.forEach(n => { ctx.beginPath(); ctx.arc(n.x,n.y,2.1,0,Math.PI*2); ctx.fill(); });
+            if (edges.length) {
+              const edge = edges[p.pulseEdge % edges.length];
+              const a = nodes[edge[0]], b = nodes[edge[1]];
+              const tt = p.pulseT || 0;
+              const x = a.x + (b.x - a.x) * tt;
+              const y = a.y + (b.y - a.y) * tt;
+              ctx.globalAlpha = .95;
+              ctx.fillStyle = 'rgba(255,255,255,.98)';
+              ctx.shadowColor = p.color;
+              ctx.shadowBlur = 14;
+              ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+            }
+            ctx.restore();
+            break;
+          }
+          case 'fractureBloom': {
+            const fade = Math.sin(Math.min(1, t) * Math.PI);
+            ctx.save();
+            ctx.globalAlpha = alpha * (.16 + fade * .84);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            (p.branches || []).forEach(branch => {
+              if (!branch.length) return;
+              ctx.beginPath();
+              ctx.moveTo(branch[0].x, branch[0].y);
+              for (let i = 1; i < branch.length; i++) ctx.lineTo(branch[i].x, branch[i].y);
+              ctx.stroke();
+            });
+            ctx.fillStyle = p.coreColor || 'rgba(255,255,255,.96)';
+            ctx.shadowColor = p.coreColor || 'rgba(255,255,255,.96)';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(p.origin.x, p.origin.y, 3.1 + fade * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'triNet': {
+            const pulse = .78 + Math.sin(p.age * 3.2 * p.pulse) * .14;
+            const pts = p.points.map(pt => {
+              const a = pt.a + (p.rot || 0);
+              return {
+                x: this.cx + Math.cos(a) * pt.r,
+                y: this.cy + Math.sin(a) * pt.r
+              };
+            });
+            ctx.save();
+            ctx.globalAlpha = alpha * .92;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = (p.width || 1.6) * pulse;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.lineTo(pts[1].x, pts[1].y);
+            ctx.lineTo(pts[2].x, pts[2].y);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.globalAlpha *= .08;
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.globalAlpha = alpha * .96;
+            ctx.fillStyle = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowColor = p.nodeColor || 'rgba(255,255,255,.96)';
+            ctx.shadowBlur = 10;
+            pts.forEach(pt => {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 2.4 + Math.sin(p.age * 4.2) * .35, 0, Math.PI * 2);
+              ctx.fill();
+            });
+            ctx.restore();
+            break;
+          }
+          case 'waveSlice': {
+            ctx.save();
+            ctx.globalAlpha = alpha * .9;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 2.2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, p.r, p.ang - p.arc, p.ang + p.arc);
+            ctx.stroke();
+            ctx.globalAlpha *= .26;
+            ctx.lineWidth = Math.max(1, (p.width || 2.2) * .48);
+            ctx.strokeStyle = 'rgba(255,255,255,.75)';
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, p.r + 2, p.ang - p.arc * .76, p.ang + p.arc * .76);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'orbitGlyph': {
+            const rr = p.r + Math.sin(p.phase + p.age * 2.2) * p.wobble;
+            const x = this.cx + Math.cos(p.ang) * rr;
+            const y = this.cy + Math.sin(p.ang) * rr * .86;
+            ctx.save();
+            ctx.globalAlpha = alpha * .9;
+            ctx.font = `${p.size}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.fillText(p.char, x, y);
+            ctx.globalAlpha *= .22;
+            ctx.fillText(p.char, x - Math.cos(p.ang) * 8, y - Math.sin(p.ang) * 6);
+            ctx.restore();
+            break;
+          }
+          case 'hexCell': {
+            const pulse = .75 + Math.sin(p.age * 4.5) * .18 + Math.sin(t * Math.PI) * .15;
+            const s = p.size * pulse;
+            ctx.save();
+            ctx.globalAlpha = alpha * .88;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot || 0);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 1.4;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 14;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const a = Math.PI / 3 * i;
+              const px = Math.cos(a) * s;
+              const py = Math.sin(a) * s;
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.globalAlpha *= .18;
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'ribbon': {
+            ctx.save();
+            ctx.globalAlpha = alpha * .82;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 5;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 16;
+            ctx.beginPath();
+            const steps = 24;
+            for (let i = 0; i <= steps; i++) {
+              const tt = i / steps;
+              const a = p.ang + (tt - .5) * p.arc;
+              const rr = p.r + Math.sin(tt * Math.PI * 2 + p.phase + p.age * 2.2) * p.amp;
+              const x = this.cx + Math.cos(a) * rr;
+              const y = this.cy + Math.sin(a) * rr * .86;
+              if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+            ctx.globalAlpha *= .32;
+            ctx.lineWidth = Math.max(1.4, (p.width || 5) * .38);
+            ctx.strokeStyle = 'rgba(255,255,255,.85)';
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'smoke': {
+            ctx.save();
+            ctx.globalAlpha = alpha * .48;
+            const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);
+            g.addColorStop(0,p.color);
+            g.addColorStop(1,'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'comet': {
+            const x = Number.isFinite(p.x) ? p.x : this.cx;
+            const y = Number.isFinite(p.y) ? p.y : this.cy;
+            const px = Number.isFinite(p.px) ? p.px : x - (p.vx || 80) * 0.08;
+            const py = Number.isFinite(p.py) ? p.py : y - (p.vy || 60) * 0.08;
+            const dx = x - px;
+            const dy = y - py;
+            const len = Math.max(34, Math.min(110, Math.hypot(dx, dy) * 6.0));
+            const angle = Math.atan2(dy || 1, dx || 1);
+            const tx = x - Math.cos(angle) * len;
+            const ty = y - Math.sin(angle) * len;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = p.trail || 'rgba(125,211,252,.36)';
+            ctx.lineWidth = Math.max(2, (p.size || 5) * .78);
+            ctx.lineCap = 'round';
+            ctx.shadowColor = p.color || '#ffffff';
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.fillStyle = p.color || '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x, y, Math.max(2, p.size || 5), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'rain': {
+            ctx.save();
+            ctx.globalAlpha = (p.alpha || .8) * alpha;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 1.5;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 4;
+            ctx.beginPath();
+            ctx.moveTo(p.x,p.y);
+            ctx.lineTo(p.x-2,p.y+p.len);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'snow': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color || 'rgba(241,245,249,.95)';
+            ctx.shadowColor = p.color || 'rgba(191,219,254,.8)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'leaf': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x,p.y);
+            ctx.rotate(p.rot || 0);
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.ellipse(0,0,p.size*.8,p.size*.45,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(20,83,45,.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-p.size*.5,0);
+            ctx.lineTo(p.size*.5,0);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'shard': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x,p.y);
+            ctx.rotate(p.rot || 0);
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = p.shadow || 10;
+            ctx.beginPath();
+            ctx.moveTo(0,-p.size);
+            ctx.lineTo(p.size*.65,0);
+            ctx.lineTo(0,p.size);
+            ctx.lineTo(-p.size*.65,0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'blood': {
+            const fadeIn = Math.min(1, t / (p.fadeIn || 0.22));
+            const localAlpha = alpha * fadeIn;
+            const s = p.size;
+            ctx.save();
+            ctx.globalAlpha = localAlpha;
+            ctx.translate(p.x, p.y);
+            ctx.scale(1, 1 + t * .45);
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 1.15);
+            ctx.bezierCurveTo(s * .85, -s * .25, s * .75, s * .85, 0, s * 1.35);
+            ctx.bezierCurveTo(-s * .75, s * .85, -s * .85, -s * .25, 0, -s * 1.15);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'candle': {
+            const fadeIn = Math.min(1, t / (p.fadeIn || 0.25));
+            const localAlpha = alpha * fadeIn;
+            const flicker = 0.82 + Math.sin((p.age || 0) * 18 + p.x) * 0.18;
+            ctx.save();
+            ctx.globalAlpha = localAlpha;
+            ctx.fillStyle='rgba(226,232,240,.82)';
+            ctx.fillRect(p.x-2.4,p.y-5.5,4.8,11);
+            ctx.fillStyle='rgba(148,163,184,.45)';
+            ctx.fillRect(p.x-2.4,p.y+3.5,4.8,2);
+            ctx.beginPath();
+            ctx.fillStyle=`rgba(254,240,138,${0.82 * flicker})`;
+            ctx.shadowColor='rgba(254,240,138,.95)';
+            ctx.shadowBlur=12 * flicker;
+            ctx.ellipse(p.x,p.y-8,3.1*flicker,5.4*flicker,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle=`rgba(251,146,60,${0.55 * flicker})`;
+            ctx.ellipse(p.x,p.y-7.3,1.5*flicker,3.2*flicker,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'feather': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot || 0);
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size);
+            ctx.quadraticCurveTo(p.size*.58, -p.size*.18, 0, p.size);
+            ctx.quadraticCurveTo(-p.size*.36, 0, 0, -p.size);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(226,232,240,.28)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size*.92);
+            ctx.lineTo(0, p.size*.92);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'lantern': {
+            const x = this.cx + Math.cos(p.ang) * p.r;
+            const y = this.cy + Math.sin(p.ang) * p.r;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color || 'rgba(196,181,253,.9)';
+            ctx.shadowColor = p.color || 'rgba(196,181,253,.9)';
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.arc(x, y, p.size || 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            break;
+          }
+          case 'ringPulse': {
+            const r = p.r0 + p.growth * t;
+            ctx.save();
+            ctx.globalAlpha = alpha * .55;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 2.2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(this.cx, this.cy, r, p.startAng, p.startAng + p.sweep);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'arc': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = p.width || 2;
+            ctx.strokeStyle = p.color1;
+            ctx.shadowColor = p.color2 || p.color1;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(p.start.x, p.start.y);
+            ctx.quadraticCurveTo(p.ctrl.x, p.ctrl.y, p.end.x, p.end.y);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'bolt': {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = p.core;
+            ctx.lineWidth = p.width || 2;
+            ctx.shadowColor = p.core;
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            p.points.forEach((pt, i) => { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,.82)';
+            ctx.lineWidth = Math.max(1, (p.width || 2) * .45);
+            ctx.beginPath();
+            p.points.forEach((pt, i) => { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'glitchRect': {
+            const fadeIn = Math.min(1, t / .15);
+            const jitter = (Math.random() - .5) * 2.4;
+            const w = Math.max(2, p.w || 12);
+            const h = Math.max(1, p.h || 3);
+            ctx.save();
+            if (p.clipAvatar) {
+              ctx.beginPath();
+              ctx.arc(this.cx, this.cy, 76, 0, Math.PI * 2);
+              ctx.clip();
+            }
+            ctx.globalAlpha = alpha * fadeIn;
+            ctx.fillStyle = p.color || 'rgba(34,211,238,.8)';
+            ctx.shadowColor = p.color || 'rgba(34,211,238,.8)';
+            ctx.shadowBlur = 7;
+            ctx.fillRect((p.x || this.cx) + jitter, p.y || this.cy, w, h);
+            if (Math.random() < .26) {
+              ctx.globalAlpha *= .48;
+              ctx.fillRect((p.x || this.cx) - jitter * 2, (p.y || this.cy) + h + 3, w * .48, Math.max(1, h * .5));
+            }
+            ctx.restore();
+            break;
+          }
+          case 'laserLine': {
+            const fadeIn = Math.min(1, t / .12);
+            ctx.save();
+            ctx.globalAlpha = alpha * fadeIn;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.width || 2.2;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            if (p.horizontal) {
+              ctx.moveTo(12, p.pos + (p.offset || 0));
+              ctx.lineTo(this.w - 12, p.pos - (p.offset || 0));
+            } else {
+              ctx.moveTo(p.pos + (p.offset || 0), 12);
+              ctx.lineTo(p.pos - (p.offset || 0), this.h - 12);
+            }
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+          case 'streak': {
+            const x1 = this.cx + Math.cos(p.angle) * p.r;
+            const y1 = this.cy + Math.sin(p.angle) * p.r;
+            const x0 = this.cx + Math.cos(p.angle) * Math.max(0, p.r - p.len);
+            const y0 = this.cy + Math.sin(p.angle) * Math.max(0, p.r - p.len);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            const grad = ctx.createLinearGradient(x0,y0,x1,y1);
+            grad.addColorStop(0,'rgba(255,255,255,0)');
+            grad.addColorStop(.35,p.color);
+            grad.addColorStop(1,'rgba(255,255,255,.98)');
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = p.width || 2;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.moveTo(x0,y0);
+            ctx.lineTo(x1,y1);
+            ctx.stroke();
+            ctx.restore();
+            break;
+          }
+        }
+      }
+
+      drawPause(){
+        const ctx=this.ctx;
+        ctx.save();
+        ctx.fillStyle='rgba(2,6,23,.34)';
+        ctx.fillRect(0,0,this.w,this.h);
+        ctx.fillStyle='rgba(255,255,255,.85)';
+        ctx.font='600 14px Inter, sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText('Пауза', this.cx, this.cy);
+        ctx.restore();
+      }
+    }
+
+    function buildEffects() {
+      EFFECTS.forEach(item => effectsGrid.appendChild(effectCard(item)));
+    }
+
+    function buildFrames() {
+      FRAMES.forEach(item => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.dataset.rarity = item.rarity;
+        el.dataset.search = `${item.name} ${item.id}`.toLowerCase();
+        el.dataset.type = 'frame';
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <div class="preview">
+            <div class="avatar-shell">
+              <div class="frame-ring ${item.className}"></div>
+              <div class="avatar"></div>
+            </div>
+          </div>
+          <div class="meta">
+            <div class="row"><h3 class="name">${item.name}</h3><div class="chips"><span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span></div></div>
+            <p class="desc">${item.desc}</p>
+            <div class="code">id: ${item.id}<br>frame_class: ${item.className}</div>
+            ${noteArea()}
+          </div>
+        `;
+        framesGrid.appendChild(el);
+      });
+    }
+
+    function buildForms() {
+      TAG_FORMS.forEach(item => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.dataset.rarity = item.rarity;
+        el.dataset.search = `${item.name} ${item.id}`.toLowerCase();
+        el.dataset.type = 'tag-form';
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <div class="preview tag-sample-wrap"><span class="tag-pill ${item.className}" style="--tag-text:'Форма';"></span></div>
+          <div class="meta">
+            <div class="row"><h3 class="name">${item.name}</h3><div class="chips"><span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span></div></div>
+            <p class="desc">${item.desc}</p>
+            <div class="code">id: ${item.id}<br>tag_class: ${item.className}</div>
+            ${noteArea()}
+          </div>
+        `;
+        formsGrid.appendChild(el);
+      });
+    }
+
+    function buildTexts() {
+      TAG_TEXTS.forEach(item => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.dataset.rarity = item.rarity;
+        el.dataset.search = `${item.name} ${item.id}`.toLowerCase();
+        el.dataset.type = 'tag-text';
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <div class="preview tag-sample-wrap"><span class="tag-pill form-scroll" style="--tag-text:'${item.name}';"></span></div>
+          <div class="meta">
+            <div class="row"><h3 class="name">${item.name}</h3><div class="chips"><span class="badge ${item.rarity}">${rarityLabel(item.rarity)}</span></div></div>
+            <p class="desc">Пример текста тэга. Можно комбинировать с любой доступной формой.</p>
+            <div class="code">id: ${item.id}<br>tag_text: ${item.name}</div>
+            ${noteArea()}
+          </div>
+        `;
+        textsGrid.appendChild(el);
+      });
+    }
+
+    function initBuilder() {
+      const bf = document.getElementById('builderFrame');
+      const be = document.getElementById('builderEffect');
+      const bform = document.getElementById('builderForm');
+      const bt = document.getElementById('builderText');
+
+      FRAMES.forEach(f => bf.append(new Option(f.name, f.id)));
+      EFFECTS.forEach(e => be.append(new Option(`${e.name} (${rarityLabel(e.rarity)})`, e.id)));
+      TAG_FORMS.forEach(f => bform.append(new Option(f.name, f.id)));
+      TAG_TEXTS.forEach(t => bt.append(new Option(t.name, t.id)));
+
+      bf.value = FRAMES[0].id;
+      be.value = EFFECTS[0].id;
+      bform.value = TAG_FORMS[0].id;
+      bt.value = TAG_TEXTS[0].id;
+
+      builderEngine = new EffectEngine(document.getElementById('builderCanvas'), EFFECTS[0].effect);
+      builderEngine.setActive(false);
+
+      const refresh = () => {
+        const frame = FRAMES.find(x => x.id === bf.value) || FRAMES[0];
+        const effect = EFFECTS.find(x => x.id === be.value) || EFFECTS[0];
+        const form = TAG_FORMS.find(x => x.id === bform.value) || TAG_FORMS[0];
+        const textItem = TAG_TEXTS.find(x => x.id === bt.value) || TAG_TEXTS[0];
+        const customText = document.getElementById('builderCustomText').value.trim();
+
+        document.getElementById('builderFrameRing').className = `frame-ring ${frame.className}`;
+        document.getElementById('builderTag').className = `tag-pill ${form.className}`;
+        document.getElementById('builderTag').style.setProperty('--tag-text', `'${customText || textItem.name}'`);
+
+        builderEngine.type = effect.effect;
+        builderEngine.particles = [];
+        builderEngine.spawnAcc = 0;
+
+        document.getElementById('builderCode').innerHTML =
+          `frame_id: ${frame.id}<br>effect_id: ${effect.id}<br>tag_form: ${form.id}<br>tag_text: ${customText || textItem.name}`;
+      };
+
+      [bf, be, bform, bt, document.getElementById('builderCustomText')].forEach(el => el.addEventListener('input', refresh));
+      refresh();
+    }
+
+    function buildAll(){
+      buildEffects();
+      buildFrames();
+      buildForms();
+      buildTexts();
+      initBuilder();
+    }
+
+    function activeTabKey() {
+      return document.querySelector('.tab-btn.active')?.dataset.tab || 'effects';
+    }
+
+    function applyFilters() {
+      const rarity = rarityFilter.value;
+      const query = searchInput.value.trim().toLowerCase();
+      const tab = activeTabKey();
+      const containerMap = { effects: effectsGrid, frames: framesGrid, tagForms: formsGrid, tagTexts: textsGrid };
+
+      Object.entries(containerMap).forEach(([key, container]) => {
+        [...container.children].forEach(card => {
+          const okRarity = rarity === 'all' || card.dataset.rarity === rarity;
+          const okSearch = !query || card.dataset.search.includes(query);
+          const visible = key === tab && okRarity && okSearch;
+          card.classList.toggle('hidden', !visible);
+        });
+      });
+    }
+
+    function switchTab(tab) {
+      tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+      tabContents.forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
+      applyFilters();
+
+      if (tab !== 'effects') {
+        pinnedEffectId = null;
+        deactivateAllEffects();
+      }
+      if (builderEngine) {
+        builderEngine.setActive(tab === 'builder');
+      }
+
+      setTimeout(() => {
+        for (const { instance } of effectInstances.values()) instance.resize();
+        if (builderEngine) builderEngine.resize();
+      }, 50);
+    }
+
+    function collectNotes() {
+      const sections = [];
+
+      function gather(container, title) {
+        const items = [...container.children].map(card => {
+          const area = card.querySelector('textarea');
+          const text = area?.value.trim();
+          if (!text) return null;
+          const name = card.querySelector('.name')?.textContent?.trim() || card.dataset.id;
+          return `${name} [${card.dataset.id}]\n${text}`;
+        }).filter(Boolean);
+
+        if (items.length) sections.push(`### ${title}\n` + items.join('\n\n'));
+      }
+
+      gather(effectsGrid, 'Эффекты');
+      gather(framesGrid, 'Рамки');
+      gather(formsGrid, 'Формы тэгов');
+      gather(textsGrid, 'Тексты тэгов');
+
+      if (!sections.length) {
+        alert('Пока нет заметок. Напиши хотя бы одну правку в любой категории.');
+        return;
+      }
+
+      const out = sections.join('\n\n');
+      navigator.clipboard.writeText(out)
+        .then(() => alert('Заметки скопированы в буфер обмена.'))
+        .catch(() => prompt('Скопируй текст вручную:', out));
+    }
+
+    function animate(now) {
+      for (const { instance } of effectInstances.values()) {
+        try { instance.update(now); } catch (_) {}
+      }
+
+      if (builderEngine) {
+        try { builderEngine.update(now); } catch (_) {}
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    buildAll();
+    switchTab('effects');
+    deactivateAllEffects();
+
+    // Принудительный стартовый resize, чтобы canvas точно получил размеры после layout.
+    setTimeout(() => {
+      for (const { instance } of effectInstances.values()) instance.resize();
+      if (builderEngine) builderEngine.resize();
+    }, 100);
+
+    requestAnimationFrame(animate);
+
+    searchInput.addEventListener('input', applyFilters);
+    rarityFilter.addEventListener('change', applyFilters);
+    tabButtons.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+    pauseBtn.addEventListener('click', () => {
+      paused = !paused;
+      pauseBtn.textContent = paused ? 'Возобновить анимации' : 'Пауза анимаций';
+    });
+    collectBtn.addEventListener('click', collectNotes);
+    collectBtnBottom.addEventListener('click', collectNotes);
+  </script>
+</body>
+</html>

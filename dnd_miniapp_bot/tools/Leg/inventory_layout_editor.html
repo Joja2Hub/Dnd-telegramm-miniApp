@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Inventory Layout Editor</title>
+  <style>
+    :root {
+      --bg: #05070d;
+      --panel: rgba(12, 17, 28, .9);
+      --text: #ecfbff;
+      --muted: #88aab7;
+      --line: rgba(48, 246, 255, .34);
+      --accent: #30f6ff;
+      --accent2: #ff347f;
+      --gold: #ffbd4a;
+      --good: #5dffa8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 0%, rgba(48,246,255,.2), transparent 30%),
+        radial-gradient(circle at 95% 18%, rgba(255,52,127,.16), transparent 32%),
+        linear-gradient(180deg, #07040c, var(--bg));
+      touch-action: manipulation;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 8px 11px;
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.025));
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, rgba(48,246,255,.2), rgba(255,52,127,.12));
+    }
+
+    .app {
+      width: min(100%, 430px);
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 10px 28px;
+    }
+
+    .top {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1;
+      text-transform: uppercase;
+      text-shadow: 0 0 16px rgba(48,246,255,.35);
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .toolbar.wide {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .toolbar.four {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(0,0,0,.25);
+    }
+
+    .mode button {
+      box-shadow: none;
+      min-height: 38px;
+      border-radius: 13px;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .mode button.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: linear-gradient(135deg, rgba(48,246,255,.18), rgba(255,52,127,.12));
+    }
+
+    .stage-card, .panel {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 0 24px rgba(48,246,255,.14), inset 0 0 24px rgba(255,255,255,.025);
+      overflow: hidden;
+    }
+
+    .stage {
+      position: relative;
+      height: min(104vw, 500px);
+      min-height: 438px;
+      max-height: 520px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 22%, rgba(255,52,127,.12), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.012));
+    }
+
+    .stage.line-pick {
+      cursor: crosshair;
+      box-shadow: inset 0 0 0 2px rgba(93,255,168,.28);
+    }
+
+    .figure {
+      position: absolute;
+      left: 50%;
+      top: 58%;
+      width: 150px;
+      height: 370px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .figure img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 24px rgba(255,87,128,.38)) drop-shadow(0 0 18px rgba(48,246,255,.16)) saturate(1.17);
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .connectors {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .connectors line {
+      stroke: var(--line);
+      stroke-width: 1.4;
+      stroke-dasharray: 5 5;
+      filter: drop-shadow(0 0 5px var(--accent));
+    }
+
+    .line-points {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .line-point {
+      display: none;
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      border: 2px solid #061018;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 16px rgba(93,255,168,.42);
+      transform: translate(-50%, -50%);
+    }
+
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      opacity: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(48,246,255,.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(48,246,255,.14) 1px, transparent 1px);
+      background-size: var(--grid-x, 10%) var(--grid-y, 10%);
+      transition: opacity .16s;
+    }
+
+    .stage.magnet-on .grid-overlay {
+      opacity: .38;
+    }
+
+    .slot-map {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+    }
+
+    .slot {
+      position: absolute;
+      width: 74px;
+      min-height: 64px;
+      transform: translateX(-50%);
+      border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);
+      border-radius: 13px 13px 18px 13px;
+      padding: 5px;
+      background:
+        linear-gradient(90deg, rgba(255,189,74,.6) 0 5px, transparent 5px),
+        linear-gradient(180deg, rgba(255,255,255,.085), rgba(0,0,0,.28));
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .slot.selected {
+      border-color: var(--good);
+      box-shadow: 0 0 0 2px rgba(93,255,168,.14), 0 0 24px rgba(93,255,168,.22);
+    }
+
+    .slot-label {
+      color: color-mix(in srgb, var(--text) 78%, var(--muted));
+      font-size: 8.5px;
+      line-height: 1;
+      letter-spacing: .08em;
+      text-align: center;
+      text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .slot-box {
+      display: grid;
+      place-items: center;
+      min-height: 42px;
+      border-radius: 10px;
+      background: rgba(0,0,0,.24);
+    }
+
+    .empty-mark {
+      width: 31px;
+      height: 8px;
+      border: 1px solid rgba(255,52,127,.46);
+      transform: skewX(-18deg);
+    }
+
+    .panel {
+      margin-top: 10px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 10px;
+      color: var(--text);
+      background: rgba(0,0,0,.25);
+      outline: none;
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      top: max(10px, env(safe-area-inset-top));
+      z-index: 30;
+      max-width: min(390px, calc(100vw - 20px));
+      transform: translate(-50%, -130%);
+      transition: .18s;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+      color: var(--text);
+      background: rgba(0,0,0,.76);
+      box-shadow: 0 0 24px rgba(48,246,255,.16);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast.show { transform: translate(-50%, 0); }
+
+    @media (max-width: 380px) {
+      .slot {
+        width: 68px;
+        min-height: 60px;
+      }
+      .figure {
+        width: 134px;
+        height: 356px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <span class="eyebrow">slot layout editor / export json</span>
+      <h1>Редактор слотов</h1>
+      <section class="mode">
+        <button id="implantsMode" class="active">Импланты</button>
+        <button id="gearMode">Броня / одежда</button>
+      </section>
+      <section class="toolbar">
+        <button id="toggleLines">Линии: выкл</button>
+        <button id="toggleMagnet">Магнит: выкл</button>
+      </section>
+      <section class="toolbar">
+        <button id="pickLinePoint">Точка линии</button>
+        <button id="resetMode">Сброс режима</button>
+      </section>
+    </header>
+
+    <section class="stage-card">
+      <div class="stage" id="stage">
+        <div class="grid-overlay" id="gridOverlay"></div>
+        <div class="figure">
+          <img src="inventory_body_cutout.png" alt="Фигура персонажа" />
+        </div>
+        <svg class="connectors" id="connectors" aria-hidden="true"></svg>
+        <div class="line-points" id="linePoints"></div>
+        <div class="slot-map" id="slotMap"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="hint">
+        Перетаскивай слоты пальцем. Нажми слот, чтобы поменять подпись, координаты или точку линии.
+        Экспорт пришли мне текстом — я применю его к основному превью.
+      </div>
+      <div class="grid2">
+        <label>Слот
+          <select id="slotSelect"></select>
+        </label>
+        <label>Линия от
+          <select id="anchorSelect">
+            <option value="head">Голова</option>
+            <option value="arms">Руки</option>
+            <option value="hands">Ладони</option>
+            <option value="body">Тело</option>
+            <option value="legs">Ноги</option>
+          </select>
+        </label>
+      </div>
+      <label>Название
+        <input id="labelInput" />
+      </label>
+      <div class="grid2">
+        <label>X, %
+          <input id="xInput" type="number" min="0" max="100" step="0.1" />
+        </label>
+        <label>Y, %
+          <input id="yInput" type="number" min="0" max="100" step="0.1" />
+        </label>
+      </div>
+      <div class="grid2">
+        <label>Линия X, %
+          <input id="lineXInput" type="number" min="0" max="100" step="0.1" />
+        </label>
+        <label>Линия Y, %
+          <input id="lineYInput" type="number" min="0" max="100" step="0.1" />
+        </label>
+      </div>
+      <div class="grid2">
+        <label>Шаг магнита, %
+          <input id="gridStepInput" type="number" min="1" max="25" step="1" value="5" />
+        </label>
+        <label>Режим линии
+          <select id="lineModeSelect">
+            <option value="manual">Ручная точка</option>
+            <option value="anchor">От части тела</option>
+          </select>
+        </label>
+      </div>
+      <section class="toolbar wide">
+        <button id="applySlot">Применить</button>
+        <button class="primary" id="exportJson">Экспорт</button>
+        <button id="copyJson">Копировать</button>
+      </section>
+      <textarea id="jsonOutput" placeholder="Тут появится экспортированный JSON. Можно также вставить JSON и нажать Импорт."></textarea>
+      <section class="toolbar">
+        <button id="importJson">Импорт</button>
+        <button id="clearOutput">Очистить</button>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast">Готово</div>
+
+  <script>
+    const defaultLayouts = {
+      implants: [
+        { id: 'brain-1', label: 'Мозг 1', x: 15, y: 5, anchor: 'head', accepts: ['brain', 'cyber'], lineMode: 'manual', lineX: 50.407827833075324, lineY: 27.266665649414062 },
+        { id: 'brain-2', label: 'Мозг 2', x: 50, y: 5, anchor: 'head', accepts: ['brain', 'cyber'], lineMode: 'manual', lineX: 50.407827833075324, lineY: 27.266665649414062 },
+        { id: 'brain-3', label: 'Мозг 3', x: 85, y: 5, anchor: 'head', accepts: ['brain', 'cyber'], lineMode: 'manual', lineX: 50.407827833075324, lineY: 27.266665649414062 },
+        { id: 'eyes', label: 'Глаза', x: 15, y: 25, anchor: 'head', accepts: ['eyes', 'cyber'], lineMode: 'manual', lineX: 49.429035059617554, lineY: 30.066665649414066 },
+        { id: 'arms', label: 'Руки', x: 85, y: 25, anchor: 'arms', accepts: ['arms', 'cyber'], lineMode: 'manual', lineX: 60, lineY: 50 },
+        { id: 'palms', label: 'Ладони', x: 85, y: 40, anchor: 'hands', accepts: ['palms', 'cyber'], lineMode: 'manual', lineX: 63.132133888026374, lineY: 56.46666564941406 },
+        { id: 'body', label: 'Тело', x: 15, y: 45, anchor: 'body', accepts: ['body', 'cyber'], lineMode: 'manual', lineX: 45, lineY: 40 },
+        { id: 'skin', label: 'Кожа', x: 15, y: 60, anchor: 'body', accepts: ['skin', 'cyber'], lineMode: 'manual', lineX: 45, lineY: 60 },
+        { id: 'organ-1', label: 'Орган 1', x: 85, y: 70, anchor: 'body', accepts: ['organ', 'cyber'], lineMode: 'manual', lineX: 50, lineY: 50 },
+        { id: 'organ-2', label: 'Орган 2', x: 85, y: 85, anchor: 'body', accepts: ['organ', 'cyber'], lineMode: 'manual', lineX: 50, lineY: 50 },
+        { id: 'legs', label: 'Ноги', x: 15, y: 85, anchor: 'legs', accepts: ['legs', 'cyber'], lineMode: 'manual', lineX: 50, lineY: 75 }
+      ],
+      gear: [
+        { id: 'armor', label: 'Броня', x: 15, y: 30, anchor: 'body', accepts: ['armor'], lineMode: 'manual', lineX: 50, lineY: 47 },
+        { id: 'clothes', label: 'Одежда', x: 85, y: 30, anchor: 'body', accepts: ['clothes'], lineMode: 'manual', lineX: 50, lineY: 40 },
+        { id: 'weapon-1', label: 'Оружие 1', x: 15, y: 60, anchor: 'hands', accepts: ['weapon'], lineMode: 'manual', lineX: 35, lineY: 55 },
+        { id: 'weapon-2', label: 'Оружие 2', x: 85, y: 60, anchor: 'hands', accepts: ['weapon'], lineMode: 'manual', lineX: 65, lineY: 55 }
+      ]
+    };
+
+    const anchorPoints = {
+      head: { x: 50, y: 25 },
+      arms: { x: 39, y: 46 },
+      hands: { x: 58, y: 50 },
+      body: { x: 50, y: 47 },
+      legs: { x: 50, y: 75 }
+    };
+
+    const state = {
+      mode: 'implants',
+      showLines: false,
+      magnet: false,
+      gridStep: 5,
+      pickingLinePoint: false,
+      selectedId: 'brain-1',
+      layouts: structuredClone(defaultLayouts)
+    };
+
+    const stage = document.querySelector('#stage');
+    const slotMap = document.querySelector('#slotMap');
+    const connectors = document.querySelector('#connectors');
+    const linePoints = document.querySelector('#linePoints');
+    const gridOverlay = document.querySelector('#gridOverlay');
+    const slotSelect = document.querySelector('#slotSelect');
+    const labelInput = document.querySelector('#labelInput');
+    const xInput = document.querySelector('#xInput');
+    const yInput = document.querySelector('#yInput');
+    const lineXInput = document.querySelector('#lineXInput');
+    const lineYInput = document.querySelector('#lineYInput');
+    const gridStepInput = document.querySelector('#gridStepInput');
+    const lineModeSelect = document.querySelector('#lineModeSelect');
+    const anchorSelect = document.querySelector('#anchorSelect');
+    const jsonOutput = document.querySelector('#jsonOutput');
+    const toast = document.querySelector('#toast');
+    let drag = null;
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 1300);
+    }
+
+    function currentSlots() {
+      return state.layouts[state.mode];
+    }
+
+    function selectedSlot() {
+      return currentSlots().find(slot => slot.id === state.selectedId) || currentSlots()[0];
+    }
+
+    function clamp(value, min = 0, max = 100) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function snap(value) {
+      if (!state.magnet) return value;
+      return Math.round(value / state.gridStep) * state.gridStep;
+    }
+
+    function lineStart(slot) {
+      if (slot.lineMode === 'anchor') {
+        return anchorPoints[slot.anchor] || anchorPoints.body;
+      }
+      return {
+        x: Number.isFinite(slot.lineX) ? slot.lineX : (anchorPoints[slot.anchor]?.x ?? 50),
+        y: Number.isFinite(slot.lineY) ? slot.lineY : (anchorPoints[slot.anchor]?.y ?? 50)
+      };
+    }
+
+    function normalizeSlot(slot) {
+      const anchor = anchorPoints[slot.anchor] || anchorPoints.body;
+      if (!slot.lineMode) slot.lineMode = 'manual';
+      if (!Number.isFinite(slot.lineX)) slot.lineX = anchor.x;
+      if (!Number.isFinite(slot.lineY)) slot.lineY = anchor.y;
+      return slot;
+    }
+
+    function normalizeLayouts() {
+      Object.values(state.layouts).forEach(slots => slots.forEach(normalizeSlot));
+    }
+
+    function render() {
+      normalizeLayouts();
+      slotMap.innerHTML = '';
+      linePoints.innerHTML = '';
+      slotSelect.innerHTML = '';
+      stage.classList.toggle('magnet-on', state.magnet);
+      stage.classList.toggle('line-pick', state.pickingLinePoint);
+      gridOverlay.style.setProperty('--grid-x', state.gridStep + '%');
+      gridOverlay.style.setProperty('--grid-y', state.gridStep + '%');
+      currentSlots().forEach(slot => {
+        const option = document.createElement('option');
+        option.value = slot.id;
+        option.textContent = `${slot.label} (${slot.id})`;
+        slotSelect.appendChild(option);
+
+        const node = document.createElement('button');
+        node.className = 'slot';
+        if (slot.id === state.selectedId) node.classList.add('selected');
+        node.dataset.slot = slot.id;
+        node.style.left = slot.x + '%';
+        node.style.top = slot.y + '%';
+        node.innerHTML = `
+          <span class="slot-label">${slot.label}</span>
+          <span class="slot-box"><span class="empty-mark"></span></span>
+        `;
+        node.addEventListener('pointerdown', event => startDrag(event, slot.id));
+        slotMap.appendChild(node);
+
+        if (state.showLines) {
+          const point = lineStart(slot);
+          const pointNode = document.createElement('span');
+          pointNode.className = 'line-point';
+          pointNode.style.left = point.x + '%';
+          pointNode.style.top = point.y + '%';
+          linePoints.appendChild(pointNode);
+        }
+      });
+      const selected = selectedSlot();
+      state.selectedId = selected.id;
+      slotSelect.value = selected.id;
+      labelInput.value = selected.label;
+      xInput.value = Number(selected.x.toFixed(1));
+      yInput.value = Number(selected.y.toFixed(1));
+      lineXInput.value = Number(lineStart(selected).x.toFixed(1));
+      lineYInput.value = Number(lineStart(selected).y.toFixed(1));
+      lineModeSelect.value = selected.lineMode || 'manual';
+      gridStepInput.value = state.gridStep;
+      anchorSelect.value = selected.anchor;
+      document.querySelector('#implantsMode').classList.toggle('active', state.mode === 'implants');
+      document.querySelector('#gearMode').classList.toggle('active', state.mode === 'gear');
+      document.querySelector('#toggleLines').textContent = `Линии: ${state.showLines ? 'вкл' : 'выкл'}`;
+      document.querySelector('#toggleMagnet').textContent = `Магнит: ${state.magnet ? 'вкл' : 'выкл'}`;
+      document.querySelector('#pickLinePoint').classList.toggle('primary', state.pickingLinePoint);
+      drawLines();
+    }
+
+    function drawLines() {
+      connectors.innerHTML = '';
+      if (!state.showLines) return;
+      const rect = stage.getBoundingClientRect();
+      currentSlots().forEach(slot => {
+        const node = slotMap.querySelector(`[data-slot="${slot.id}"]`);
+        if (!node) return;
+        const nodeRect = node.getBoundingClientRect();
+        const anchor = lineStart(slot);
+        const x1 = rect.width * anchor.x / 100;
+        const y1 = rect.height * anchor.y / 100;
+        const slotCenterX = nodeRect.left - rect.left + nodeRect.width / 2;
+        const slotCenterY = nodeRect.top - rect.top + nodeRect.height / 2;
+        const dx = slotCenterX - x1;
+        const dy = slotCenterY - y1;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const slotPad = Math.min(42, distance * 0.42);
+        const x2 = slotCenterX - dx / distance * slotPad;
+        const y2 = slotCenterY - dy / distance * slotPad;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        connectors.appendChild(line);
+      });
+    }
+
+    function startDrag(event, id) {
+      event.preventDefault();
+      event.stopPropagation();
+      state.selectedId = id;
+      const slot = selectedSlot();
+      const rect = stage.getBoundingClientRect();
+      drag = {
+        id,
+        pointerId: event.pointerId,
+        stageRect: rect,
+        offsetX: event.clientX - (rect.left + rect.width * slot.x / 100),
+        offsetY: event.clientY - (rect.top + rect.height * slot.y / 100)
+      };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      document.addEventListener('pointermove', moveDrag);
+      document.addEventListener('pointerup', endDrag, { once: true });
+      document.addEventListener('pointercancel', endDrag, { once: true });
+      render();
+    }
+
+    function moveDrag(event) {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      event.preventDefault();
+      const slot = currentSlots().find(candidate => candidate.id === drag.id);
+      if (!slot) return;
+      slot.x = clamp(snap(((event.clientX - drag.offsetX - drag.stageRect.left) / drag.stageRect.width) * 100));
+      slot.y = clamp(snap(((event.clientY - drag.offsetY - drag.stageRect.top) / drag.stageRect.height) * 100));
+      render();
+    }
+
+    function endDrag() {
+      document.removeEventListener('pointermove', moveDrag);
+      drag = null;
+    }
+
+    function applySlotForm() {
+      const slot = selectedSlot();
+      slot.label = labelInput.value.trim() || slot.label;
+      slot.x = clamp(snap(Number(xInput.value || slot.x)));
+      slot.y = clamp(snap(Number(yInput.value || slot.y)));
+      slot.anchor = anchorSelect.value;
+      slot.lineMode = lineModeSelect.value;
+      slot.lineX = clamp(snap(Number(lineXInput.value || lineStart(slot).x)));
+      slot.lineY = clamp(snap(Number(lineYInput.value || lineStart(slot).y)));
+      render();
+      showToast('Слот обновлён');
+    }
+
+    function exportLayout() {
+      const payload = {
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        showLines: state.showLines,
+        magnet: state.magnet,
+        gridStep: state.gridStep,
+        modes: state.layouts
+      };
+      jsonOutput.value = JSON.stringify(payload, null, 2);
+      showToast('JSON экспортирован');
+    }
+
+    async function copyLayout() {
+      if (!jsonOutput.value.trim()) exportLayout();
+      try {
+        await navigator.clipboard.writeText(jsonOutput.value);
+        showToast('JSON скопирован');
+      } catch {
+        jsonOutput.select();
+        showToast('Скопируй JSON вручную');
+      }
+    }
+
+    function importLayout() {
+      try {
+        const payload = JSON.parse(jsonOutput.value);
+        if (!payload.modes?.implants || !payload.modes?.gear) {
+          throw new Error('bad layout');
+        }
+        state.layouts = payload.modes;
+        normalizeLayouts();
+        state.showLines = Boolean(payload.showLines);
+        state.magnet = Boolean(payload.magnet);
+        state.gridStep = Number(payload.gridStep || state.gridStep);
+        state.selectedId = state.layouts[state.mode][0].id;
+        render();
+        showToast('JSON импортирован');
+      } catch {
+        showToast('Не получилось импортировать JSON');
+      }
+    }
+
+    document.querySelector('#implantsMode').addEventListener('click', () => {
+      state.mode = 'implants';
+      state.selectedId = state.layouts.implants[0].id;
+      render();
+    });
+
+    document.querySelector('#gearMode').addEventListener('click', () => {
+      state.mode = 'gear';
+      state.selectedId = state.layouts.gear[0].id;
+      render();
+    });
+
+    document.querySelector('#toggleLines').addEventListener('click', () => {
+      state.showLines = !state.showLines;
+      render();
+    });
+
+    document.querySelector('#toggleMagnet').addEventListener('click', () => {
+      state.magnet = !state.magnet;
+      render();
+    });
+
+    document.querySelector('#pickLinePoint').addEventListener('click', () => {
+      state.showLines = true;
+      state.pickingLinePoint = !state.pickingLinePoint;
+      render();
+      showToast(state.pickingLinePoint ? 'Теперь нажми точку начала линии на схеме' : 'Режим точки линии выключен');
+    });
+
+    stage.addEventListener('click', event => {
+      if (!state.pickingLinePoint) return;
+      const target = event.target;
+      if (target.closest?.('.slot')) return;
+      const rect = stage.getBoundingClientRect();
+      const slot = selectedSlot();
+      slot.lineMode = 'manual';
+      slot.lineX = clamp(snap(((event.clientX - rect.left) / rect.width) * 100));
+      slot.lineY = clamp(snap(((event.clientY - rect.top) / rect.height) * 100));
+      state.pickingLinePoint = false;
+      render();
+      showToast('Точка линии поставлена');
+    });
+
+    document.querySelector('#resetMode').addEventListener('click', () => {
+      state.layouts[state.mode] = structuredClone(defaultLayouts[state.mode]);
+      state.selectedId = state.layouts[state.mode][0].id;
+      render();
+      showToast('Режим сброшен');
+    });
+
+    slotSelect.addEventListener('change', () => {
+      state.selectedId = slotSelect.value;
+      render();
+    });
+
+    gridStepInput.addEventListener('change', () => {
+      state.gridStep = clamp(Number(gridStepInput.value || 5), 1, 25);
+      render();
+    });
+
+    document.querySelector('#applySlot').addEventListener('click', applySlotForm);
+    document.querySelector('#exportJson').addEventListener('click', exportLayout);
+    document.querySelector('#copyJson').addEventListener('click', copyLayout);
+    document.querySelector('#importJson').addEventListener('click', importLayout);
+    document.querySelector('#clearOutput').addEventListener('click', () => jsonOutput.value = '');
+    window.addEventListener('resize', drawLines);
+
+    render();
+  </script>
+</body>
+</html>

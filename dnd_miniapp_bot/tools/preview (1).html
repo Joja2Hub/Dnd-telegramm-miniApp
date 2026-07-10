@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Animated frame-only library — Magic / Cyber / Sci-Fi</title>
+<style>
+    :root {
+      --bg:#080c13;
+      --panel:#0d1420;
+      --text:#e8eefc;
+      --muted:#95a3bb;
+      --line:rgba(255,255,255,.12);
+      --avatar-size:96px;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      min-height:100vh;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 18% -8%, rgba(168,85,247,.24), transparent 32%),
+        radial-gradient(circle at 88% 0%, rgba(34,211,238,.18), transparent 30%),
+        radial-gradient(circle at 40% 110%, rgba(239,68,68,.15), transparent 35%),
+        linear-gradient(180deg, #080c13, #0a0f18 48%, #070a10);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header, main, footer { max-width:1240px; margin:0 auto; padding-left:20px; padding-right:20px; }
+    header { padding-top:34px; padding-bottom:18px; }
+    .hero {
+      border:1px solid var(--line);
+      background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border-radius:28px;
+      padding:24px;
+      box-shadow:0 24px 80px rgba(0,0,0,.38);
+    }
+    h1 { margin:0 0 8px; font-size:clamp(28px, 4vw, 46px); line-height:1.05; letter-spacing:-.04em; }
+    .hero p { margin:0; color:var(--muted); max-width:900px; line-height:1.55; }
+    .stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .stat { border:1px solid var(--line); background:rgba(0,0,0,.18); border-radius:16px; padding:10px 12px; color:var(--muted); font-size:13px; }
+    .stat b { color:var(--text); font-size:18px; margin-right:6px; }
+    main { padding-top:14px; padding-bottom:42px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 18px; position:sticky; top:0; z-index:10; padding:12px 0; backdrop-filter: blur(14px); }
+    .toolbar button { border:1px solid var(--line); background:rgba(17,26,41,.78); color:var(--text); border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer; }
+    .toolbar button.active { border-color:rgba(34,211,238,.62); background:rgba(34,211,238,.14); color:#cffafe; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:16px; }
+    .frame-card {
+      border:1px solid var(--line);
+      border-radius:24px;
+      background:radial-gradient(circle at 20% 0%, rgba(255,255,255,.08), transparent 38%), linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018)), var(--panel);
+      overflow:hidden;
+      min-height:330px;
+      display:flex;
+      flex-direction:column;
+      box-shadow:0 18px 60px rgba(0,0,0,.24), inset 0 0 0 1px color-mix(in srgb, var(--rarity) 16%, transparent);
+    }
+    .frame-card[hidden] { display:none; }
+    .rarity-common { --rarity:#94a3b8; }
+    .rarity-rare { --rarity:#38bdf8; }
+    .rarity-epic { --rarity:#c084fc; }
+    .rarity-legendary { --rarity:#facc15; }
+    .preview-zone {
+      height:176px;
+      display:grid;
+      place-items:center;
+      background:radial-gradient(circle at center, rgba(255,255,255,.10), transparent 45%), linear-gradient(135deg, rgba(114,167,255,.07), rgba(255,209,102,.04));
+      border-bottom:1px solid var(--line);
+    }
+    .frame-info { padding:16px; display:flex; flex-direction:column; gap:9px; flex:1; }
+    .frame-title { display:flex; align-items:center; gap:10px; font-size:18px; }
+    .emoji { font-size:24px; width:30px; text-align:center; }
+    code { width:max-content; max-width:100%; padding:4px 8px; border-radius:10px; color:#dbeafe; background:rgba(147,197,253,.10); border:1px solid rgba(147,197,253,.16); font-size:12px; overflow:hidden; text-overflow:ellipsis; }
+    .frame-info p { margin:0; color:var(--muted); line-height:1.45; font-size:14px; flex:1; }
+    .meta { display:flex; flex-wrap:wrap; gap:6px; }
+    .meta span { border:1px solid var(--line); background:rgba(255,255,255,.045); color:#cbd5e1; border-radius:999px; padding:5px 8px; font-size:12px; font-weight:700; }
+    .avatar {
+      width:var(--avatar-size); height:var(--avatar-size); min-width:var(--avatar-size); min-height:var(--avatar-size);
+      border-radius:999px; display:inline-grid; place-items:center; overflow:hidden; position:relative; border:4px solid rgba(255,255,255,.12); background:#111823; color:#fff;
+    }
+    .avatar.xl { --avatar-size:112px; border-width:7px; }
+    .avatar-photo { width:100%; height:100%; object-fit:cover; border-radius:inherit; display:grid; place-items:center; }
+    .avatar-art {
+      font-size:42px;
+      background:radial-gradient(circle at 36% 30%, rgba(255,255,255,.24), transparent 22%), radial-gradient(circle at 72% 80%, rgba(114,167,255,.22), transparent 32%), linear-gradient(145deg, #182235, #0b1019);
+      color:#f8fafc;
+    }
+    /* v49 expansion: original animated frame-only library (magic/fantasy + cyber/sci-fi). */
+    .nf-avatar-shell {
+      --nf-avatar-size: 112px;
+      position: relative;
+      width: 146px;
+      height: 146px;
+      display: grid;
+      place-items: center;
+      isolation: isolate;
+    }
+    .nf-avatar-shell .avatar {
+      width: var(--nf-avatar-size);
+      height: var(--nf-avatar-size);
+      min-width: var(--nf-avatar-size);
+      min-height: var(--nf-avatar-size);
+      z-index: 2;
+      border-width: 3px;
+    }
+    .nf-frame {
+      --nf-speed: 3.2s;
+      --nf-spin-speed: 7s;
+      position: absolute;
+      width: calc(var(--nf-avatar-size) + 18px);
+      height: calc(var(--nf-avatar-size) + 18px);
+      border-radius: 50%;
+      z-index: 3;
+      pointer-events: none;
+      transform-origin: center;
+      animation: nfFrameBreath var(--nf-speed) ease-in-out infinite;
+    }
+    .nf-frame::before,
+    .nf-frame::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    .nf-frame::before {
+      background: conic-gradient(from 0deg, var(--nf-a), var(--nf-b), var(--nf-c), var(--nf-a));
+      -webkit-mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      filter: drop-shadow(0 0 9px color-mix(in srgb, var(--nf-b) 70%, transparent));
+      animation: nfFrameSpin var(--nf-spin-speed) linear infinite;
+    }
+    .nf-frame::after {
+      inset: 6px;
+      border: 2px solid color-mix(in srgb, var(--nf-c) 65%, transparent);
+      box-shadow:
+        inset 0 0 14px color-mix(in srgb, var(--nf-b) 26%, transparent),
+        0 0 12px color-mix(in srgb, var(--nf-a) 34%, transparent);
+      opacity: .82;
+      animation: nfFrameInnerPulse calc(var(--nf-speed) * .9) ease-in-out infinite;
+    }
+    .nf-source-badge {
+      color: #bae6fd !important;
+      border-color: rgba(56,189,248,.26) !important;
+      background: rgba(14,165,233,.08) !important;
+    }
+    .nf-rarity-badge {
+      color: #f0abfc !important;
+      border-color: rgba(240,171,252,.28) !important;
+      background: rgba(168,85,247,.10) !important;
+    }
+
+    /* Fantasy / magic frames */
+    .nf-frame-demon-runes {
+      --nf-a:#2b0000;
+      --nf-b:#e00012;
+      --nf-c:#ff3232;
+      --nf-speed: 2.15s;
+      --nf-spin-speed: 12s;
+    }
+    .nf-frame-demon-runes::before {
+      background:
+        radial-gradient(circle, transparent 0 69%, rgba(8,0,0,.88) 70%, rgba(180,0,0,.95) 72%, #f20c18 78%, rgba(80,0,0,.98) 86%, transparent 88%),
+        conic-gradient(from 0deg, #3b0000 0 8deg, #f1141f 10deg 18deg, #7f0008 22deg 34deg, #ff2530 38deg 45deg, #3b0000 48deg 60deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 68%, #000 69% 89%, transparent 90%);
+      mask: radial-gradient(circle, transparent 0 68%, #000 69% 89%, transparent 90%);
+      filter: drop-shadow(0 0 9px rgba(255,0,20,.74));
+      animation: nfFrameSpin var(--nf-spin-speed) linear infinite reverse;
+    }
+    .nf-frame-demon-runes::after {
+      inset: 10px;
+      border-color: rgba(20,0,0,.88);
+      box-shadow: inset 0 0 0 2px rgba(255,42,42,.28), inset 0 0 18px rgba(0,0,0,.72), 0 0 16px rgba(255,0,0,.34);
+    }
+    .nf-runes,
+    .nf-pentagram {
+      position:absolute;
+      inset:0;
+      border-radius:inherit;
+      pointer-events:none;
+    }
+    .nf-runes {
+      z-index:4;
+      animation: nfRuneOrbit 18s linear infinite;
+    }
+    .nf-runes i {
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:18px;
+      height:18px;
+      margin:-9px 0 0 -9px;
+      display:grid;
+      place-items:center;
+      color:#030000;
+      font-size:16px;
+      font-weight:1000;
+      font-family: Georgia, "Times New Roman", serif;
+      text-shadow: 0 0 3px rgba(255,30,30,.30);
+      transform: rotate(calc(var(--i) * 30deg)) translateY(-54px) rotate(calc(var(--i) * -30deg));
+      animation: nfRuneBlink 2.8s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -.16s);
+    }
+    .nf-pentagram {
+      z-index:3;
+      padding:10px;
+      -webkit-mask: radial-gradient(circle, transparent 0 57%, #000 58% 86%, transparent 87%);
+      mask: radial-gradient(circle, transparent 0 57%, #000 58% 86%, transparent 87%);
+      animation: nfFrameSpin 24s linear infinite;
+    }
+    .nf-pentagram svg {
+      width:100%;
+      height:100%;
+      display:block;
+      overflow:visible;
+    }
+
+    .nf-frame-arcane-compass {
+      --nf-a:#2e1065;
+      --nf-b:#a855f7;
+      --nf-c:#fde68a;
+      --nf-speed: 3.6s;
+      --nf-spin-speed: 10s;
+    }
+    .nf-frame-arcane-compass::after {
+      inset: 5px;
+      border: 0;
+      background:
+        repeating-conic-gradient(from 22.5deg, rgba(253,230,138,.95) 0 3deg, transparent 3deg 41deg),
+        radial-gradient(circle, transparent 0 68%, rgba(30,16,80,.65) 69% 84%, transparent 85%);
+      -webkit-mask: radial-gradient(circle, transparent 0 63%, #000 64% 89%, transparent 90%);
+      mask: radial-gradient(circle, transparent 0 63%, #000 64% 89%, transparent 90%);
+      animation: nfFrameSpin 15s linear infinite reverse;
+    }
+    .nf-frame-mana-crystal {
+      --nf-a:#083344;
+      --nf-b:#22d3ee;
+      --nf-c:#c084fc;
+      --nf-speed: 2.8s;
+      --nf-spin-speed: 6.5s;
+    }
+    .nf-frame-mana-crystal::before {
+      background: conic-gradient(from 0deg, #0e7490, #67e8f9 12%, #c084fc 24%, #22d3ee 38%, #f0abfc 52%, #0891b2 66%, #a5f3fc 78%, #0e7490);
+      -webkit-mask: radial-gradient(circle, transparent 0 67%, #000 68% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 67%, #000 68% 88%, transparent 89%);
+    }
+    .nf-frame-mana-crystal::after {
+      background: repeating-conic-gradient(from 8deg, rgba(255,255,255,.72) 0 2deg, transparent 2deg 16deg, rgba(124,58,237,.34) 16deg 22deg, transparent 22deg 34deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 70%, #000 72% 87%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 70%, #000 72% 87%, transparent 89%);
+      border:0;
+      animation: nfCrystalFlicker 2.2s ease-in-out infinite;
+    }
+    .nf-frame-druid-seal {
+      --nf-a:#14532d;
+      --nf-b:#22c55e;
+      --nf-c:#fde68a;
+      --nf-speed: 4.4s;
+      --nf-spin-speed: 14s;
+    }
+    .nf-frame-druid-seal::before {
+      background:
+        repeating-conic-gradient(from 0deg, #14532d 0 10deg, #22c55e 10deg 16deg, #7c5f21 16deg 21deg, #bbf7d0 21deg 27deg, #14532d 27deg 42deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 68%, #000 69% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 68%, #000 69% 88%, transparent 89%);
+      animation: nfFrameSpin 18s linear infinite;
+    }
+    .nf-frame-druid-seal::after {
+      content:"☘  ✦  ☘  ✦";
+      inset: 2px;
+      display:grid;
+      place-items:center;
+      border:0;
+      color:#e9f99d;
+      font-size:16px;
+      letter-spacing:8px;
+      text-shadow:0 0 8px rgba(190,242,100,.75);
+      animation: nfRuneBlink 3.6s ease-in-out infinite;
+    }
+    .nf-frame-lunar-oracle {
+      --nf-a:#020617;
+      --nf-b:#cbd5e1;
+      --nf-c:#818cf8;
+      --nf-speed: 5s;
+      --nf-spin-speed: 11s;
+    }
+    .nf-frame-lunar-oracle::before {
+      background: conic-gradient(from 0deg, #020617 0 20%, #e2e8f0 24% 31%, #312e81 38% 60%, #94a3b8 64% 72%, #020617 78% 100%);
+      -webkit-mask: radial-gradient(circle, transparent 0 68%, #000 69% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 68%, #000 69% 88%, transparent 89%);
+      animation: nfFrameSpin 16s linear infinite reverse;
+    }
+    .nf-frame-clockwork-glyph {
+      --nf-a:#422006;
+      --nf-b:#d97706;
+      --nf-c:#fef3c7;
+      --nf-speed: 3.4s;
+      --nf-spin-speed: 8s;
+    }
+    .nf-frame-clockwork-glyph::before {
+      background: repeating-conic-gradient(from 0deg, #422006 0 7deg, #f59e0b 7deg 12deg, #fed7aa 12deg 15deg, #92400e 15deg 22deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 65%, #000 66% 90%, transparent 91%);
+      mask: radial-gradient(circle, transparent 0 65%, #000 66% 90%, transparent 91%);
+      animation: nfFrameSpin 9s steps(48,end) infinite;
+    }
+    .nf-frame-clockwork-glyph::after {
+      inset:4px;
+      background: repeating-conic-gradient(from 8deg, rgba(15,23,42,.85) 0 2deg, transparent 2deg 14deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      border:0;
+      animation: nfFrameSpin 7s steps(36,end) infinite reverse;
+    }
+
+    /* Cyberpunk / sci-fi frames */
+    .nf-frame-neon-circuit {
+      --nf-a:#0e7490;
+      --nf-b:#22d3ee;
+      --nf-c:#f472b6;
+      --nf-speed: 2.3s;
+      --nf-spin-speed: 5.8s;
+    }
+    .nf-frame-neon-circuit::before {
+      background:
+        repeating-conic-gradient(from 0deg, #22d3ee 0 7deg, transparent 7deg 12deg, #f472b6 12deg 18deg, transparent 18deg 28deg),
+        conic-gradient(from 0deg, #0f172a, #22d3ee, #f472b6, #0f172a);
+      -webkit-mask: radial-gradient(circle, transparent 0 68%, #000 69% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 68%, #000 69% 88%, transparent 89%);
+      animation: nfCircuitStep 1.4s steps(12,end) infinite;
+    }
+    .nf-frame-neon-circuit::after {
+      background: linear-gradient(90deg, transparent 0 46%, rgba(34,211,238,.96) 47% 53%, transparent 54% 100%), linear-gradient(0deg, transparent 0 46%, rgba(244,114,182,.72) 47% 53%, transparent 54% 100%);
+      -webkit-mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      border:0;
+      animation: nfFrameSpin 6s linear infinite;
+    }
+    .nf-frame-quantum-gate {
+      --nf-a:#0f172a;
+      --nf-b:#60a5fa;
+      --nf-c:#e0f2fe;
+      --nf-speed: 2.7s;
+      --nf-spin-speed: 4.8s;
+    }
+    .nf-frame-quantum-gate::before {
+      background: repeating-conic-gradient(from 0deg, rgba(224,242,254,.96) 0 8deg, rgba(96,165,250,.86) 8deg 20deg, transparent 20deg 30deg, rgba(37,99,235,.9) 30deg 42deg, transparent 42deg 58deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 64%, #000 65% 90%, transparent 91%);
+      mask: radial-gradient(circle, transparent 0 64%, #000 65% 90%, transparent 91%);
+      animation: nfQuantumGate 2.4s ease-in-out infinite;
+    }
+    .nf-frame-chrome-data {
+      --nf-a:#111827;
+      --nf-b:#e5e7eb;
+      --nf-c:#38bdf8;
+      --nf-speed: 3.8s;
+      --nf-spin-speed: 9s;
+    }
+    .nf-frame-chrome-data::before {
+      background: repeating-conic-gradient(from 0deg, #f8fafc 0 2deg, #64748b 2deg 5deg, #111827 5deg 7deg, transparent 7deg 11deg), conic-gradient(from 0deg, #0f172a, #e5e7eb, #38bdf8, #111827);
+      -webkit-mask: radial-gradient(circle, transparent 0 66%, #000 67% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 66%, #000 67% 88%, transparent 89%);
+      animation: nfCircuitStep 2.5s steps(18,end) infinite;
+    }
+    .nf-frame-reactor-core {
+      --nf-a:#052e16;
+      --nf-b:#4ade80;
+      --nf-c:#a7f3d0;
+      --nf-speed: 1.9s;
+      --nf-spin-speed: 5.4s;
+    }
+    .nf-frame-reactor-core::before {
+      background: conic-gradient(from 0deg, #052e16, #22c55e 12%, #bbf7d0 14%, #16a34a 28%, #052e16 36%, #4ade80 52%, #a7f3d0 55%, #052e16 70%, #22c55e 86%, #052e16);
+      -webkit-mask: radial-gradient(circle, transparent 0 65%, #000 66% 90%, transparent 91%);
+      mask: radial-gradient(circle, transparent 0 65%, #000 66% 90%, transparent 91%);
+      animation: nfFrameSpin 4.2s linear infinite;
+    }
+    .nf-frame-reactor-core::after {
+      inset:7px;
+      border:0;
+      background: repeating-conic-gradient(from 0deg, rgba(187,247,208,.9) 0 5deg, transparent 5deg 25deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      mask: radial-gradient(circle, transparent 0 72%, #000 73% 86%, transparent 87%);
+      animation: nfFrameSpin 2.5s linear infinite reverse;
+    }
+    .nf-frame-void-singularity {
+      --nf-a:#020617;
+      --nf-b:#1d4ed8;
+      --nf-c:#a78bfa;
+      --nf-speed: 3.1s;
+      --nf-spin-speed: 7.2s;
+    }
+    .nf-frame-void-singularity::before {
+      background: conic-gradient(from 0deg, #020617 0 18%, #1e1b4b 22%, #60a5fa 26%, #020617 34% 50%, #7c3aed 54%, #020617 64% 100%);
+      -webkit-mask: radial-gradient(circle, transparent 0 60%, #000 61% 90%, transparent 91%);
+      mask: radial-gradient(circle, transparent 0 60%, #000 61% 90%, transparent 91%);
+      filter: drop-shadow(0 0 10px rgba(96,165,250,.55));
+      animation: nfSingularity 3.8s ease-in-out infinite;
+    }
+    .nf-frame-hologram-grid {
+      --nf-a:#064e3b;
+      --nf-b:#2dd4bf;
+      --nf-c:#67e8f9;
+      --nf-speed: 2.8s;
+      --nf-spin-speed: 6.8s;
+    }
+    .nf-frame-hologram-grid::before {
+      background:
+        repeating-conic-gradient(from 0deg, rgba(45,212,191,.92) 0 3deg, transparent 3deg 12deg),
+        conic-gradient(from 0deg, rgba(6,78,59,.4), rgba(103,232,249,.9), rgba(45,212,191,.75), rgba(6,78,59,.4));
+      -webkit-mask: radial-gradient(circle, transparent 0 67%, #000 68% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 67%, #000 68% 88%, transparent 89%);
+      animation: nfHoloShimmer 2.1s linear infinite;
+    }
+    .nf-frame-hologram-grid::after {
+      background: repeating-linear-gradient(90deg, transparent 0 9px, rgba(103,232,249,.38) 9px 11px), repeating-linear-gradient(0deg, transparent 0 9px, rgba(45,212,191,.25) 9px 11px);
+      -webkit-mask: radial-gradient(circle, transparent 0 70%, #000 71% 86%, transparent 87%);
+      mask: radial-gradient(circle, transparent 0 70%, #000 71% 86%, transparent 87%);
+      border:0;
+      animation: nfFrameInnerPulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes nfFrameBreath { 0%,100%{ transform:scale(.985); opacity:.88; } 50%{ transform:scale(1.035); opacity:1; } }
+    @keyframes nfFrameSpin { from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+    @keyframes nfFrameInnerPulse { 0%,100%{ opacity:.42; transform:scale(.985); } 50%{ opacity:.96; transform:scale(1.015); } }
+    @keyframes nfRuneOrbit { from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+    @keyframes nfRuneBlink { 0%,100%{ opacity:.62; filter:brightness(.8); } 50%{ opacity:1; filter:brightness(1.25); } }
+    @keyframes nfCrystalFlicker { 0%,100%{ opacity:.42; transform:rotate(0deg); } 45%{ opacity:.95; transform:rotate(10deg); } 70%{ opacity:.66; transform:rotate(-4deg); } }
+    @keyframes nfCircuitStep { from{ transform:rotate(0deg); filter:brightness(.95); } 50%{ filter:brightness(1.4); } to{ transform:rotate(360deg); filter:brightness(.95); } }
+    @keyframes nfQuantumGate { 0%,100%{ transform:rotate(0deg) scale(.99); opacity:.72; } 50%{ transform:rotate(90deg) scale(1.04); opacity:1; } }
+    @keyframes nfSingularity { 0%,100%{ transform:rotate(0deg) scale(.98); opacity:.76; } 50%{ transform:rotate(180deg) scale(1.06); opacity:1; } }
+    @keyframes nfHoloShimmer { from{ transform:rotate(0deg); opacity:.58; } 50%{ opacity:1; } to{ transform:rotate(360deg); opacity:.58; } }
+
+
+    /* v50 expansion: tighter fit + extra unique templates */
+    .nf-runes.ashen i {
+      color:#0f0707;
+      font-size:15px;
+      text-shadow:0 0 4px rgba(255,72,72,.25);
+      transform: rotate(calc(var(--i) * 30deg)) translateY(-53px) rotate(calc(var(--i) * -30deg));
+    }
+    .nf-pentagram.inverted {
+      padding: 9px;
+      animation-duration: 19s;
+      animation-direction: reverse;
+    }
+    .nf-frame-ashen-pentagram {
+      --nf-a:#180202;
+      --nf-b:#7a0b0b;
+      --nf-c:#ff7b7b;
+      --nf-speed:2.4s;
+      --nf-spin-speed:15s;
+    }
+    .nf-frame-ashen-pentagram::before {
+      background:
+        radial-gradient(circle, transparent 0 68%, rgba(0,0,0,.96) 69%, rgba(50,6,6,.96) 72%, rgba(173,21,21,.92) 79%, rgba(24,2,2,.98) 86%, transparent 88%),
+        repeating-conic-gradient(from 0deg, #130101 0 10deg, #7d0d0d 10deg 16deg, #1a0202 16deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 67%, #000 68% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 67%, #000 68% 88%, transparent 89%);
+      filter: drop-shadow(0 0 9px rgba(176,20,20,.62));
+      animation: nfFrameSpin var(--nf-spin-speed) linear infinite;
+    }
+    .nf-frame-ashen-pentagram::after {
+      inset:7px;
+      border:2px solid rgba(255,126,126,.28);
+      box-shadow: inset 0 0 0 1px rgba(20,0,0,.92), inset 0 0 12px rgba(0,0,0,.78), 0 0 12px rgba(255,60,60,.16);
+      opacity:.95;
+    }
+
+    .nf-frame-solar-reliquary {
+      --nf-a:#6a3b00;
+      --nf-b:#f59e0b;
+      --nf-c:#fff0a8;
+      --nf-speed:2.8s;
+      --nf-spin-speed:18s;
+    }
+    .nf-frame-solar-reliquary::before {
+      background:
+        radial-gradient(circle, transparent 0 71%, rgba(255,247,204,.35) 72%, rgba(248,165,29,.95) 74%, rgba(110,63,0,.98) 86%, transparent 88%),
+        repeating-conic-gradient(from -2deg, rgba(255,248,204,.95) 0 4deg, transparent 4deg 13deg, rgba(245,158,11,.88) 13deg 17deg, transparent 17deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      filter: drop-shadow(0 0 8px rgba(245,158,11,.44));
+      animation: nfSolarPulse 3s ease-in-out infinite, nfFrameSpin 18s linear infinite reverse;
+    }
+    .nf-frame-solar-reliquary::after {
+      inset:7px;
+      border:2px solid rgba(255,247,204,.62);
+      box-shadow: inset 0 0 0 1px rgba(153,86,10,.55), 0 0 10px rgba(245,158,11,.30);
+      opacity:.84;
+    }
+
+    .nf-frame-eldritch-knot {
+      --nf-a:#032c32;
+      --nf-b:#14b8a6;
+      --nf-c:#d8b4fe;
+      --nf-speed:3s;
+      --nf-spin-speed:13s;
+    }
+    .nf-frame-eldritch-knot::before {
+      background:
+        radial-gradient(circle, transparent 0 70%, rgba(5,27,36,.95) 71%, rgba(20,184,166,.86) 75%, rgba(39,0,68,.92) 80%, rgba(5,27,36,.95) 86%, transparent 88%),
+        repeating-conic-gradient(from 0deg, rgba(20,184,166,.95) 0 9deg, rgba(216,180,254,.85) 9deg 14deg, transparent 14deg 23deg, rgba(20,184,166,.75) 23deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      filter: drop-shadow(0 0 7px rgba(20,184,166,.42));
+      animation: nfKnotShift 3.2s ease-in-out infinite;
+    }
+    .nf-frame-eldritch-knot::after {
+      inset:8px;
+      border:2px dashed rgba(216,180,254,.44);
+      box-shadow: inset 0 0 10px rgba(20,184,166,.20);
+      opacity:.82;
+    }
+
+    .nf-frame-astral-halo {
+      --nf-a:#1e293b;
+      --nf-b:#93c5fd;
+      --nf-c:#ffffff;
+      --nf-speed:3.6s;
+      --nf-spin-speed:22s;
+    }
+    .nf-frame-astral-halo::before {
+      background:
+        radial-gradient(circle at 24% 22%, rgba(255,255,255,.95) 0 2px, transparent 3px),
+        radial-gradient(circle at 76% 24%, rgba(191,219,254,.92) 0 2px, transparent 3px),
+        radial-gradient(circle at 28% 80%, rgba(255,255,255,.85) 0 1.5px, transparent 3px),
+        radial-gradient(circle at 74% 72%, rgba(147,197,253,.82) 0 1.5px, transparent 3px),
+        radial-gradient(circle, transparent 0 72%, rgba(255,255,255,.18) 73%, rgba(148,163,184,.95) 77%, rgba(255,255,255,.92) 82%, transparent 88%);
+      -webkit-mask: radial-gradient(circle, transparent 0 70%, #000 71% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 70%, #000 71% 88%, transparent 89%);
+      filter: drop-shadow(0 0 7px rgba(191,219,254,.36));
+      animation: nfStarTwinkle 3.6s ease-in-out infinite, nfFrameSpin 22s linear infinite;
+    }
+    .nf-frame-astral-halo::after {
+      inset:8px;
+      border:1.5px solid rgba(255,255,255,.58);
+      box-shadow: inset 0 0 8px rgba(255,255,255,.14);
+      opacity:.8;
+    }
+
+    .nf-frame-orbital-array {
+      --nf-a:#0c1a2e;
+      --nf-b:#67e8f9;
+      --nf-c:#dbeafe;
+      --nf-speed:2.7s;
+      --nf-spin-speed:10s;
+    }
+    .nf-frame-orbital-array::before {
+      background:
+        radial-gradient(circle, transparent 0 72%, rgba(103,232,249,.24) 73%, rgba(219,234,254,.94) 75%, rgba(12,26,46,.98) 82%, transparent 88%),
+        repeating-conic-gradient(from 0deg, rgba(219,234,254,.95) 0 8deg, transparent 8deg 18deg, rgba(103,232,249,.88) 18deg 24deg, transparent 24deg 38deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 70%, #000 71% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 70%, #000 71% 88%, transparent 89%);
+      filter: drop-shadow(0 0 8px rgba(103,232,249,.42));
+      animation: nfFrameSpin 10s linear infinite;
+    }
+    .nf-frame-orbital-array::after {
+      inset:7px;
+      border:2px solid rgba(219,234,254,.44);
+      box-shadow: inset 0 0 10px rgba(103,232,249,.18);
+      opacity:.84;
+    }
+    .nf-orbit-nodes {
+      position:absolute; inset:0; border-radius:50%; z-index:4; pointer-events:none; animation:nfFrameSpin 7s linear infinite reverse;
+    }
+    .nf-orbit-nodes i {
+      position:absolute; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%;
+      background: radial-gradient(circle, #fff, #67e8f9 55%, #0c1a2e 100%);
+      box-shadow:0 0 0 2px rgba(219,234,254,.18), 0 0 8px rgba(103,232,249,.65);
+      transform: rotate(calc(var(--i) * 90deg)) translateY(-59px);
+    }
+
+    .nf-frame-hexcore-lattice {
+      --nf-a:#061520;
+      --nf-b:#22d3ee;
+      --nf-c:#f472b6;
+      --nf-speed:2.9s;
+      --nf-spin-speed:12s;
+    }
+    .nf-frame-hexcore-lattice::before {
+      background:
+        radial-gradient(circle, transparent 0 72%, rgba(6,21,32,.98) 73%, rgba(34,211,238,.9) 76%, rgba(244,114,182,.82) 82%, transparent 88%),
+        repeating-conic-gradient(from 15deg, rgba(34,211,238,.98) 0 7deg, transparent 7deg 14deg, rgba(244,114,182,.78) 14deg 19deg, transparent 19deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 70%, #000 71% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 70%, #000 71% 88%, transparent 89%);
+      filter: drop-shadow(0 0 8px rgba(34,211,238,.40));
+      animation: nfHexGlide 2.8s linear infinite;
+    }
+    .nf-frame-hexcore-lattice::after {
+      inset:8px;
+      border:2px dashed rgba(244,114,182,.42);
+      box-shadow: inset 0 0 10px rgba(34,211,238,.18);
+      opacity:.82;
+    }
+
+    .nf-frame-nanoforge-brackets {
+      --nf-a:#281000;
+      --nf-b:#fb923c;
+      --nf-c:#ffe0b2;
+      --nf-speed:2.25s;
+      --nf-spin-speed:11s;
+    }
+    .nf-frame-nanoforge-brackets::before {
+      background:
+        radial-gradient(circle, transparent 0 71%, rgba(255,224,178,.25) 72%, rgba(251,146,60,.98) 76%, rgba(40,16,0,.98) 83%, transparent 88%),
+        repeating-conic-gradient(from 0deg, rgba(40,16,0,.98) 0 10deg, rgba(251,146,60,.96) 10deg 17deg, rgba(255,224,178,.86) 17deg 20deg, transparent 20deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      filter: drop-shadow(0 0 9px rgba(251,146,60,.42));
+      animation: nfForgePulse 2.25s ease-in-out infinite, nfFrameSpin 11s linear infinite reverse;
+    }
+    .nf-frame-nanoforge-brackets::after {
+      inset:8px;
+      border:2px solid rgba(255,224,178,.52);
+      box-shadow: inset 0 0 0 2px rgba(114,45,0,.42), inset 0 0 10px rgba(251,146,60,.22);
+      opacity:.92;
+    }
+    .nf-brackets {
+      position:absolute; inset:0; border-radius:50%; z-index:4; pointer-events:none;
+    }
+    .nf-brackets i {
+      position:absolute; left:50%; top:50%; width:16px; height:8px; margin:-4px 0 0 -8px;
+      border:2px solid rgba(255,224,178,.70); border-top:none; border-bottom:none; border-radius:3px;
+      box-shadow:0 0 8px rgba(251,146,60,.35);
+      transform: rotate(calc(var(--i) * 90deg)) translateY(-60px) rotate(90deg);
+      animation:nfBracketClamp 2.4s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -.2s);
+    }
+
+    @keyframes nfSolarPulse { 0%,100%{ transform:scale(.985); opacity:.88; } 50%{ transform:scale(1.03); opacity:1; } }
+    @keyframes nfKnotShift { 0%,100%{ transform:scale(.98) rotate(0deg); opacity:.88; } 50%{ transform:scale(1.02) rotate(10deg); opacity:1; } }
+    @keyframes nfStarTwinkle { 0%,100%{ opacity:.68; } 50%{ opacity:1; } }
+    @keyframes nfHexGlide { from{ transform:rotate(0deg); opacity:.88; } 50%{ opacity:1; } to{ transform:rotate(360deg); opacity:.88; } }
+    @keyframes nfForgePulse { 0%,100%{ transform:scale(.985); filter:drop-shadow(0 0 9px rgba(251,146,60,.34)); } 50%{ transform:scale(1.03); filter:drop-shadow(0 0 12px rgba(251,146,60,.48)); } }
+    @keyframes nfBracketClamp { 0%,100%{ opacity:.75; } 50%{ opacity:1; transform: rotate(calc(var(--i) * 90deg)) translateY(-58px) rotate(90deg) scaleX(1.08); } }
+
+
+    
+
+    /* v3 requested selection: refined demon pentagram + glowing nanoforge */
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-frame-demon-runes {
+      --nf-speed: 2.9s;
+      --nf-spin-speed: 16s;
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-frame-demon-runes::before {
+      background:
+        radial-gradient(circle, transparent 0 68%, rgba(14,0,0,.95) 69%, rgba(110,0,0,.98) 72%, #ff2831 77%, rgba(78,0,0,.98) 84%, transparent 88%),
+        repeating-conic-gradient(from 0deg, #230000 0 10deg, #ff2530 10deg 16deg, #6b0008 16deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 67%, #000 68% 89%, transparent 90%);
+      mask: radial-gradient(circle, transparent 0 67%, #000 68% 89%, transparent 90%);
+      filter: drop-shadow(0 0 11px rgba(255,38,54,.78));
+      animation: nfFrameSpin 16s linear infinite reverse;
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-frame-demon-runes::after {
+      inset: 8px;
+      border-color: rgba(20,0,0,.96);
+      box-shadow: inset 0 0 0 2px rgba(255,82,82,.42), inset 0 0 20px rgba(0,0,0,.78), 0 0 18px rgba(255,34,34,.38);
+      opacity: .96;
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-runes {
+      animation: none;
+      z-index: 4;
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-runes i {
+      width:20px;
+      height:20px;
+      margin:-10px 0 0 -10px;
+      color:#130000;
+      font-size:17px;
+      font-weight:1000;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height:1;
+      border-radius:50%;
+      background: radial-gradient(circle at 32% 30%, rgba(255,226,226,.98), rgba(255,93,93,.96) 42%, rgba(130,0,0,.98) 100%);
+      border:1px solid rgba(255,170,170,.92);
+      box-shadow:0 0 0 1px rgba(20,0,0,.66), 0 0 10px rgba(255,60,60,.48);
+      text-shadow:none;
+      transform: rotate(calc(var(--i) * 30deg)) translateY(-54px) rotate(calc(var(--i) * -30deg + 180deg));
+      animation: nfRuneOrbitDown 34s linear infinite, nfRuneBlinkSlow 5.6s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -.35s), calc(var(--i) * -.20s);
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-pentagram {
+      padding:10px;
+      animation: nfFrameSpin 28s linear infinite;
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-pentagram svg polygon {
+      stroke: rgba(18,0,0,.92);
+      stroke-width: 5.4;
+    }
+    .frame-card[data-name="Демоническая пентаграмма"] .nf-pentagram svg circle {
+      stroke: rgba(255,70,70,.52);
+      stroke-width: 3;
+    }
+
+    .frame-card[data-name="Нанокузница"] .nf-frame-nanoforge-brackets {
+      --nf-speed: 3s;
+      --nf-spin-speed: 14s;
+    }
+    .frame-card[data-name="Нанокузница"] .nf-frame-nanoforge-brackets::before {
+      background:
+        radial-gradient(circle, transparent 0 69%, rgba(255,246,226,.24) 70%, rgba(255,239,214,.98) 73%, rgba(255,185,93,.98) 77%, rgba(251,146,60,.95) 81%, rgba(61,24,0,.98) 87%, transparent 89%),
+        repeating-conic-gradient(from 0deg, rgba(255,249,237,.98) 0 7deg, rgba(255,197,124,.98) 7deg 15deg, rgba(251,146,60,.98) 15deg 22deg, transparent 22deg 32deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      mask: radial-gradient(circle, transparent 0 69%, #000 70% 88%, transparent 89%);
+      filter: drop-shadow(0 0 10px rgba(255,197,124,.62)) drop-shadow(0 0 18px rgba(251,146,60,.46));
+      animation: nfNanoGlow 3.2s ease-in-out infinite, nfFrameSpin 14s linear infinite reverse;
+    }
+    .frame-card[data-name="Нанокузница"] .nf-frame-nanoforge-brackets::after {
+      inset:7px;
+      border:2px solid rgba(255,244,224,.95);
+      box-shadow: inset 0 0 0 2px rgba(160,74,0,.30), inset 0 0 14px rgba(255,255,255,.28), 0 0 12px rgba(255,200,120,.50), 0 0 22px rgba(251,146,60,.35);
+      opacity:.96;
+    }
+    .frame-card[data-name="Нанокузница"] .nf-brackets i {
+      width:15px;
+      height:9px;
+      margin:-4.5px 0 0 -7.5px;
+      border:2px solid rgba(255,245,230,.98);
+      border-top:none;
+      border-bottom:none;
+      border-radius:4px;
+      background: linear-gradient(180deg, rgba(255,245,230,.92), rgba(255,179,91,.88));
+      box-shadow:0 0 10px rgba(255,210,150,.55), 0 0 16px rgba(251,146,60,.38);
+      animation:nfBracketGlow 3.1s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -.25s);
+    }
+
+    @keyframes nfRuneOrbitDown {
+      from {
+        transform: rotate(calc(var(--i) * 30deg)) translateY(-54px) rotate(calc(var(--i) * -30deg + 180deg));
+      }
+      to {
+        transform: rotate(calc(var(--i) * 30deg + 360deg)) translateY(-54px) rotate(calc(var(--i) * -30deg - 360deg + 180deg));
+      }
+    }
+    @keyframes nfRuneBlinkSlow {
+      0%,100% { opacity:.84; filter:brightness(.96); }
+      50% { opacity:1; filter:brightness(1.12); }
+    }
+    @keyframes nfNanoGlow {
+      0%,100% { transform:scale(.992); filter:drop-shadow(0 0 10px rgba(255,197,124,.52)) drop-shadow(0 0 18px rgba(251,146,60,.40)); }
+      50% { transform:scale(1.032); filter:drop-shadow(0 0 13px rgba(255,230,180,.80)) drop-shadow(0 0 24px rgba(251,146,60,.58)); }
+    }
+    @keyframes nfBracketGlow {
+      0%,100% { opacity:.82; transform: rotate(calc(var(--i) * 90deg)) translateY(-60px) rotate(90deg) scaleX(1); }
+      50% { opacity:1; transform: rotate(calc(var(--i) * 90deg)) translateY(-60px) rotate(90deg) scaleX(1.08); }
+    }
+
+
+    @media (prefers-reduced-motion: reduce) {
+      .nf-frame,
+      .nf-frame::before,
+      .nf-frame::after,
+      .nf-runes,
+      .nf-runes i,
+      .nf-pentagram { animation: none !important; }
+    }
+
+
+    footer { padding-bottom:34px; color:var(--muted); font-size:13px; }
+  </style>
+</head>
+<body>
+<header>
+<section class="hero">
+<h1>Избранные animated frame-only рамки — preview</h1>
+<p>Оставлены только выбранные вами рамки. Демоническая пентаграмма обновлена: руны лучше читаются, всегда ориентированы вниз и движутся заметно медленнее. Нанокузница переработана в более светящуюся рамку. Остальные шаблоны удалены из превью.</p>
+<div class="stats">
+<div class="stat"><b>6</b> рамок в превью</div>
+<div class="stat"><b>3</b> магия / фэнтези</div>
+<div class="stat"><b>3</b> sci-fi</div>
+<div class="stat"><b>100%</b> только frame-only</div>
+</div>
+</section>
+</header>
+<main>
+<nav aria-label="Фильтры" class="toolbar">
+<button class="active" data-filter="all">Все</button>
+<button data-filter="rare">Редкие</button>
+<button data-filter="epic">Эпические</button>
+<button data-filter="legendary">Легендарные</button>
+</nav>
+<section class="grid" id="frameGrid">
+<!-- v49 expansion: new animated frame-only ideas -->
+<article class="frame-card rarity-legendary" data-name="Демоническая пентаграмма" data-rarity="legendary">
+<div class="preview-zone">
+<div class="nf-avatar-shell">
+<span class="nf-frame nf-frame-demon-runes">
+<span aria-hidden="true" class="nf-runes"><i style="--i:0">ᚠ</i><i style="--i:1">ᚢ</i><i style="--i:2">ᚦ</i><i style="--i:3">ᚨ</i><i style="--i:4">ᚱ</i><i style="--i:5">ᚲ</i><i style="--i:6">ᚷ</i><i style="--i:7">ᚹ</i><i style="--i:8">ᚺ</i><i style="--i:9">ᚾ</i><i style="--i:10">ᛁ</i><i style="--i:11">ᛃ</i></span>
+<span aria-hidden="true" class="nf-pentagram"><svg aria-hidden="true" focusable="false" viewbox="0 0 100 100"><polygon fill="none" points="50,5 61,38 96,38 68,58 79,92 50,71 21,92 32,58 4,38 39,38" stroke="rgba(10,0,0,.86)" stroke-linejoin="round" stroke-width="5"></polygon><circle cx="50" cy="50" fill="none" r="45" stroke="rgba(255,40,40,.38)" stroke-width="3"></circle></svg></span>
+</span>
+<span class="avatar xl">
+<span class="avatar-photo avatar-art">🜏</span>
+</span>
+</div>
+</div>
+<div class="frame-info">
+<div class="frame-title">
+<span class="emoji">🜏</span>
+<b>Демоническая пентаграмма</b>
+</div>
+<code>demon_runes_refined</code>
+<p>Красный обод с чётко читаемыми рунами: символы всегда смотрят вниз, стали заметнее и движутся намного медленнее. Пентаграмма остаётся встроенной в толщину кольца и не перекрывает аватар.</p>
+<div class="meta">
+<span>Легендарная</span>
+<span class="nf-rarity-badge">Магия</span>
+<span class="nf-source-badge">.nf-frame-demon-runes</span>
+</div>
+</div>
+</article>
+
+
+
+<article class="frame-card rarity-epic" data-name="Лунный оракул" data-rarity="epic">
+<div class="preview-zone">
+<div class="nf-avatar-shell">
+<span class="nf-frame nf-frame-lunar-oracle">
+</span>
+<span class="avatar xl">
+<span class="avatar-photo avatar-art">🌘</span>
+</span>
+</div>
+</div>
+<div class="frame-info">
+<div class="frame-title">
+<span class="emoji">🌘</span>
+<b>Лунный оракул</b>
+</div>
+<code>lunar_oracle</code>
+<p>Тёмно-серебряный обод в эстетике затмения: плавное дыхание без отдельной ауры.</p>
+<div class="meta">
+<span>Эпическая</span>
+<span class="nf-rarity-badge">Магия</span>
+<span class="nf-source-badge">.nf-frame-lunar-oracle</span>
+</div>
+</div>
+</article>
+
+
+
+
+
+<article class="frame-card rarity-legendary" data-name="Сингулярность Бездны" data-rarity="legendary">
+<div class="preview-zone">
+<div class="nf-avatar-shell">
+<span class="nf-frame nf-frame-void-singularity">
+</span>
+<span class="avatar xl">
+<span class="avatar-photo avatar-art">⚫</span>
+</span>
+</div>
+</div>
+<div class="frame-info">
+<div class="frame-title">
+<span class="emoji">⚫</span>
+<b>Сингулярность Бездны</b>
+</div>
+<code>void_singularity</code>
+<p>Тёмная гравитационная рамка с синим и фиолетовым разломом в кольце.</p>
+<div class="meta">
+<span>Легендарная</span>
+<span class="nf-rarity-badge">Sci-Fi</span>
+<span class="nf-source-badge">.nf-frame-void-singularity</span>
+</div>
+</div>
+</article>
+
+
+
+<article class="frame-card rarity-epic" data-name="Узел Древних" data-rarity="epic">
+<div class="preview-zone">
+<div class="nf-avatar-shell">
+<span class="nf-frame nf-frame-eldritch-knot"></span>
+<span class="avatar xl">
+<span class="avatar-photo avatar-art">🜃</span>
+</span>
+</div>
+</div>
+<div class="frame-info">
+<div class="frame-title">
+<span class="emoji">🜃</span>
+<b>Узел Древних</b>
+</div>
+<code>eldritch_knot</code>
+<p>Бирюзово-лиловый ритуальный узор, переплетённый прямо в кольце. За счёт анимации узел как будто перетекает по контуру.</p>
+<div class="meta">
+<span>Эпическая</span>
+<span class="nf-rarity-badge">Магия</span>
+<span class="nf-source-badge">.nf-frame-eldritch-knot</span>
+</div>
+</div>
+</article>
+
+<article class="frame-card rarity-epic" data-name="Орбитальный массив" data-rarity="epic">
+<div class="preview-zone">
+<div class="nf-avatar-shell">
+<span class="nf-frame nf-frame-orbital-array">
+<span aria-hidden="true" class="nf-orbit-nodes"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i></span>
+</span>
+<span class="avatar xl">
+<span class="avatar-photo avatar-art">🛰️</span>
+</span>
+</div>
+</div>
+<div class="frame-info">
+<div class="frame-title">
+<span class="emoji">🛰️</span>
+<b>Орбитальный массив</b>
+</div>
+<code>orbital_array</code>
+<p>Sci-fi кольцо с четырьмя встроенными орбитальными узлами. Все движущиеся элементы остаются частью самой рамки.</p>
+<div class="meta">
+<span>Эпическая</span>
+<span class="nf-rarity-badge">Sci-Fi</span>
+<span class="nf-source-badge">.nf-frame-orbital-array</span>
+</div>
+</div>
+</article>
+
+<article class="frame-card rarity-legendary" data-name="Нанокузница" data-rarity="legendary">
+<div class="preview-zone">
+<div class="nf-avatar-shell">
+<span class="nf-frame nf-frame-nanoforge-brackets">
+<span aria-hidden="true" class="nf-brackets"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i></span>
+</span>
+<span class="avatar xl">
+<span class="avatar-photo avatar-art">⚡</span>
+</span>
+</div>
+</div>
+<div class="frame-info">
+<div class="frame-title">
+<span class="emoji">⚡</span>
+<b>Нанокузница</b>
+</div>
+<code>nanoforge_luminous</code>
+<p>Рамка переработана в светящуюся нанокузницу: яркое технологичное кольцо, мягкая пульсация свечения и встроенные сияющие зажимы.</p>
+<div class="meta">
+<span>Легендарная</span>
+<span class="nf-rarity-badge">Sci-Fi</span>
+<span class="nf-source-badge">.nf-frame-nanoforge-brackets</span>
+</div>
+</div>
+</article>
+</section>
+</main>
+<footer>Preview-файл: только согласованные рамки. Можно переносить CSS-классы <code>.nf-frame-*</code> в основную библиотеку.</footer>
+<script>
+    const buttons = [...document.querySelectorAll('[data-filter]')];
+    const cards = [...document.querySelectorAll('.frame-card')];
+    buttons.forEach(btn => btn.addEventListener('click', () => {
+      buttons.forEach(item => item.classList.toggle('active', item === btn));
+      const filter = btn.dataset.filter;
+      cards.forEach(card => { card.hidden = filter !== 'all' && card.dataset.rarity !== filter; });
+    }));
+  </script>
+</body>
+</html>

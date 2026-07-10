@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frame Effects Preview v1</title>
+  <style>
+    :root {
+      --bg:#070913;
+      --panel:rgba(15, 20, 34, .78);
+      --line:rgba(139, 205, 255, .18);
+      --text:#edf7ff;
+      --muted:#8fa6bd;
+      --gold:#ffd166;
+      --cyan:#43f5ff;
+      --pink:#ff4d9d;
+      --violet:#aa7cff;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      min-height:100vh;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(120, 69, 255, .22), transparent 30%),
+        radial-gradient(circle at 90% 16%, rgba(0, 255, 230, .14), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(255, 88, 88, .12), transparent 34%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+    body::before {
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.22;
+      background-image:
+        linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size:42px 42px;
+      mask-image:linear-gradient(to bottom, #000, transparent 85%);
+    }
+    main {
+      width:min(1180px, 100%);
+      margin:0 auto;
+      padding:28px 16px 54px;
+    }
+    .hero {
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:22px;
+      background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.025)), var(--panel);
+      box-shadow:0 24px 80px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+      display:grid;
+      gap:16px;
+    }
+    .eyebrow {
+      color:var(--cyan);
+      font-size:12px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      font-weight:900;
+    }
+    h1 {
+      margin:0;
+      font-size:clamp(30px, 6vw, 68px);
+      line-height:.95;
+      letter-spacing:-.05em;
+    }
+    .hero p {
+      margin:0;
+      color:var(--muted);
+      max-width:760px;
+      line-height:1.55;
+    }
+    .toolbar {
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:4px;
+    }
+    button {
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:999px;
+      padding:10px 14px;
+      color:var(--text);
+      background:rgba(255,255,255,.06);
+      font-weight:850;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+    button:hover,
+    button.active {
+      transform:translateY(-1px);
+      border-color:rgba(67,245,255,.55);
+      background:rgba(67,245,255,.13);
+      box-shadow:0 0 24px rgba(67,245,255,.16);
+    }
+    .grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+      gap:14px;
+      margin-top:18px;
+    }
+    .card {
+      position:relative;
+      overflow:hidden;
+      min-height:286px;
+      border:1px solid var(--line);
+      border-radius:26px;
+      padding:18px;
+      background:
+        radial-gradient(circle at 30% 0%, color-mix(in srgb, var(--a) 24%, transparent), transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.018)),
+        rgba(9, 13, 24, .78);
+      box-shadow:0 18px 52px rgba(0,0,0,.28);
+      display:grid;
+      place-items:center;
+      gap:12px;
+    }
+    .card.hidden { display:none; }
+    .card::after {
+      content:"";
+      position:absolute;
+      inset:auto -20% -42% -20%;
+      height:56%;
+      background:radial-gradient(ellipse, color-mix(in srgb, var(--b) 18%, transparent), transparent 65%);
+      pointer-events:none;
+    }
+    .avatar-wrap {
+      position:relative;
+      width:128px;
+      height:128px;
+      display:grid;
+      place-items:center;
+      isolation:isolate;
+    }
+    .avatar {
+      position:relative;
+      z-index:4;
+      width:94px;
+      height:94px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      font-size:42px;
+      background:
+        radial-gradient(circle at 38% 28%, rgba(255,255,255,.30), transparent 24%),
+        linear-gradient(145deg, #141a2a, #050711);
+      border:4px solid transparent;
+      background-clip:padding-box, border-box;
+      box-shadow:inset 0 0 30px rgba(255,255,255,.04), 0 12px 30px rgba(0,0,0,.35);
+    }
+    .avatar::before {
+      content:"";
+      position:absolute;
+      inset:-9px;
+      z-index:-1;
+      border-radius:50%;
+      background:conic-gradient(from var(--spin, 0deg), var(--a), var(--b), var(--c), var(--a));
+      animation:spin 5s linear infinite;
+      filter:drop-shadow(0 0 18px color-mix(in srgb, var(--a) 52%, transparent));
+    }
+    .effect {
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none;
+    }
+    .effect::before,
+    .effect::after {
+      content:"";
+      position:absolute;
+      border-radius:50%;
+      pointer-events:none;
+    }
+    .meta {
+      position:relative;
+      z-index:2;
+      text-align:center;
+    }
+    .meta b {
+      display:block;
+      margin-bottom:4px;
+      font-size:17px;
+    }
+    .meta small {
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .tag {
+      position:absolute;
+      top:12px;
+      right:12px;
+      z-index:3;
+      padding:5px 8px;
+      border-radius:999px;
+      color:#071018;
+      background:var(--a);
+      font-size:10px;
+      font-weight:950;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .rune-crown .effect::before {
+      inset:4px;
+      border:2px dashed rgba(255,209,102,.86);
+      box-shadow:0 0 18px rgba(255,209,102,.55), inset 0 0 20px rgba(170,124,255,.18);
+      animation:spin 7s linear infinite reverse;
+    }
+    .rune-crown .effect::after {
+      inset:-10px;
+      background:
+        radial-gradient(circle at 50% 0%, #ffd166 0 3px, transparent 4px),
+        radial-gradient(circle at 100% 50%, #aa7cff 0 3px, transparent 4px),
+        radial-gradient(circle at 50% 100%, #43f5ff 0 3px, transparent 4px),
+        radial-gradient(circle at 0% 50%, #ffd166 0 3px, transparent 4px);
+      animation:pulse 2.2s ease-in-out infinite;
+    }
+    .fae-orbit .effect::before {
+      inset:-6px;
+      background:
+        radial-gradient(circle at 16% 28%, #d9ff8a 0 3px, transparent 4px),
+        radial-gradient(circle at 78% 20%, #9cffd6 0 2px, transparent 3px),
+        radial-gradient(circle at 92% 72%, #ffd1fa 0 3px, transparent 4px),
+        radial-gradient(circle at 20% 86%, #fff0a8 0 2px, transparent 3px);
+      filter:drop-shadow(0 0 7px #d9ff8a);
+      animation:floatSpin 4.6s ease-in-out infinite;
+    }
+    .dragon-embers .effect::before {
+      inset:-16px;
+      background:
+        radial-gradient(circle at 26% 78%, rgba(255,83,21,.95) 0 4px, transparent 5px),
+        radial-gradient(circle at 78% 26%, rgba(255,201,72,.85) 0 3px, transparent 4px),
+        radial-gradient(circle at 88% 78%, rgba(255,83,21,.8) 0 2px, transparent 3px);
+      filter:blur(.2px) drop-shadow(0 0 10px #ff5315);
+      animation:embers 1.8s ease-in-out infinite;
+    }
+    .moonwater .effect::before {
+      inset:-8px;
+      border:2px solid rgba(142,223,255,.42);
+      box-shadow:0 0 24px rgba(142,223,255,.46), inset 0 0 18px rgba(255,255,255,.16);
+      animation:water 3.4s ease-in-out infinite;
+    }
+    .moonwater .effect::after {
+      inset:14px;
+      border:1px solid rgba(255,255,255,.38);
+      border-left-color:transparent;
+      border-right-color:transparent;
+      animation:spin 5.2s linear infinite;
+    }
+    .grave-candles .effect::before {
+      inset:-4px;
+      background:
+        radial-gradient(ellipse at 20% 86%, rgba(168,255,198,.92) 0 3px, transparent 9px),
+        radial-gradient(ellipse at 78% 88%, rgba(168,255,198,.92) 0 3px, transparent 9px),
+        radial-gradient(ellipse at 50% 100%, rgba(146,94,255,.65) 0 4px, transparent 12px);
+      filter:drop-shadow(0 0 10px #a8ffc6);
+      animation:candle 1.5s ease-in-out infinite;
+    }
+    .thorn-bloom .effect::before {
+      inset:-10px;
+      border:3px dotted rgba(94,255,157,.55);
+      filter:drop-shadow(0 0 10px rgba(94,255,157,.55));
+      animation:spin 8s linear infinite;
+    }
+    .thorn-bloom .effect::after {
+      inset:-14px;
+      background:
+        conic-gradient(from 20deg, transparent 0 24deg, rgba(94,255,157,.50) 25deg 29deg, transparent 30deg 54deg);
+      mask:radial-gradient(circle, transparent 58%, #000 60%, #000 68%, transparent 70%);
+      animation:pulse 2.6s ease-in-out infinite;
+    }
+    .tarot-halo .effect::before {
+      inset:-13px;
+      background:
+        linear-gradient(90deg, transparent 46%, rgba(255,241,166,.9) 47% 53%, transparent 54%),
+        linear-gradient(0deg, transparent 46%, rgba(255,241,166,.9) 47% 53%, transparent 54%);
+      mask:radial-gradient(circle, transparent 48%, #000 50%, #000 62%, transparent 64%);
+      filter:drop-shadow(0 0 12px #fff1a6);
+      animation:spin 6.5s steps(8) infinite;
+    }
+
+    .neon-shards .effect::before {
+      inset:-10px;
+      background:
+        linear-gradient(115deg, transparent 0 43%, rgba(67,245,255,.95) 44% 46%, transparent 47%),
+        linear-gradient(32deg, transparent 0 58%, rgba(255,77,157,.9) 59% 61%, transparent 62%);
+      filter:drop-shadow(0 0 10px var(--cyan));
+      animation:glitch 1.2s steps(4) infinite;
+    }
+    .matrix-rain .effect::before {
+      inset:-14px;
+      border-radius:22px;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 9px, rgba(69,255,157,.35) 10px 12px, transparent 13px 21px),
+        repeating-linear-gradient(180deg, transparent 0 6px, rgba(69,255,157,.45) 7px 8px, transparent 9px 18px);
+      mask:radial-gradient(circle, transparent 42%, #000 55%, #000 72%, transparent 76%);
+      animation:rain 1.1s linear infinite;
+    }
+    .orbital-hud .effect::before {
+      inset:-11px;
+      border:1px solid rgba(67,245,255,.58);
+      border-top:4px solid rgba(67,245,255,.96);
+      border-bottom:4px solid rgba(255,77,157,.78);
+      box-shadow:0 0 22px rgba(67,245,255,.45);
+      animation:spin 2.7s linear infinite;
+    }
+    .orbital-hud .effect::after {
+      inset:2px;
+      border:1px dashed rgba(255,255,255,.32);
+      animation:spin 5.7s linear infinite reverse;
+    }
+    .plasma-core .effect::before {
+      inset:-18px;
+      background:radial-gradient(circle, transparent 48%, rgba(255,77,157,.18) 50%, rgba(67,245,255,.72) 54%, transparent 66%);
+      filter:blur(.3px) drop-shadow(0 0 18px rgba(67,245,255,.8));
+      animation:reactor 1.7s ease-in-out infinite;
+    }
+    .redline-scan .effect::before {
+      inset:-8px;
+      border:1px solid rgba(255,69,88,.72);
+      box-shadow:0 0 18px rgba(255,69,88,.55);
+    }
+    .redline-scan .effect::after {
+      left:10px;
+      right:10px;
+      top:16px;
+      height:2px;
+      border-radius:0;
+      background:linear-gradient(90deg, transparent, #ff4558, transparent);
+      filter:drop-shadow(0 0 10px #ff4558);
+      animation:scan 1.65s ease-in-out infinite;
+    }
+    .quantum-hex .effect::before {
+      inset:-16px;
+      background:
+        conic-gradient(from 0deg, rgba(67,245,255,.7), transparent 18%, rgba(170,124,255,.75), transparent 38%, rgba(255,77,157,.7), transparent 58%, rgba(67,245,255,.7));
+      clip-path:polygon(50% 0, 92% 25%, 92% 75%, 50% 100%, 8% 75%, 8% 25%);
+      opacity:.8;
+      animation:hex 2.8s ease-in-out infinite;
+    }
+
+    @keyframes spin { to { --spin:360deg; transform:rotate(360deg); } }
+    @keyframes pulse { 0%,100%{opacity:.42; transform:scale(.94)} 50%{opacity:1; transform:scale(1.08)} }
+    @keyframes floatSpin { 0%,100%{transform:rotate(0deg) scale(.94); opacity:.52} 50%{transform:rotate(18deg) scale(1.12); opacity:1} }
+    @keyframes embers { 0%{transform:translateY(8px) scale(.9); opacity:.35} 45%{opacity:1} 100%{transform:translateY(-12px) scale(1.1); opacity:.2} }
+    @keyframes water { 0%,100%{border-radius:48% 52% 50% 50%; transform:scale(.98)} 50%{border-radius:54% 46% 44% 56%; transform:scale(1.07)} }
+    @keyframes candle { 0%,100%{opacity:.55; transform:translateY(2px) scale(.96)} 50%{opacity:1; transform:translateY(-3px) scale(1.08)} }
+    @keyframes glitch { 0%{transform:translate(0,0); opacity:.32} 25%{transform:translate(3px,-2px); opacity:1} 50%{transform:translate(-2px,2px); opacity:.48} 75%{transform:translate(2px,2px); opacity:.9} 100%{transform:translate(0,0); opacity:.32} }
+    @keyframes rain { to { background-position:0 32px, 0 34px; } }
+    @keyframes reactor { 0%,100%{transform:scale(.92) rotate(0deg); opacity:.45} 50%{transform:scale(1.13) rotate(110deg); opacity:1} }
+    @keyframes scan { 0%,100%{transform:translateY(0); opacity:.15} 50%{transform:translateY(92px); opacity:1} }
+    @keyframes hex { 0%,100%{transform:rotate(0deg) scale(.92); opacity:.35} 50%{transform:rotate(60deg) scale(1.08); opacity:1} }
+
+    @property --spin {
+      syntax: "<angle>";
+      initial-value: 0deg;
+      inherits: false;
+    }
+    @media (max-width:560px) {
+      main { padding:14px 10px 44px; }
+      .hero { border-radius:22px; padding:16px; }
+      .grid { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+      .card { min-height:246px; padding:12px 8px; border-radius:20px; }
+      .avatar-wrap { width:112px; height:112px; }
+      .avatar { width:82px; height:82px; font-size:36px; }
+      .meta b { font-size:14px; }
+      .meta small { font-size:11px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <span class="eyebrow">DND MiniApp / frame effect concepts</span>
+      <h1>Новые эффекты рамок</h1>
+      <p>Черновой стенд для выбора направления: фэнтези-магия, мистические ауры, sci-fi HUD и киберпанк-глич. Каждый эффект сделан как дополнительный слой вокруг аватарки, чтобы потом его можно было комбинировать с рамкой.</p>
+      <div class="toolbar" id="filters">
+        <button class="active" data-filter="all">Все</button>
+        <button data-filter="fantasy">Fantasy</button>
+        <button data-filter="sci-fi">Sci-fi</button>
+        <button data-filter="cyberpunk">Cyberpunk</button>
+      </div>
+    </section>
+    <section class="grid" id="grid"></section>
+  </main>
+
+  <script>
+    const effects = [
+      { id:'rune-crown', tag:'fantasy', emoji:'🧙', name:'Рунная корона', desc:'Медленное кольцо рун и четыре светящихся узла.', colors:['#ffd166','#aa7cff','#43f5ff'] },
+      { id:'fae-orbit', tag:'fantasy', emoji:'🧚', name:'Фейские огоньки', desc:'Маленькие огни вокруг рамки, ощущение лесной магии.', colors:['#d9ff8a','#9cffd6','#ffd1fa'] },
+      { id:'dragon-embers', tag:'fantasy', emoji:'🐉', name:'Драконьи искры', desc:'Тёплые угли и всполохи, хороши для огненных наград.', colors:['#ff5315','#ffc948','#7f1d1d'] },
+      { id:'moonwater', tag:'fantasy', emoji:'🌙', name:'Лунная вода', desc:'Мягкая серебряно-голубая рябь, без агрессивного свечения.', colors:['#8edfff','#f4fbff','#6b8cff'] },
+      { id:'grave-candles', tag:'fantasy', emoji:'🕯️', name:'Могильные свечи', desc:'Некромантский зелёный огонь снизу рамки.', colors:['#a8ffc6','#925eff','#0b1020'] },
+      { id:'thorn-bloom', tag:'fantasy', emoji:'🌿', name:'Терновый венец', desc:'Живой круг из колючек и зелёного свечения.', colors:['#5eff9d','#123b2b','#d9ff8a'] },
+      { id:'tarot-halo', tag:'fantasy', emoji:'🔮', name:'Таро-ореол', desc:'Ступенчатое вращение как мистический приговор карты.', colors:['#fff1a6','#b98cff','#2d173f'] },
+
+      { id:'orbital-hud', tag:'sci-fi', emoji:'🚀', name:'Орбитальный HUD', desc:'Двойное кольцо интерфейса, будто цель взята в сопровождение.', colors:['#43f5ff','#ff4d9d','#edf7ff'] },
+      { id:'plasma-core', tag:'sci-fi', emoji:'🧬', name:'Плазменное ядро', desc:'Пульс реактора вокруг рамки, яркий sci-fi акцент.', colors:['#43f5ff','#ff4d9d','#aa7cff'] },
+      { id:'quantum-hex', tag:'sci-fi', emoji:'⬡', name:'Квантовый гекс', desc:'Шестиугольный щит, хороший для техно-артефактов.', colors:['#43f5ff','#aa7cff','#ff4d9d'] },
+
+      { id:'neon-shards', tag:'cyberpunk', emoji:'🤖', name:'Неоновые осколки', desc:'Резкие линии, микроглич и кислотный контраст.', colors:['#43f5ff','#ff4d9d','#ffe66d'] },
+      { id:'matrix-rain', tag:'cyberpunk', emoji:'💾', name:'Матричный дождь', desc:'Потоки пикселей вокруг рамки, но не поверх лица.', colors:['#45ff9d','#072b1b','#b6ffe0'] },
+      { id:'redline-scan', tag:'cyberpunk', emoji:'🎯', name:'Красный сканер', desc:'Линия сканирования для прицела, корпораций и угроз.', colors:['#ff4558','#16070b','#ffd1d6'] }
+    ];
+
+    const grid = document.querySelector('#grid');
+    function render(filter='all') {
+      grid.innerHTML = effects.map(e => {
+        const hidden = filter !== 'all' && e.tag !== filter;
+        return `<article class="card ${e.id} ${hidden ? 'hidden' : ''}" style="--a:${e.colors[0]};--b:${e.colors[1]};--c:${e.colors[2]}">
+          <span class="tag">${e.tag}</span>
+          <div class="avatar-wrap">
+            <span class="effect"></span>
+            <div class="avatar">${e.emoji}</div>
+          </div>
+          <div class="meta"><b>${e.name}</b><small>${e.desc}</small></div>
+        </article>`;
+      }).join('');
+    }
+    document.querySelector('#filters').addEventListener('click', event => {
+      const btn = event.target.closest('button[data-filter]');
+      if (!btn) return;
+      document.querySelectorAll('#filters button').forEach(x => x.classList.toggle('active', x === btn));
+      render(btn.dataset.filter);
+    });
+    render();
+  </script>
+</body>
+</html>

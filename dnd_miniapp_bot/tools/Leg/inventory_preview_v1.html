@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Mobile Inventory Preview v1</title>
+  <style>
+    :root {
+      --bg: #05070d;
+      --panel: rgba(12, 17, 28, .88);
+      --panel2: rgba(24, 30, 44, .72);
+      --slot: rgba(18, 24, 36, .88);
+      --text: #ecfbff;
+      --muted: #84a9b4;
+      --line: rgba(44, 244, 255, .34);
+      --accent: #30f6ff;
+      --accent2: #ff347f;
+      --gold: #ffbd4a;
+      --good: #5dffa8;
+      --danger: #ff4b6f;
+      --shadow: 0 0 22px rgba(48, 246, 255, .16);
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% -5%, rgba(48,246,255,.22), transparent 32%),
+        radial-gradient(circle at 90% 14%, rgba(255,52,127,.18), transparent 30%),
+        linear-gradient(180deg, #06030a 0%, var(--bg) 42%, #020409 100%);
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .28;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 7px, rgba(255,255,255,.035) 8px),
+        linear-gradient(90deg, transparent, rgba(48,246,255,.06), transparent);
+      mix-blend-mode: screen;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.025));
+      min-height: 42px;
+      padding: 9px 12px;
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+
+    button.primary {
+      border-color: color-mix(in srgb, var(--accent) 72%, white 8%);
+      background: linear-gradient(135deg, rgba(48,246,255,.22), rgba(255,52,127,.16));
+    }
+
+    .phone {
+      position: relative;
+      width: min(100%, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 10px 92px;
+    }
+
+    .top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .title {
+      display: grid;
+      gap: 3px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: .95;
+      text-transform: uppercase;
+      text-shadow: 0 0 16px rgba(48,246,255,.35);
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+
+    .chip-row::-webkit-scrollbar { display: none; }
+
+    .mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(0,0,0,.25);
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .mode button {
+      box-shadow: none;
+      min-height: 38px;
+      border-radius: 13px;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .mode button.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: linear-gradient(135deg, rgba(48,246,255,.18), rgba(255,52,127,.12));
+    }
+
+    .stage-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 50% 22%, rgba(255,52,127,.12), transparent 25%),
+        linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.018)),
+        var(--panel);
+      box-shadow: var(--shadow), inset 0 0 24px rgba(255,255,255,.025);
+      overflow: hidden;
+    }
+
+    .stage-head {
+      display: none;
+    }
+
+    .status-pill {
+      max-width: 218px;
+      min-height: 28px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 999px;
+      padding: 6px 9px;
+      color: var(--muted);
+      background: rgba(0,0,0,.22);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: relative;
+      height: min(104vw, 500px);
+      min-height: 438px;
+      max-height: 520px;
+      overflow: hidden;
+    }
+
+    .figure {
+      position: absolute;
+      z-index: 1;
+      left: 50%;
+      top: 58%;
+      width: 150px;
+      height: 370px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .figure img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 24px rgba(255,87,128,.38)) drop-shadow(0 0 18px rgba(48,246,255,.16)) saturate(1.17);
+      opacity: .95;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .connectors {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .connectors line {
+      stroke: var(--line);
+      stroke-width: 1.2;
+      stroke-dasharray: 5 5;
+      filter: drop-shadow(0 0 5px var(--accent));
+    }
+
+    .slot-map {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+    }
+
+    .equip-slot {
+      position: absolute;
+      width: 74px;
+      min-height: 64px;
+      border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);
+      border-radius: 13px 13px 18px 13px;
+      padding: 5px;
+      background:
+        linear-gradient(90deg, rgba(255,189,74,.6) 0 5px, transparent 5px),
+        linear-gradient(180deg, rgba(255,255,255,.085), rgba(0,0,0,.28));
+      box-shadow: 0 0 16px rgba(0,0,0,.22);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+      touch-action: manipulation;
+      transform: translateX(-50%);
+    }
+
+    .equip-slot.compatible {
+      border-color: var(--good);
+      box-shadow: 0 0 0 2px rgba(93,255,168,.12), 0 0 20px rgba(93,255,168,.22);
+    }
+
+    .equip-slot.drop-target {
+      border-color: var(--gold);
+      transform: translateX(-50%) scale(1.035);
+      box-shadow: 0 0 0 2px rgba(255,189,74,.18), 0 0 24px rgba(255,189,74,.28);
+    }
+
+    .equip-slot.busy {
+      border-color: color-mix(in srgb, var(--gold) 70%, transparent);
+    }
+
+    .slot-label {
+      color: color-mix(in srgb, var(--text) 78%, var(--muted));
+      font-size: 8.5px;
+      line-height: 1;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .slot-content {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 42px;
+      border-radius: 10px;
+      background: rgba(0,0,0,.24);
+      color: rgba(236,251,255,.44);
+      font-size: 24px;
+      font-weight: 900;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .slot-content > span {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .slot-content small {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+      font-size: 8.5px;
+      text-align: center;
+    }
+
+    .empty-mark {
+      width: 31px;
+      height: 8px;
+      border: 1px solid rgba(255,52,127,.46);
+      transform: skewX(-18deg);
+      opacity: .8;
+    }
+
+    .hint-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 10px 0;
+      padding: 9px 10px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 17px;
+      background: rgba(0,0,0,.22);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bag-card {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .bag-head {
+      padding: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+
+    .bag-actions {
+      display: flex;
+      gap: 7px;
+      flex: 0 0 auto;
+    }
+
+    .bag-title {
+      display: grid;
+      gap: 2px;
+    }
+
+    .bag-title strong {
+      font-size: 14px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .bag-title span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .bag-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      padding: 10px;
+      background: transparent;
+    }
+
+    .bag-cell {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      min-height: 72px;
+      border: 1px solid transparent;
+      background: transparent;
+      display: grid;
+      place-items: stretch;
+      padding: 5px;
+    }
+
+    .bag-cell.drop-target {
+      background: rgba(255,189,74,.12);
+      box-shadow: inset 0 0 0 2px rgba(255,189,74,.2);
+    }
+
+    .bag-item {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+      border-radius: 15px;
+      background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(0,0,0,.24));
+      display: grid;
+      grid-template-rows: 1fr auto;
+      place-items: center;
+      padding: 6px 4px 5px;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .bag-item.selected {
+      border-color: var(--good);
+      box-shadow: 0 0 0 2px rgba(93,255,168,.13), 0 0 20px rgba(93,255,168,.18);
+    }
+
+    .bag-item.equipped {
+      border-color: color-mix(in srgb, var(--gold) 76%, transparent);
+      background:
+        linear-gradient(135deg, rgba(255,189,74,.14), transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,.1), rgba(0,0,0,.24));
+    }
+
+    .equipped-badge {
+      position: absolute;
+      left: 5px;
+      top: 5px;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #12070a;
+      background: var(--good);
+      font-size: 10px;
+      font-weight: 950;
+      box-shadow: 0 0 10px rgba(93,255,168,.36);
+    }
+
+    .bag-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.2);
+      font-size: 27px;
+    }
+
+    .bag-name {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 9.5px;
+      font-weight: 850;
+    }
+
+    .qty {
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      min-width: 21px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #19090c;
+      background: var(--gold);
+      font-size: 10px;
+      font-weight: 950;
+      box-shadow: 0 0 12px rgba(255,189,74,.38);
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      z-index: 50;
+      width: min(410px, calc(100vw - 16px));
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      padding: 7px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(4,7,13,.88);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 16px 46px rgba(0,0,0,.45), var(--shadow);
+    }
+
+    .nav-item {
+      min-height: 50px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 850;
+    }
+
+    .nav-item.active {
+      color: var(--text);
+      background: linear-gradient(135deg, rgba(48,246,255,.18), rgba(255,52,127,.13));
+    }
+
+    .sheet {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      z-index: 80;
+      width: min(430px, 100vw);
+      transform: translate(-50%, 110%);
+      transition: .22s ease;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      border-radius: 24px 24px 0 0;
+      padding: 13px 12px max(16px, env(safe-area-inset-bottom));
+      background: rgba(8, 12, 21, .96);
+      box-shadow: 0 -18px 50px rgba(0,0,0,.44), var(--shadow);
+    }
+
+    .sheet.open {
+      transform: translate(-50%, 0);
+    }
+
+    .sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .item-summary {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .big-icon {
+      width: 54px;
+      height: 54px;
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      background: rgba(0,0,0,.24);
+      font-size: 31px;
+    }
+
+    .item-summary strong {
+      display: block;
+      max-width: 230px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 16px;
+    }
+
+    .item-summary span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .sheet p {
+      margin: 0 0 11px;
+      color: color-mix(in srgb, var(--text) 72%, var(--muted));
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .sheet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .edit-form {
+      display: none;
+      gap: 8px;
+      margin-top: 11px;
+      padding-top: 11px;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+
+    .edit-form.open {
+      display: grid;
+    }
+
+    .edit-form label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .edit-form input,
+    .edit-form select,
+    .edit-form textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 10px;
+      color: var(--text);
+      background: rgba(0,0,0,.25);
+      outline: none;
+    }
+
+    .edit-form textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    .edit-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .drag-ghost {
+      position: fixed;
+      z-index: 120;
+      width: 72px;
+      height: 72px;
+      border: 1px solid var(--good);
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: rgba(8,12,21,.88);
+      box-shadow: 0 0 0 2px rgba(93,255,168,.12), 0 18px 44px rgba(0,0,0,.42);
+      font-size: 34px;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(1.02);
+    }
+
+    .danger {
+      border-color: color-mix(in srgb, var(--danger) 80%, transparent);
+      color: #ffd7df;
+      background: rgba(255,75,111,.12);
+    }
+
+    .toast {
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      left: 50%;
+      z-index: 100;
+      transform: translate(-50%, -130%);
+      transition: .18s;
+      max-width: min(380px, calc(100vw - 22px));
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+      color: var(--text);
+      background: rgba(0,0,0,.76);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast.show { transform: translate(-50%, 0); }
+
+    @media (max-width: 380px) {
+      .equip-slot {
+        width: 68px;
+        min-height: 60px;
+      }
+      .slot-label { font-size: 7.8px; }
+      .figure {
+        width: 134px;
+        height: 356px;
+      }
+      .stage {
+        min-height: 420px;
+      }
+      .bag-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .bag-cell { min-height: 66px; }
+      .bag-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <header class="top">
+      <div class="title">
+        <span class="eyebrow">mobile preview / touch-first</span>
+        <h1>Инвентарь</h1>
+      </div>
+    </header>
+
+    <section class="mode" aria-label="Переключатель режима персонажа">
+      <button id="implantsMode" class="active">Импланты</button>
+      <button id="gearMode">Броня / одежда</button>
+    </section>
+
+    <section class="stage-card">
+      <div class="stage" id="stage">
+        <div class="figure" id="figure" aria-label="Фигура персонажа">
+          <img src="inventory_body_cutout.png" alt="Фигура персонажа" />
+        </div>
+        <svg class="connectors" id="connectors" aria-hidden="true"></svg>
+        <div class="slot-map" id="slotMap"></div>
+      </div>
+    </section>
+
+    <div class="hint-card">
+      <span>Касания: предмет → слот. Занятый слот → инфо / снять.</span>
+      <span id="modeCounter">0/0</span>
+    </div>
+
+    <section class="bag-card">
+      <div class="bag-head">
+        <div class="bag-title">
+          <strong>Сумка</strong>
+          <span>Предметы лежат ровно внутри grid-сетки</span>
+        </div>
+        <div class="bag-actions">
+          <button id="addItem">＋</button>
+          <button id="compactInfo">?</button>
+        </div>
+      </div>
+      <div class="bag-grid" id="bagGrid" aria-label="Сетка предметов"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <div class="nav-item">🏠<span>Главная</span></div>
+    <div class="nav-item">🧍<span>Перс</span></div>
+    <div class="nav-item active">🎒<span>Инвентарь</span></div>
+    <div class="nav-item">📜<span>Журнал</span></div>
+    <div class="nav-item">⚙️<span>Ещё</span></div>
+  </nav>
+
+  <aside class="sheet" id="sheet">
+    <div class="sheet-head">
+      <div class="item-summary">
+        <div class="big-icon" id="sheetIcon">📦</div>
+        <div>
+          <strong id="sheetName">Предмет</strong>
+          <span id="sheetMeta">Тип / количество</span>
+        </div>
+      </div>
+      <button id="closeSheet">×</button>
+    </div>
+    <p id="sheetDesc">Описание предмета.</p>
+    <div class="sheet-actions">
+      <button class="primary" id="selectFromSheet">Выбрать</button>
+      <button id="editItem">Изменить</button>
+      <button class="danger" id="unequipFromSheet">Снять</button>
+    </div>
+    <div class="edit-form" id="editForm">
+      <label>Название
+        <input id="editName" />
+      </label>
+      <label>Количество
+        <input id="editQty" type="number" min="1" />
+      </label>
+      <label>Тип
+        <select id="editType">
+          <option value="eyes">Глаза</option>
+          <option value="brain">Мозг</option>
+          <option value="organ">Внутренние органы</option>
+          <option value="arms">Руки</option>
+          <option value="palms">Ладони</option>
+          <option value="skin">Кожа</option>
+          <option value="body">Тело</option>
+          <option value="legs">Ноги</option>
+          <option value="armor">Броня</option>
+          <option value="clothes">Одежда</option>
+          <option value="weapon">Оружие</option>
+          <option value="consumable">Расходник</option>
+          <option value="ammo">Боезапас</option>
+          <option value="cyber">Кибер-универсальный</option>
+        </select>
+      </label>
+      <label>Описание
+        <textarea id="editDesc"></textarea>
+      </label>
+      <div class="edit-actions">
+        <button class="primary" id="saveEdit">Сохранить</button>
+        <button class="danger" id="deleteItem">Удалить</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast">Готово</div>
+
+  <script>
+    const modes = {
+      implants: [
+        { id: 'brain-1', label: 'Мозг 1', x: 15, y: 5, anchor: 'head', accepts: ['brain', 'cyber'], lineMode: 'manual', lineX: 50.407827833075324, lineY: 27.266665649414062 },
+        { id: 'brain-2', label: 'Мозг 2', x: 50, y: 5, anchor: 'head', accepts: ['brain', 'cyber'], lineMode: 'manual', lineX: 50.407827833075324, lineY: 27.266665649414062 },
+        { id: 'brain-3', label: 'Мозг 3', x: 85, y: 5, anchor: 'head', accepts: ['brain', 'cyber'], lineMode: 'manual', lineX: 50.407827833075324, lineY: 27.266665649414062 },
+        { id: 'eyes', label: 'Глаза', x: 15, y: 25, anchor: 'head', accepts: ['eyes', 'cyber'], lineMode: 'manual', lineX: 49.429035059617554, lineY: 30.066665649414066 },
+        { id: 'arms', label: 'Руки', x: 85, y: 25, anchor: 'arms', accepts: ['arms', 'cyber'], lineMode: 'manual', lineX: 60, lineY: 50 },
+        { id: 'palms', label: 'Ладони', x: 85, y: 40, anchor: 'hands', accepts: ['palms', 'cyber'], lineMode: 'manual', lineX: 63.132133888026374, lineY: 56.46666564941406 },
+        { id: 'body', label: 'Тело', x: 15, y: 45, anchor: 'body', accepts: ['body', 'cyber'], lineMode: 'manual', lineX: 45, lineY: 40 },
+        { id: 'skin', label: 'Кожа', x: 15, y: 60, anchor: 'body', accepts: ['skin', 'cyber'], lineMode: 'manual', lineX: 45, lineY: 60 },
+        { id: 'organ-1', label: 'Орган 1', x: 85, y: 70, anchor: 'body', accepts: ['organ', 'cyber'], lineMode: 'manual', lineX: 50, lineY: 50 },
+        { id: 'organ-2', label: 'Орган 2', x: 85, y: 85, anchor: 'body', accepts: ['organ', 'cyber'], lineMode: 'manual', lineX: 50, lineY: 50 },
+        { id: 'legs', label: 'Ноги', x: 15, y: 85, anchor: 'legs', accepts: ['legs', 'cyber'], lineMode: 'manual', lineX: 50, lineY: 75 }
+      ],
+      gear: [
+        { id: 'armor', label: 'Броня', x: 15, y: 30, anchor: 'body', accepts: ['armor'], lineMode: 'manual', lineX: 50, lineY: 47 },
+        { id: 'clothes', label: 'Одежда', x: 85, y: 30, anchor: 'body', accepts: ['clothes'], lineMode: 'manual', lineX: 50, lineY: 40 },
+        { id: 'weapon-1', label: 'Оружие 1', x: 15, y: 60, anchor: 'hands', accepts: ['weapon'], lineMode: 'manual', lineX: 35, lineY: 55 },
+        { id: 'weapon-2', label: 'Оружие 2', x: 85, y: 60, anchor: 'hands', accepts: ['weapon'], lineMode: 'manual', lineX: 65, lineY: 55 }
+      ]
+    };
+
+    const anchorPoints = {
+      head: { x: 50, y: 25 },
+      arms: { x: 39, y: 46 },
+      hands: { x: 58, y: 50 },
+      body: { x: 50, y: 47 },
+      legs: { x: 50, y: 75 }
+    };
+
+    const items = [
+      { id: 'optic', name: 'Оптика Кироваси', icon: '👁️', qty: 1, type: 'eyes', desc: '+1 к анализу угроз. Подсвечивает слабые места.' },
+      { id: 'neuro', name: 'Нейропроцессор', icon: '🧠', qty: 1, type: 'brain', desc: 'Ускоряет реакцию и держит один боевой скрипт.' },
+      { id: 'lungs', name: 'Синтолёгкие', icon: '🫁', qty: 1, type: 'organ', desc: 'Фильтрация токсинов, запас воздуха и меньше штрафов от дыма.' },
+      { id: 'mantis', name: 'Мантис-клинки', icon: '🦾', qty: 1, type: 'arms', desc: 'Парные клинки, встроенные в предплечья.' },
+      { id: 'palms', name: 'Смарт-ладони', icon: '✋', qty: 1, type: 'palms', desc: 'Связь с умным оружием и биометрический замок.' },
+      { id: 'skin', name: 'Подкожная броня', icon: '🔳', qty: 1, type: 'skin', desc: 'Тонкая бронесетка под кожей.' },
+      { id: 'legs', name: 'Усиленные ноги', icon: '🦿', qty: 1, type: 'legs', desc: 'Прыжки, рывки, устойчивость к падению.' },
+      { id: 'jacket', name: 'Бронекуртка', icon: '🧥', qty: 1, type: 'armor', desc: 'Броня на корпус. Выглядит достаточно стильно, чтобы не стыдиться.' },
+      { id: 'clothes', name: 'Неоновый костюм', icon: '👕', qty: 1, type: 'clothes', desc: 'Одежда с подсветкой, карманами и сомнительной практичностью.' },
+      { id: 'pistol', name: 'Lexington X-7', icon: '🔫', qty: 1, type: 'weapon', desc: 'Лёгкий пистолет. Два слота оружия поддерживаются отдельно.' },
+      { id: 'katana', name: 'Термокатана', icon: '🗡️', qty: 1, type: 'weapon', desc: 'Греется, светится, просит драматичный саундтрек.' },
+      { id: 'med', name: 'MaxDoc', icon: '💉', qty: 3, type: 'consumable', desc: 'Расходник. В слот импланта не ставится, но информацию открыть можно.' },
+      { id: 'ammo', name: 'Патроны 9mm', icon: '📦', qty: 42, type: 'ammo', desc: 'Боезапас. Цифра стоит в углу и не перекрывает иконку.' }
+    ];
+
+    const equipped = {};
+    let mode = 'implants';
+    let selectedItemId = null;
+    let sheetContext = null;
+    let dragState = null;
+
+    const stage = document.querySelector('#stage');
+    const slotMap = document.querySelector('#slotMap');
+    const connectors = document.querySelector('#connectors');
+    const bagGrid = document.querySelector('#bagGrid');
+    const status = document.querySelector('#selectionStatus') || { textContent: '' };
+    const toast = document.querySelector('#toast');
+    const sheet = document.querySelector('#sheet');
+    const editForm = document.querySelector('#editForm');
+
+    function itemById(id) {
+      return items.find(item => item.id === id);
+    }
+
+    function isEquipped(itemId) {
+      return Object.values(equipped).includes(itemId);
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 1300);
+    }
+
+    function compatible(item, slot) {
+      if (!item || !slot) return false;
+      return slot.accepts.includes(item.type) || slot.accepts.includes('cyber') && ['eyes', 'brain', 'organ', 'arms', 'palms', 'skin', 'body', 'legs'].includes(item.type);
+    }
+
+    function renderSlots() {
+      slotMap.innerHTML = '';
+      modes[mode].forEach(slot => {
+        const node = document.createElement('button');
+        node.className = 'equip-slot';
+        node.dataset.slot = slot.id;
+        node.style.left = slot.x + '%';
+        node.style.top = slot.y + '%';
+        const item = itemById(equipped[slot.id]);
+        if (item) node.classList.add('busy');
+        if (selectedItemId && compatible(itemById(selectedItemId), slot)) node.classList.add('compatible');
+        node.innerHTML = `
+          <span class="slot-label">${slot.label}</span>
+          <span class="slot-content">${item ? `<span>${item.icon}<small>${item.name}</small></span>` : '<span class="empty-mark"></span>'}</span>
+        `;
+        node.addEventListener('click', () => handleSlotTap(slot));
+        slotMap.appendChild(node);
+      });
+      requestAnimationFrame(drawConnectors);
+      updateCounter();
+    }
+
+    function drawConnectors() {
+      connectors.innerHTML = '';
+      const rect = stage.getBoundingClientRect();
+      modes[mode].forEach(slot => {
+        const node = slotMap.querySelector(`[data-slot="${slot.id}"]`);
+        if (!node) return;
+        const nodeRect = node.getBoundingClientRect();
+        const anchor = slot.lineMode === 'manual'
+          ? { x: slot.lineX, y: slot.lineY }
+          : (anchorPoints[slot.anchor] || anchorPoints.body);
+        const x1 = rect.width * anchor.x / 100;
+        const y1 = rect.height * anchor.y / 100;
+        const slotCenterX = nodeRect.left - rect.left + nodeRect.width / 2;
+        const slotCenterY = nodeRect.top - rect.top + nodeRect.height / 2;
+        const dx = slotCenterX - x1;
+        const dy = slotCenterY - y1;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const slotPad = Math.min(42, distance * 0.42);
+        const x2 = slotCenterX - dx / distance * slotPad;
+        const y2 = slotCenterY - dy / distance * slotPad;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1);
+        line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2);
+        line.setAttribute('y2', y2);
+        connectors.appendChild(line);
+      });
+    }
+
+    function renderBag() {
+      bagGrid.innerHTML = '';
+      const cellCount = 16;
+      for (let i = 0; i < cellCount; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'bag-cell';
+        cell.dataset.index = i;
+        const item = items[i];
+        if (item) {
+          const node = document.createElement('button');
+          node.className = 'bag-item';
+          node.dataset.item = item.id;
+          if (selectedItemId === item.id) node.classList.add('selected');
+          if (isEquipped(item.id)) node.classList.add('equipped');
+          node.innerHTML = `
+            ${isEquipped(item.id) ? '<span class="equipped-badge">✓</span>' : ''}
+            <span class="bag-icon">${item.icon}</span>
+            <span class="bag-name">${item.name}</span>
+            <span class="qty">${item.qty}</span>
+          `;
+          node.addEventListener('pointerdown', event => startItemPointer(event, item.id));
+          cell.appendChild(node);
+        }
+        bagGrid.appendChild(cell);
+      }
+    }
+
+    function startItemPointer(event, itemId) {
+      const item = itemById(itemId);
+      if (!item) return;
+      event.preventDefault();
+      closeSheet();
+      dragState = {
+        itemId,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        x: event.clientX,
+        y: event.clientY,
+        dragging: false,
+        ghost: null,
+        overSlotId: null,
+        overBagIndex: null
+      };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      document.addEventListener('pointermove', moveItemPointer);
+      document.addEventListener('pointerup', endItemPointer, { once: true });
+      document.addEventListener('pointercancel', cancelItemPointer, { once: true });
+    }
+
+    function ensureGhost() {
+      if (!dragState || dragState.ghost) return;
+      const item = itemById(dragState.itemId);
+      const ghost = document.createElement('div');
+      ghost.className = 'drag-ghost';
+      ghost.textContent = item.icon;
+      document.body.appendChild(ghost);
+      dragState.ghost = ghost;
+      selectedItemId = dragState.itemId;
+      status.textContent = `Тащишь: ${item.icon} ${item.name}`;
+      renderBag();
+      renderSlots();
+    }
+
+    function moveItemPointer(event) {
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      dragState.x = event.clientX;
+      dragState.y = event.clientY;
+      const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+      if (distance > 9) {
+        dragState.dragging = true;
+        ensureGhost();
+      }
+      if (!dragState.dragging) return;
+      event.preventDefault();
+      dragState.ghost.style.left = event.clientX + 'px';
+      dragState.ghost.style.top = event.clientY + 'px';
+      updateDropTarget(event.clientX, event.clientY);
+    }
+
+    function updateDropTarget(x, y) {
+      document.querySelectorAll('.equip-slot.drop-target').forEach(node => node.classList.remove('drop-target'));
+      document.querySelectorAll('.bag-cell.drop-target').forEach(node => node.classList.remove('drop-target'));
+      const pointNode = document.elementFromPoint(x, y);
+      const slotNode = pointNode?.closest?.('.equip-slot');
+      const slot = slotNode ? modes[mode].find(candidate => candidate.id === slotNode.dataset.slot) : null;
+      const item = itemById(dragState?.itemId);
+      dragState.overSlotId = null;
+      dragState.overBagIndex = null;
+      if (slotNode && slot && compatible(item, slot)) {
+        slotNode.classList.add('drop-target');
+        dragState.overSlotId = slot.id;
+        return;
+      }
+      const bagCell = pointNode?.closest?.('.bag-cell');
+      if (bagCell) {
+        bagCell.classList.add('drop-target');
+        dragState.overBagIndex = Number(bagCell.dataset.index);
+      }
+    }
+
+    function endItemPointer(event) {
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      document.removeEventListener('pointermove', moveItemPointer);
+      document.querySelectorAll('.equip-slot.drop-target').forEach(node => node.classList.remove('drop-target'));
+      document.querySelectorAll('.bag-cell.drop-target').forEach(node => node.classList.remove('drop-target'));
+      const state = dragState;
+      dragState = null;
+      state.ghost?.remove();
+
+      if (state.dragging) {
+        const slot = modes[mode].find(candidate => candidate.id === state.overSlotId);
+        if (slot) {
+          equipItemToSlot(state.itemId, slot);
+        } else if (Number.isInteger(state.overBagIndex)) {
+          reorderItem(state.itemId, state.overBagIndex);
+        } else {
+          selectedItemId = null;
+          status.textContent = '';
+          renderBag();
+          renderSlots();
+          showToast('Отпусти предмет над слотом или ячейкой сумки');
+        }
+        return;
+      }
+
+      selectItem(state.itemId, true);
+    }
+
+    function cancelItemPointer() {
+      document.removeEventListener('pointermove', moveItemPointer);
+      document.querySelectorAll('.equip-slot.drop-target').forEach(node => node.classList.remove('drop-target'));
+      document.querySelectorAll('.bag-cell.drop-target').forEach(node => node.classList.remove('drop-target'));
+      dragState?.ghost?.remove();
+      dragState = null;
+      selectedItemId = null;
+      renderBag();
+      renderSlots();
+    }
+
+    function reorderItem(itemId, targetIndex) {
+      const fromIndex = items.findIndex(item => item.id === itemId);
+      if (fromIndex < 0) return;
+      const safeTarget = Math.max(0, Math.min(targetIndex, items.length - 1));
+      if (fromIndex === safeTarget) {
+        selectedItemId = null;
+        renderBag();
+        renderSlots();
+        return;
+      }
+      const [item] = items.splice(fromIndex, 1);
+      const insertIndex = fromIndex < safeTarget ? safeTarget : safeTarget;
+      items.splice(insertIndex, 0, item);
+      selectedItemId = null;
+      status.textContent = '';
+      renderBag();
+      renderSlots();
+      showToast('Предмет перемещён в сумке');
+    }
+
+    function equipItemToSlot(itemId, slot) {
+      const item = itemById(itemId);
+      if (!item || !compatible(item, slot)) {
+        showToast('Предмет не подходит к этому слоту');
+        return;
+      }
+      Object.keys(equipped).forEach(slotId => {
+        if (equipped[slotId] === itemId && slotId !== slot.id) {
+          delete equipped[slotId];
+        }
+      });
+      equipped[slot.id] = itemId;
+      selectedItemId = null;
+      status.textContent = '';
+      showToast(`Установлено: ${item.name} → ${slot.label}`);
+      renderBag();
+      renderSlots();
+    }
+
+    function selectItem(id, openInfo = false) {
+      selectedItemId = selectedItemId === id ? null : id;
+      const item = itemById(selectedItemId);
+      status.textContent = item ? `Выбран: ${item.icon} ${item.name}. Теперь нажми слот.` : 'Нажми предмет снизу, потом слот';
+      renderBag();
+      renderSlots();
+      if (item && openInfo) {
+        openSheet(item.id, null);
+      }
+    }
+
+    function handleSlotTap(slot) {
+      const equippedItemId = equipped[slot.id];
+      if (selectedItemId) {
+        const item = itemById(selectedItemId);
+        if (!compatible(item, slot)) {
+          showToast(`${item.name} не подходит в слот «${slot.label}»`);
+          return;
+        }
+        equipItemToSlot(selectedItemId, slot);
+        return;
+      }
+      if (equippedItemId) {
+        openSheet(equippedItemId, slot.id);
+      } else {
+        showToast(`Слот «${slot.label}» пуст. Сначала выбери предмет.`);
+      }
+    }
+
+    function openSheet(itemId, slotId) {
+      const item = itemById(itemId);
+      if (!item) return;
+      sheetContext = { itemId, slotId };
+      document.querySelector('#sheetIcon').textContent = item.icon;
+      document.querySelector('#sheetName').textContent = item.name;
+      document.querySelector('#sheetMeta').textContent = `${item.type} / x${item.qty}${slotId ? ' / экипировано' : ''}`;
+      document.querySelector('#sheetDesc').textContent = item.desc;
+      document.querySelector('#unequipFromSheet').style.display = slotId ? '' : 'none';
+      editForm.classList.remove('open');
+      document.querySelector('#editName').value = item.name;
+      document.querySelector('#editQty').value = item.qty;
+      document.querySelector('#editType').value = item.type;
+      document.querySelector('#editDesc').value = item.desc;
+      sheet.classList.add('open');
+    }
+
+    function closeSheet() {
+      sheet.classList.remove('open');
+      editForm.classList.remove('open');
+    }
+
+    function updateCounter() {
+      const slots = modes[mode];
+      const filled = slots.filter(slot => equipped[slot.id]).length;
+      document.querySelector('#modeCounter').textContent = `${filled}/${slots.length}`;
+    }
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      selectedItemId = null;
+      closeSheet();
+      status.textContent = 'Нажми предмет снизу, потом слот';
+      document.querySelector('#implantsMode').classList.toggle('active', mode === 'implants');
+      document.querySelector('#gearMode').classList.toggle('active', mode === 'gear');
+      renderBag();
+      renderSlots();
+    }
+
+    document.querySelector('#implantsMode').addEventListener('click', () => setMode('implants'));
+    document.querySelector('#gearMode').addEventListener('click', () => setMode('gear'));
+    document.querySelector('#clearSelection')?.addEventListener('click', () => {
+      selectedItemId = null;
+      status.textContent = 'Нажми предмет снизу, потом слот';
+      closeSheet();
+      renderBag();
+      renderSlots();
+    });
+    document.querySelector('#closeSheet').addEventListener('click', closeSheet);
+    document.querySelector('#compactInfo').addEventListener('click', () => showToast('Это пока превью. Потом сюда можно добавить фильтры и сортировку.'));
+
+    document.querySelector('#selectFromSheet').addEventListener('click', () => {
+      if (!sheetContext) return;
+      selectedItemId = sheetContext.itemId;
+      const item = itemById(selectedItemId);
+      closeSheet();
+      status.textContent = `Выбран: ${item.icon} ${item.name}. Теперь нажми слот.`;
+      renderBag();
+      renderSlots();
+    });
+
+    document.querySelector('#unequipFromSheet').addEventListener('click', () => {
+      if (!sheetContext?.slotId) return;
+      const item = itemById(sheetContext.itemId);
+      delete equipped[sheetContext.slotId];
+      closeSheet();
+      showToast(`Снято: ${item.name}`);
+      renderBag();
+      renderSlots();
+    });
+
+    document.querySelector('#editItem').addEventListener('click', () => {
+      editForm.classList.toggle('open');
+    });
+
+    document.querySelector('#saveEdit').addEventListener('click', () => {
+      if (!sheetContext) return;
+      const item = itemById(sheetContext.itemId);
+      if (!item) return;
+      item.name = document.querySelector('#editName').value.trim() || item.name;
+      item.qty = Math.max(1, Number(document.querySelector('#editQty').value || 1));
+      item.type = document.querySelector('#editType').value;
+      item.desc = document.querySelector('#editDesc').value.trim() || 'Описание пока не заполнено.';
+      openSheet(item.id, sheetContext.slotId);
+      selectedItemId = item.id;
+      renderBag();
+      renderSlots();
+      showToast('Предмет обновлён');
+    });
+
+    document.querySelector('#deleteItem').addEventListener('click', () => {
+      if (!sheetContext) return;
+      const item = itemById(sheetContext.itemId);
+      if (!item) return;
+      Object.keys(equipped).forEach(slotId => {
+        if (equipped[slotId] === item.id) {
+          delete equipped[slotId];
+        }
+      });
+      const index = items.findIndex(candidate => candidate.id === item.id);
+      if (index >= 0) {
+        items.splice(index, 1);
+      }
+      if (selectedItemId === item.id) {
+        selectedItemId = null;
+      }
+      closeSheet();
+      status.textContent = 'Нажми предмет снизу, потом слот';
+      renderBag();
+      renderSlots();
+      showToast(`Удалено: ${item.name}`);
+    });
+
+    document.querySelector('#addItem').addEventListener('click', () => {
+      const id = 'new-' + Date.now();
+      items.unshift({
+        id,
+        name: 'Новый предмет',
+        icon: '✨',
+        qty: 1,
+        type: mode === 'gear' ? 'clothes' : 'cyber',
+        desc: 'Черновой предмет. В настоящей версии тут будет настройка как в текущем редакторе.'
+      });
+      selectedItemId = id;
+      renderBag();
+      renderSlots();
+      openSheet(id, null);
+      editForm.classList.add('open');
+      showToast('Добавлен новый предмет');
+    });
+
+    window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
+
+    renderBag();
+    renderSlots();
+  </script>
+</body>
+</html>

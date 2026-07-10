@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DND MiniApp - превью рамок v2</title>
+  <style>
+    :root {
+      --bg: #080a10;
+      --surface: rgba(14, 18, 28, .84);
+      --surface-strong: rgba(21, 27, 39, .94);
+      --line: rgba(235, 244, 255, .14);
+      --line-strong: rgba(255, 255, 255, .26);
+      --text: #f5f7fb;
+      --muted: #9aa8b8;
+      --warm: #f2bd5f;
+      --green: #80d87b;
+      --cyan: #59d8ff;
+      --pink: #ff4ea3;
+      --red: #ff5757;
+      --violet: #a78bfa;
+      --card-radius: 8px;
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% -8%, rgba(242, 189, 95, .20), transparent 27%),
+        radial-gradient(circle at 86% 4%, rgba(89, 216, 255, .18), transparent 26%),
+        radial-gradient(circle at 74% 92%, rgba(255, 78, 163, .15), transparent 30%),
+        linear-gradient(150deg, #07080d 0%, #10131c 48%, #090b10 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .26;
+      background:
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: linear-gradient(to bottom, #000 0 45%, transparent 92%);
+    }
+
+    main {
+      position: relative;
+      width: min(1420px, 100%);
+      margin: 0 auto;
+      padding: 22px 14px 46px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+      padding: 4px 0 18px;
+    }
+
+    .title-block {
+      display: grid;
+      gap: 8px;
+    }
+
+    .eyebrow {
+      color: #bfd0e4;
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 980px;
+      font-size: clamp(30px, 5vw, 64px);
+      line-height: .98;
+      letter-spacing: 0;
+    }
+
+    .summary {
+      margin: 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .count-pill {
+      justify-self: end;
+      display: grid;
+      min-width: 118px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--card-radius);
+      background: var(--surface);
+      text-align: right;
+    }
+
+    .count-pill b {
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .count-pill span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .controls {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--card-radius);
+      background: rgba(8, 10, 16, .76);
+      backdrop-filter: blur(16px);
+    }
+
+    .segmented {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    button,
+    input[type="search"],
+    select {
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--card-radius);
+      background: rgba(255,255,255,.055);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+
+    button {
+      padding: 0 12px;
+      cursor: pointer;
+      font-weight: 760;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+
+    button:hover,
+    button.active {
+      border-color: color-mix(in srgb, var(--accent, var(--cyan)) 72%, white 0%);
+      background: color-mix(in srgb, var(--accent, var(--cyan)) 18%, transparent);
+      transform: translateY(-1px);
+    }
+
+    input[type="search"] {
+      flex: 1 1 230px;
+      min-width: 180px;
+      padding: 0 12px;
+    }
+
+    select {
+      padding: 0 34px 0 12px;
+      color: #dce8f5;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+
+    .concept {
+      --a: #f2bd5f;
+      --b: #59d8ff;
+      --c: #ff4ea3;
+      position: relative;
+      min-height: 362px;
+      display: grid;
+      grid-template-rows: 214px auto;
+      gap: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--card-radius);
+      background:
+        radial-gradient(circle at 22% 0%, color-mix(in srgb, var(--a) 23%, transparent), transparent 38%),
+        radial-gradient(circle at 92% 16%, color-mix(in srgb, var(--b) 17%, transparent), transparent 32%),
+        linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+        var(--surface);
+      box-shadow: 0 18px 54px rgba(0, 0, 0, .28);
+      isolation: isolate;
+    }
+
+    .concept.hidden { display: none; }
+
+    .concept::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      opacity: .42;
+      background:
+        linear-gradient(120deg, transparent 0 46%, rgba(255,255,255,.10) 47% 48%, transparent 49%),
+        radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--c) 18%, transparent), transparent 56%);
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 214px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 46%, rgba(255,255,255,.11), transparent 25%),
+        linear-gradient(135deg, rgba(255,255,255,.035), transparent 52%);
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 50%;
+    }
+
+    .portrait {
+      position: relative;
+      z-index: 4;
+      width: 112px;
+      height: 112px;
+      overflow: hidden;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.22);
+      background:
+        radial-gradient(circle at 42% 18%, rgba(255,255,255,.24), transparent 21%),
+        linear-gradient(145deg, #141a22, #05070c);
+      box-shadow: inset 0 0 24px rgba(0,0,0,.42), 0 16px 32px rgba(0,0,0,.38);
+    }
+
+    .portrait img {
+      width: 100%;
+      height: 150%;
+      object-fit: cover;
+      object-position: 50% 0%;
+      filter: saturate(.9) contrast(1.08);
+      opacity: .92;
+    }
+
+    .frame,
+    .frame::before,
+    .frame::after,
+    .halo,
+    .halo::before,
+    .halo::after,
+    .detail,
+    .detail::before,
+    .detail::after,
+    .spark,
+    .spark::before,
+    .spark::after {
+      position: absolute;
+      pointer-events: none;
+      content: "";
+    }
+
+    .frame {
+      z-index: 6;
+      width: 158px;
+      height: 158px;
+      border-radius: 50%;
+      border: 4px solid var(--a);
+      filter: drop-shadow(0 0 14px color-mix(in srgb, var(--a) 48%, transparent));
+    }
+
+    .halo {
+      z-index: 3;
+      width: 186px;
+      height: 186px;
+      border-radius: 50%;
+    }
+
+    .detail {
+      z-index: 7;
+      width: 178px;
+      height: 178px;
+      border-radius: 50%;
+    }
+
+    .spark {
+      z-index: 8;
+      width: 178px;
+      height: 178px;
+      border-radius: 50%;
+    }
+
+    .meta {
+      display: grid;
+      gap: 9px;
+      padding: 0 14px 15px;
+    }
+
+    .meta-row {
+      display: grid;
+      gap: 7px;
+    }
+
+    .theme {
+      width: fit-content;
+      padding: 4px 7px;
+      border: 1px solid color-mix(in srgb, var(--a) 48%, transparent);
+      border-radius: 6px;
+      color: color-mix(in srgb, var(--a) 82%, white 18%);
+      background: color-mix(in srgb, var(--a) 12%, transparent);
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .tokens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .token {
+      padding: 4px 7px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.045);
+      color: #c8d5e4;
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    .fantasy { --accent: var(--warm); }
+    .sci-fi { --accent: var(--cyan); }
+    .cyberpunk { --accent: var(--pink); }
+
+    .rarity-common { box-shadow: 0 18px 54px rgba(0,0,0,.24); }
+    .rarity-rare { border-color: color-mix(in srgb, var(--b) 36%, rgba(255,255,255,.08)); }
+    .rarity-epic { border-color: color-mix(in srgb, var(--c) 38%, rgba(255,255,255,.08)); }
+    .rarity-legendary { border-color: color-mix(in srgb, var(--a) 52%, rgba(255,255,255,.10)); }
+
+    .rune-choir .frame {
+      border-style: dashed;
+      border-width: 2px;
+      background:
+        conic-gradient(from 0deg, transparent 0 14deg, color-mix(in srgb, var(--a) 72%, transparent) 15deg 19deg, transparent 20deg 44deg);
+      mask: radial-gradient(circle, transparent 59%, #000 61% 70%, transparent 72%);
+      animation: spin 11s linear infinite;
+    }
+    .rune-choir .detail::before {
+      inset: 0;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 0%, var(--a) 0 3px, transparent 4px),
+        radial-gradient(circle at 84% 18%, var(--b) 0 3px, transparent 4px),
+        radial-gradient(circle at 100% 50%, var(--a) 0 3px, transparent 4px),
+        radial-gradient(circle at 84% 82%, var(--b) 0 3px, transparent 4px),
+        radial-gradient(circle at 50% 100%, var(--a) 0 3px, transparent 4px),
+        radial-gradient(circle at 16% 82%, var(--b) 0 3px, transparent 4px),
+        radial-gradient(circle at 0% 50%, var(--a) 0 3px, transparent 4px),
+        radial-gradient(circle at 16% 18%, var(--b) 0 3px, transparent 4px);
+      filter: drop-shadow(0 0 8px var(--a));
+      animation: pulse 2.8s ease-in-out infinite;
+    }
+
+    .dragon-scale .frame {
+      border: 0;
+      background:
+        conic-gradient(from 18deg, #431407 0 12deg, var(--a) 13deg 21deg, #7c2d12 22deg 35deg, var(--b) 36deg 41deg, #431407 42deg 54deg);
+      mask: radial-gradient(circle, transparent 52%, #000 54% 71%, transparent 73%);
+      animation: slow-rock 4.4s ease-in-out infinite;
+    }
+    .dragon-scale .spark::before {
+      inset: -8px;
+      background:
+        radial-gradient(circle at 21% 78%, #ffef9a 0 3px, transparent 4px),
+        radial-gradient(circle at 73% 21%, #ff6b2c 0 4px, transparent 5px),
+        radial-gradient(circle at 84% 76%, #facc15 0 2px, transparent 3px),
+        radial-gradient(circle at 31% 18%, #ff6b2c 0 2px, transparent 3px);
+      filter: drop-shadow(0 0 9px #f97316);
+      animation: ember-rise 2s ease-in-out infinite;
+    }
+
+    .sylvan-thorns .frame {
+      border-color: #2f8f4d;
+      box-shadow: inset 0 0 18px rgba(120, 216, 123, .24), 0 0 22px rgba(52, 211, 153, .18);
+    }
+    .sylvan-thorns .detail::before {
+      inset: -10px;
+      background: conic-gradient(from 5deg, transparent 0 21deg, rgba(128,216,123,.7) 22deg 26deg, transparent 27deg 44deg);
+      mask: radial-gradient(circle, transparent 58%, #000 60% 67%, transparent 69%);
+      animation: spin 16s linear infinite reverse;
+    }
+    .sylvan-thorns .spark::before {
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 18% 24%, rgba(211,255,172,.9) 0 5px, transparent 6px),
+        radial-gradient(ellipse at 84% 72%, rgba(211,255,172,.82) 0 5px, transparent 6px);
+      transform: rotate(-22deg);
+    }
+
+    .frost-crown .frame {
+      border: 0;
+      background: conic-gradient(from 0deg, transparent 0 9deg, rgba(217,249,255,.96) 10deg 13deg, rgba(89,216,255,.72) 14deg 20deg, transparent 21deg 38deg);
+      mask: radial-gradient(circle, transparent 51%, #000 53% 75%, transparent 77%);
+      filter: drop-shadow(0 0 13px rgba(125, 211, 252, .78));
+      animation: frost-breathe 3.2s ease-in-out infinite;
+    }
+    .frost-crown .halo::before {
+      inset: 16px;
+      border-radius: 42% 58% 44% 56%;
+      border: 1px solid rgba(217,249,255,.52);
+      box-shadow: inset 0 0 20px rgba(217,249,255,.18), 0 0 20px rgba(89,216,255,.18);
+      animation: water-shape 4s ease-in-out infinite;
+    }
+
+    .necro-reliquary .frame {
+      border-color: #d4d4d8;
+      border-style: double;
+      box-shadow: 0 0 16px rgba(163, 230, 53, .20), inset 0 0 18px rgba(220, 252, 231, .16);
+    }
+    .necro-reliquary .detail::before {
+      inset: -2px;
+      background:
+        linear-gradient(90deg, transparent 46%, rgba(220,252,231,.8) 47% 53%, transparent 54%),
+        linear-gradient(0deg, transparent 46%, rgba(220,252,231,.8) 47% 53%, transparent 54%);
+      mask: radial-gradient(circle, transparent 60%, #000 62% 66%, transparent 68%);
+      animation: spin 13s steps(8) infinite;
+    }
+    .necro-reliquary .spark::after {
+      inset: -4px;
+      background:
+        radial-gradient(ellipse at 28% 92%, rgba(132,255,174,.95) 0 4px, transparent 12px),
+        radial-gradient(ellipse at 72% 92%, rgba(132,255,174,.95) 0 4px, transparent 12px);
+      filter: drop-shadow(0 0 10px #84ffae);
+      animation: candle 1.8s ease-in-out infinite;
+    }
+
+    .phoenix-ash .frame {
+      border: 0;
+      background:
+        conic-gradient(from -40deg, transparent 0 15deg, rgba(255,87,87,.82) 16deg 28deg, #ffd166 29deg 34deg, transparent 35deg 72deg);
+      mask: radial-gradient(circle, transparent 48%, #000 50% 76%, transparent 78%);
+      animation: spin 7s linear infinite;
+    }
+    .phoenix-ash .detail::before {
+      inset: 8px;
+      border-radius: 50%;
+      border-top: 2px solid rgba(255,218,142,.88);
+      border-right: 7px solid rgba(255,87,87,.62);
+      filter: drop-shadow(0 0 13px #ff5757);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .moon-mirror .frame {
+      border-color: rgba(207, 226, 255, .88);
+      border-left-color: transparent;
+      border-right-color: rgba(167, 139, 250, .72);
+      box-shadow: inset 0 0 24px rgba(255,255,255,.12), 0 0 26px rgba(167,139,250,.22);
+      animation: water-shape 5s ease-in-out infinite;
+    }
+    .moon-mirror .halo::after {
+      inset: 28px 48px 28px 20px;
+      border-radius: 50%;
+      box-shadow: -11px 0 0 rgba(230,240,255,.9);
+      filter: drop-shadow(0 0 12px rgba(230,240,255,.7));
+      animation: moon-drift 3.8s ease-in-out infinite;
+    }
+
+    .royal-sigil .frame {
+      border-radius: 18px;
+      border-color: #d7b35d;
+      transform: rotate(45deg);
+      box-shadow: inset 0 0 18px rgba(215,179,93,.22), 0 0 24px rgba(167,139,250,.2);
+    }
+    .royal-sigil .detail::before {
+      inset: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(167,139,250,.64);
+      box-shadow: 0 0 16px rgba(167,139,250,.4);
+    }
+    .royal-sigil .spark::before {
+      inset: 9px;
+      background:
+        radial-gradient(circle at 50% 0%, #fef3c7 0 4px, transparent 5px),
+        radial-gradient(circle at 100% 50%, #fef3c7 0 4px, transparent 5px),
+        radial-gradient(circle at 50% 100%, #fef3c7 0 4px, transparent 5px),
+        radial-gradient(circle at 0% 50%, #fef3c7 0 4px, transparent 5px);
+      animation: pulse 2.7s ease-in-out infinite;
+    }
+
+    .deep-root .frame {
+      border: 0;
+      background:
+        conic-gradient(from 0deg, #4b2b16 0 12deg, #90d063 13deg 16deg, #261309 17deg 32deg, #8b5e34 33deg 37deg, #4b2b16 38deg 58deg);
+      mask: radial-gradient(circle, transparent 52%, #000 54% 73%, transparent 75%);
+    }
+    .deep-root .detail::before {
+      inset: -8px;
+      background:
+        linear-gradient(35deg, transparent 0 43%, rgba(128,216,123,.46) 44% 46%, transparent 47%),
+        linear-gradient(145deg, transparent 0 57%, rgba(139,94,52,.82) 58% 60%, transparent 61%);
+      mask: radial-gradient(circle, transparent 49%, #000 51% 66%, transparent 68%);
+      animation: root-crawl 3.8s ease-in-out infinite;
+    }
+
+    .fae-moths .frame {
+      border-color: rgba(251, 207, 232, .76);
+      box-shadow: 0 0 23px rgba(244,114,182,.28), inset 0 0 18px rgba(255,255,255,.11);
+    }
+    .fae-moths .spark::before {
+      inset: -10px;
+      background:
+        radial-gradient(ellipse at 17% 35%, rgba(252,231,243,.95) 0 4px, transparent 5px),
+        radial-gradient(ellipse at 80% 26%, rgba(187,247,208,.95) 0 4px, transparent 5px),
+        radial-gradient(ellipse at 72% 78%, rgba(254,240,138,.95) 0 4px, transparent 5px),
+        radial-gradient(ellipse at 24% 82%, rgba(191,219,254,.95) 0 4px, transparent 5px);
+      filter: drop-shadow(0 0 8px rgba(251,207,232,.9));
+      animation: fae-loop 4.2s ease-in-out infinite;
+    }
+
+    .orbital-dock .frame {
+      border-width: 1px;
+      border-color: rgba(89,216,255,.5);
+    }
+    .orbital-dock .frame::before,
+    .orbital-dock .frame::after {
+      inset: -8px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      border-top-color: var(--b);
+      border-bottom-color: rgba(255,255,255,.44);
+      animation: spin 2.4s linear infinite;
+    }
+    .orbital-dock .frame::after {
+      inset: 14px;
+      border-width: 1px;
+      border-left-color: var(--a);
+      animation-duration: 5.4s;
+      animation-direction: reverse;
+    }
+
+    .quantum-hexgrid .frame {
+      border: 0;
+      border-radius: 0;
+      clip-path: polygon(50% 0, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
+      background: linear-gradient(135deg, var(--b), var(--c));
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      padding: 5px;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: hex-pop 3s ease-in-out infinite;
+    }
+    .quantum-hexgrid .detail::before {
+      inset: -8px;
+      background:
+        repeating-linear-gradient(60deg, rgba(89,216,255,.28) 0 2px, transparent 3px 18px),
+        repeating-linear-gradient(120deg, rgba(167,139,250,.18) 0 2px, transparent 3px 20px);
+      clip-path: polygon(50% 0, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
+      mask: radial-gradient(circle, transparent 45%, #000 47% 69%, transparent 72%);
+    }
+
+    .reactor-torus .frame {
+      border-color: rgba(89,216,255,.72);
+      box-shadow: inset 0 0 18px rgba(89,216,255,.2), 0 0 26px rgba(89,216,255,.25);
+      animation: reactor 1.8s ease-in-out infinite;
+    }
+    .reactor-torus .halo::before {
+      inset: 10px;
+      border-radius: 50%;
+      background: radial-gradient(circle, transparent 46%, rgba(89,216,255,.16) 48%, rgba(255,78,163,.55) 52%, transparent 64%);
+      animation: spin 3.3s linear infinite;
+    }
+
+    .stasis-brackets .frame {
+      border: 0;
+      border-radius: 0;
+      background:
+        linear-gradient(var(--b), var(--b)) left top / 42px 4px no-repeat,
+        linear-gradient(var(--b), var(--b)) left top / 4px 42px no-repeat,
+        linear-gradient(var(--b), var(--b)) right top / 42px 4px no-repeat,
+        linear-gradient(var(--b), var(--b)) right top / 4px 42px no-repeat,
+        linear-gradient(var(--b), var(--b)) left bottom / 42px 4px no-repeat,
+        linear-gradient(var(--b), var(--b)) left bottom / 4px 42px no-repeat,
+        linear-gradient(var(--b), var(--b)) right bottom / 42px 4px no-repeat,
+        linear-gradient(var(--b), var(--b)) right bottom / 4px 42px no-repeat;
+      filter: drop-shadow(0 0 12px rgba(89,216,255,.74));
+      animation: stasis 2s steps(2) infinite;
+    }
+    .stasis-brackets .detail::after {
+      inset: 32px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.32);
+      box-shadow: 0 0 0 8px rgba(89,216,255,.05), 0 0 0 18px rgba(89,216,255,.035);
+      animation: pulse 2.6s ease-in-out infinite;
+    }
+
+    .gravity-lens .frame {
+      width: 188px;
+      height: 118px;
+      border-width: 2px;
+      border-color: rgba(89,216,255,.62);
+      transform: rotate(-18deg);
+      box-shadow: 0 0 22px rgba(89,216,255,.26);
+      animation: orbit-tilt 4s ease-in-out infinite;
+    }
+    .gravity-lens .detail::before {
+      inset: 28px -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.2);
+      transform: rotate(24deg);
+    }
+
+    .cryo-chamber .frame {
+      border-radius: 28px;
+      border-color: rgba(184,242,255,.8);
+      background:
+        linear-gradient(90deg, transparent 0 42%, rgba(184,242,255,.25) 43% 57%, transparent 58%),
+        linear-gradient(0deg, transparent 0 42%, rgba(184,242,255,.20) 43% 57%, transparent 58%);
+      box-shadow: inset 0 0 28px rgba(184,242,255,.14), 0 0 22px rgba(89,216,255,.18);
+    }
+    .cryo-chamber .spark::after {
+      inset: -4px;
+      background: repeating-linear-gradient(90deg, transparent 0 17px, rgba(184,242,255,.5) 18px 20px, transparent 21px 35px);
+      mask: radial-gradient(circle, transparent 56%, #000 59% 66%, transparent 69%);
+      animation: scan-x 2.3s linear infinite;
+    }
+
+    .telemetry-array .frame {
+      border: 0;
+      background: conic-gradient(from 0deg, rgba(89,216,255,.86) 0 2deg, transparent 3deg 9deg, rgba(255,255,255,.38) 10deg 12deg, transparent 13deg 22deg);
+      mask: radial-gradient(circle, transparent 54%, #000 56% 66%, transparent 68%);
+      animation: spin 18s steps(72) infinite;
+    }
+    .telemetry-array .detail::after {
+      inset: 14px;
+      border-radius: 50%;
+      border: 1px dashed rgba(89,216,255,.46);
+      animation: spin 7s linear infinite reverse;
+    }
+
+    .drone-swarm .frame {
+      border-color: rgba(89,216,255,.36);
+      border-style: dotted;
+    }
+    .drone-swarm .spark::before {
+      inset: -12px;
+      background:
+        linear-gradient(var(--b), var(--b)) 12% 34% / 9px 9px no-repeat,
+        linear-gradient(var(--a), var(--a)) 78% 22% / 8px 8px no-repeat,
+        linear-gradient(var(--c), var(--c)) 88% 72% / 10px 10px no-repeat,
+        linear-gradient(#fff, #fff) 22% 82% / 7px 7px no-repeat;
+      filter: drop-shadow(0 0 8px rgba(89,216,255,.85));
+      animation: drone 3.1s ease-in-out infinite;
+    }
+
+    .antimatter-ring .frame {
+      border-top-color: var(--b);
+      border-right-color: transparent;
+      border-bottom-color: var(--c);
+      border-left-color: transparent;
+      animation: spin 1.8s linear infinite;
+    }
+    .antimatter-ring .detail::before {
+      inset: 16px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      border-left-color: var(--a);
+      border-right-color: rgba(255,255,255,.72);
+      animation: spin 2.6s linear infinite reverse;
+    }
+
+    .starship-porthole .frame {
+      border: 8px solid #6b7280;
+      box-shadow: inset 0 0 18px rgba(89,216,255,.24), 0 0 22px rgba(89,216,255,.17);
+    }
+    .starship-porthole .detail::before {
+      inset: 6px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 0%, #d1d5db 0 3px, transparent 4px),
+        radial-gradient(circle at 100% 50%, #d1d5db 0 3px, transparent 4px),
+        radial-gradient(circle at 50% 100%, #d1d5db 0 3px, transparent 4px),
+        radial-gradient(circle at 0% 50%, #d1d5db 0 3px, transparent 4px);
+      animation: pulse 3.3s ease-in-out infinite;
+    }
+
+    .neon-vandal .frame {
+      border: 0;
+      background:
+        linear-gradient(112deg, transparent 0 37%, var(--b) 38% 41%, transparent 42%),
+        linear-gradient(64deg, transparent 0 55%, var(--c) 56% 60%, transparent 61%),
+        linear-gradient(-22deg, transparent 0 45%, var(--a) 46% 49%, transparent 50%);
+      filter: drop-shadow(0 0 12px var(--b)) drop-shadow(0 0 14px var(--c));
+      animation: glitch 1.2s steps(4) infinite;
+    }
+    .neon-vandal .detail::before {
+      inset: 12px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 50%;
+    }
+
+    .glitch-crown .frame {
+      border-color: var(--c);
+      box-shadow: -5px 0 0 rgba(89,216,255,.8), 5px 0 0 rgba(255,87,87,.7), 0 0 18px rgba(255,78,163,.35);
+      animation: glitch 1.05s steps(3) infinite;
+    }
+    .glitch-crown .detail::after {
+      inset: -8px;
+      background: repeating-linear-gradient(0deg, transparent 0 8px, rgba(255,255,255,.18) 9px 10px, transparent 11px 18px);
+      mask: radial-gradient(circle, transparent 54%, #000 56% 69%, transparent 71%);
+      animation: scan-y 1.4s linear infinite;
+    }
+
+    .matrix-veil .frame {
+      border: 0;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 8px, rgba(72,255,155,.52) 9px 11px, transparent 12px 20px),
+        repeating-linear-gradient(180deg, transparent 0 12px, rgba(72,255,155,.38) 13px 15px, transparent 16px 26px);
+      mask: radial-gradient(circle, transparent 50%, #000 54% 72%, transparent 75%);
+      filter: drop-shadow(0 0 14px rgba(72,255,155,.6));
+      animation: matrix 1s linear infinite;
+    }
+    .matrix-veil .spark::before {
+      inset: 16px;
+      background: radial-gradient(circle at 74% 16%, #eafff2 0 3px, transparent 4px), radial-gradient(circle at 28% 84%, #48ff9b 0 3px, transparent 4px);
+    }
+
+    .corporate-redline .frame {
+      border: 1px solid rgba(255,87,87,.76);
+      border-radius: 10px;
+      box-shadow: 0 0 19px rgba(255,87,87,.34), inset 0 0 22px rgba(255,87,87,.08);
+    }
+    .corporate-redline .detail::before {
+      left: 14px;
+      right: 14px;
+      top: 40px;
+      height: 3px;
+      border-radius: 0;
+      background: linear-gradient(90deg, transparent, var(--a), transparent);
+      filter: drop-shadow(0 0 10px var(--a));
+      animation: scan-laser 1.7s ease-in-out infinite;
+    }
+    .corporate-redline .detail::after {
+      inset: 25px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 50%;
+    }
+
+    .synthwave-grill .frame {
+      border: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 8px, rgba(255,78,163,.86) 9px 11px, transparent 12px 18px),
+        linear-gradient(90deg, rgba(89,216,255,.72), rgba(255,78,163,.72));
+      mask: radial-gradient(circle, transparent 51%, #000 54% 70%, transparent 73%);
+      animation: scan-y 1.8s linear infinite;
+    }
+    .synthwave-grill .halo::before {
+      inset: 24px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 9px rgba(255,78,163,.07), 0 0 0 20px rgba(89,216,255,.05);
+    }
+
+    .toxic-billboard .frame {
+      border: 0;
+      border-radius: 18px;
+      background:
+        repeating-linear-gradient(45deg, #d9ff42 0 10px, #10140b 11px 20px);
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      padding: 5px;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      filter: drop-shadow(0 0 13px rgba(217,255,66,.46));
+      animation: toxic-flicker 1.6s steps(2) infinite;
+    }
+    .toxic-billboard .spark::after {
+      inset: -10px;
+      background:
+        radial-gradient(circle at 20% 30%, #d9ff42 0 4px, transparent 5px),
+        radial-gradient(circle at 84% 70%, #d9ff42 0 3px, transparent 4px);
+      filter: drop-shadow(0 0 7px #d9ff42);
+    }
+
+    .chrome-wire .frame {
+      border-color: rgba(229,231,235,.75);
+      box-shadow: inset 0 0 18px rgba(255,255,255,.1), 0 0 18px rgba(89,216,255,.18);
+    }
+    .chrome-wire .detail::before {
+      inset: -8px;
+      background:
+        linear-gradient(90deg, transparent 0 42%, rgba(89,216,255,.78) 43% 45%, transparent 46%),
+        linear-gradient(0deg, transparent 0 57%, rgba(255,78,163,.78) 58% 60%, transparent 61%),
+        radial-gradient(circle at 18% 44%, #fff 0 3px, transparent 4px),
+        radial-gradient(circle at 80% 58%, #fff 0 3px, transparent 4px);
+      mask: radial-gradient(circle, transparent 49%, #000 51% 68%, transparent 70%);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    .pink-noise .frame {
+      border-color: rgba(255,78,163,.76);
+      box-shadow: 0 0 24px rgba(255,78,163,.32);
+    }
+    .pink-noise .detail::before {
+      inset: -12px;
+      background:
+        linear-gradient(var(--c), var(--c)) 10% 22% / 5px 5px no-repeat,
+        linear-gradient(var(--b), var(--b)) 22% 76% / 4px 4px no-repeat,
+        linear-gradient(var(--a), var(--a)) 82% 30% / 7px 7px no-repeat,
+        linear-gradient(#fff, #fff) 76% 86% / 4px 4px no-repeat,
+        linear-gradient(var(--c), var(--c)) 46% 6% / 6px 6px no-repeat;
+      filter: drop-shadow(0 0 8px var(--c));
+      animation: pixel-jump 1.15s steps(4) infinite;
+    }
+
+    .black-market-chip .frame {
+      border: 0;
+      border-radius: 20px;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.8), rgba(89,216,255,.32), rgba(255,78,163,.7));
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      padding: 4px;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+    .black-market-chip .detail::before {
+      inset: -14px;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 13px, rgba(255,255,255,.55) 14px 16px, transparent 17px 24px);
+      mask: radial-gradient(circle, transparent 58%, #000 61% 66%, transparent 69%);
+      animation: scan-x 1.9s linear infinite;
+    }
+
+    .overclock-heat .frame {
+      border: 0;
+      background: conic-gradient(from 210deg, transparent 0 10deg, #ff5757 11deg 24deg, #ffd166 25deg 33deg, transparent 34deg 52deg);
+      mask: radial-gradient(circle, transparent 49%, #000 52% 72%, transparent 74%);
+      filter: drop-shadow(0 0 13px rgba(255,87,87,.72));
+      animation: spin 2.2s linear infinite;
+    }
+    .overclock-heat .halo::after {
+      inset: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle, transparent 52%, rgba(255,87,87,.12) 54%, rgba(255,209,102,.18) 60%, transparent 70%);
+      animation: reactor 1.2s ease-in-out infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity: .46; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+    @keyframes slow-rock { 0%,100% { transform: rotate(-5deg) scale(.98); } 50% { transform: rotate(6deg) scale(1.03); } }
+    @keyframes ember-rise { 0% { transform: translateY(9px) scale(.92); opacity: .28; } 50% { opacity: 1; } 100% { transform: translateY(-11px) scale(1.08); opacity: .22; } }
+    @keyframes frost-breathe { 0%,100% { opacity: .55; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
+    @keyframes water-shape { 0%,100% { border-radius: 45% 55% 52% 48%; transform: scale(.98); } 50% { border-radius: 56% 44% 44% 56%; transform: scale(1.04); } }
+    @keyframes candle { 0%,100% { opacity: .55; transform: translateY(2px) scale(.96); } 50% { opacity: 1; transform: translateY(-3px) scale(1.08); } }
+    @keyframes moon-drift { 0%,100% { transform: translateX(-4px); opacity: .55; } 50% { transform: translateX(5px); opacity: 1; } }
+    @keyframes root-crawl { 0%,100% { transform: rotate(-4deg); opacity: .45; } 50% { transform: rotate(8deg); opacity: 1; } }
+    @keyframes fae-loop { 0%,100% { transform: rotate(0deg) scale(.94); opacity: .55; } 50% { transform: rotate(16deg) scale(1.08); opacity: 1; } }
+    @keyframes hex-pop { 0%,100% { transform: rotate(0deg) scale(.95); opacity: .54; } 50% { transform: rotate(60deg) scale(1.04); opacity: 1; } }
+    @keyframes reactor { 0%,100% { transform: scale(.92) rotate(0deg); opacity: .45; } 50% { transform: scale(1.12) rotate(120deg); opacity: 1; } }
+    @keyframes stasis { 0%,100% { opacity: .55; transform: scale(.98); } 50% { opacity: 1; transform: scale(1.02); } }
+    @keyframes orbit-tilt { 0%,100% { transform: rotate(-18deg) scale(.98); } 50% { transform: rotate(18deg) scale(1.03); } }
+    @keyframes scan-x { to { background-position: 44px 0; } }
+    @keyframes scan-y { to { background-position: 0 38px; } }
+    @keyframes drone { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(4px,-5px) rotate(16deg); } }
+    @keyframes glitch { 0%,100% { transform: translate(0,0); opacity: .62; } 20% { transform: translate(3px,-2px); opacity: 1; } 45% { transform: translate(-3px,2px); opacity: .72; } 70% { transform: translate(2px,1px); opacity: .95; } }
+    @keyframes matrix { to { background-position: 0 32px, 0 36px; } }
+    @keyframes scan-laser { 0%,100% { transform: translateY(0); opacity: .18; } 48% { opacity: 1; } 50% { transform: translateY(96px); opacity: 1; } }
+    @keyframes toxic-flicker { 0%,100% { opacity: .78; } 50% { opacity: 1; } }
+    @keyframes pixel-jump { 0%,100% { transform: translate(0,0); } 25% { transform: translate(3px,-2px); } 50% { transform: translate(-2px,2px); } 75% { transform: translate(2px,3px); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media (max-width: 760px) {
+      main { padding: 14px 10px 34px; }
+      .topbar { grid-template-columns: 1fr; }
+      .count-pill { justify-self: stretch; text-align: left; }
+      .controls { position: relative; }
+      .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .concept { min-height: 334px; grid-template-rows: 188px auto; }
+      .stage { min-height: 188px; }
+      .portrait { width: 94px; height: 94px; }
+      .frame { width: 136px; height: 136px; }
+      .halo { width: 162px; height: 162px; }
+      .detail,
+      .spark { width: 154px; height: 154px; }
+      h1 { font-size: clamp(28px, 12vw, 46px); }
+      .summary { font-size: 14px; }
+      h2 { font-size: 15px; }
+      .desc { font-size: 12px; }
+      .token { font-size: 10px; }
+    }
+
+    @media (max-width: 430px) {
+      .gallery { grid-template-columns: 1fr; }
+      .concept { min-height: 320px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <div class="title-block">
+        <span class="eyebrow">DND MiniApp / frame effect concepts</span>
+        <h1>Новая витрина эффектов рамок</h1>
+        <p class="summary">Тридцать разных направлений для косметики профиля: магические венцы, техно-поля и агрессивные неоновые интерфейсы. Все эффекты собраны как отдельный слой вокруг аватара и могут жить рядом с обычной рамкой.</p>
+      </div>
+      <div class="count-pill"><b id="visibleCount">30</b><span>видно концептов</span></div>
+    </header>
+
+    <section class="controls" aria-label="Фильтры витрины">
+      <div class="segmented" id="themeFilters">
+        <button class="active" type="button" data-theme="all">Все</button>
+        <button type="button" data-theme="fantasy">Fantasy</button>
+        <button type="button" data-theme="sci-fi">Sci-fi</button>
+        <button type="button" data-theme="cyberpunk">Cyberpunk</button>
+      </div>
+      <input id="searchInput" type="search" placeholder="Поиск: руны, сканер, гекс, дракон..." />
+      <select id="rarityFilter" aria-label="Редкость">
+        <option value="all">Любая редкость</option>
+        <option value="common">Common</option>
+        <option value="rare">Rare</option>
+        <option value="epic">Epic</option>
+        <option value="legendary">Legendary</option>
+      </select>
+    </section>
+
+    <section class="gallery" id="gallery" aria-live="polite"></section>
+  </main>
+
+  <script>
+    const concepts = [
+      { id: 'rune-choir', theme: 'fantasy', rarity: 'rare', name: 'Хор рун', desc: 'Пунктирный круг, световые узлы и медленное вращение вокруг портрета мага.', tags: ['руны', 'магия', 'венец'], colors: ['#f2bd5f', '#8be9ff', '#a78bfa'] },
+      { id: 'dragon-scale', theme: 'fantasy', rarity: 'epic', name: 'Драконья чешуя', desc: 'Неровный огненный обод из чешуек, искры и ощущение древнего трофея.', tags: ['дракон', 'огонь', 'трофей'], colors: ['#f97316', '#facc15', '#7c2d12'] },
+      { id: 'sylvan-thorns', theme: 'fantasy', rarity: 'rare', name: 'Сильванские шипы', desc: 'Живая зелёная рамка с вращающимися колючками и мягкими листовыми бликами.', tags: ['лес', 'шипы', 'друид'], colors: ['#80d87b', '#d9ff8a', '#1f6f43'] },
+      { id: 'frost-crown', theme: 'fantasy', rarity: 'epic', name: 'Ледяная корона', desc: 'Осколки льда образуют корону, а внутренний контур слегка плывёт как холодная вода.', tags: ['лёд', 'корона', 'север'], colors: ['#d9f9ff', '#59d8ff', '#7dd3fc'] },
+      { id: 'necro-reliquary', theme: 'fantasy', rarity: 'epic', name: 'Некро-реликварий', desc: 'Двойное костяное кольцо, крестовой знак и зелёное пламя снизу.', tags: ['некро', 'кость', 'пламя'], colors: ['#d4d4d8', '#84ffae', '#71717a'] },
+      { id: 'phoenix-ash', theme: 'fantasy', rarity: 'legendary', name: 'Пепел феникса', desc: 'Перьевой вихрь вспыхивает вокруг рамки и собирается в горячий ореол.', tags: ['феникс', 'пепел', 'пламя'], colors: ['#ff5757', '#ffd166', '#fb923c'] },
+      { id: 'moon-mirror', theme: 'fantasy', rarity: 'rare', name: 'Лунное зеркало', desc: 'Серебряный жидкий обод и плавающий полумесяц для тихих мистиков.', tags: ['луна', 'вода', 'мистика'], colors: ['#e6f0ff', '#a78bfa', '#94a3b8'] },
+      { id: 'royal-sigil', theme: 'fantasy', rarity: 'legendary', name: 'Королевская печать', desc: 'Ромбовая золотая рамка, внутренний аметистовый знак и четыре световых печати.', tags: ['печать', 'золото', 'аристократ'], colors: ['#d7b35d', '#a78bfa', '#fef3c7'] },
+      { id: 'deep-root', theme: 'fantasy', rarity: 'rare', name: 'Глубинный корень', desc: 'Тёмное древесное кольцо с прожилками, будто рамку держит древнее дерево.', tags: ['корни', 'древо', 'земля'], colors: ['#8b5e34', '#80d87b', '#4b2b16'] },
+      { id: 'fae-moths', theme: 'fantasy', rarity: 'common', name: 'Фейские мотыльки', desc: 'Нежная розовая рамка и несколько светляков, которые кружат по разным траекториям.', tags: ['феи', 'мотыльки', 'свет'], colors: ['#fbcfe8', '#bbf7d0', '#fef08a'] },
+
+      { id: 'orbital-dock', theme: 'sci-fi', rarity: 'rare', name: 'Орбитальный док', desc: 'Две встречные орбиты с подсветкой, как сопровождение корабельной цели.', tags: ['орбита', 'док', 'hud'], colors: ['#59d8ff', '#ffffff', '#ff4ea3'] },
+      { id: 'quantum-hexgrid', theme: 'sci-fi', rarity: 'legendary', name: 'Квантовая гекс-сетка', desc: 'Гексагональный щит и тонкая сотовая структура вокруг аватара.', tags: ['гекс', 'щит', 'квант'], colors: ['#59d8ff', '#a78bfa', '#ff4ea3'] },
+      { id: 'reactor-torus', theme: 'sci-fi', rarity: 'epic', name: 'Реакторный тор', desc: 'Пульсирующая плазменная окружность, похожая на миниатюрное ядро станции.', tags: ['реактор', 'плазма', 'тор'], colors: ['#59d8ff', '#ff4ea3', '#a78bfa'] },
+      { id: 'stasis-brackets', theme: 'sci-fi', rarity: 'rare', name: 'Стазисные скобы', desc: 'Четыре угловые скобы и внутренние волны удерживают портрет в поле стазиса.', tags: ['стазис', 'скобы', 'поле'], colors: ['#59d8ff', '#dbeafe', '#1d4ed8'] },
+      { id: 'gravity-lens', theme: 'sci-fi', rarity: 'epic', name: 'Грави-линза', desc: 'Наклонённые орбиты создают эффект искривления пространства вокруг профиля.', tags: ['гравитация', 'линза', 'орбита'], colors: ['#8be9ff', '#ffffff', '#a78bfa'] },
+      { id: 'cryo-chamber', theme: 'sci-fi', rarity: 'common', name: 'Крио-капсула', desc: 'Прямоугольный холодный контур, цифровой иней и движение сегментов по ободу.', tags: ['крио', 'капсула', 'лёд'], colors: ['#b8f2ff', '#59d8ff', '#e0f2fe'] },
+      { id: 'telemetry-array', theme: 'sci-fi', rarity: 'rare', name: 'Телеметрический массив', desc: 'Много мелких делений и обратное вращение как у диагностического интерфейса.', tags: ['телеметрия', 'деления', 'диагностика'], colors: ['#59d8ff', '#ffffff', '#94a3b8'] },
+      { id: 'drone-swarm', theme: 'sci-fi', rarity: 'epic', name: 'Рой дронов', desc: 'Квадратные спутники движутся вокруг рамки, будто охраняют пользователя.', tags: ['дроны', 'спутники', 'рой'], colors: ['#59d8ff', '#f2bd5f', '#ff4ea3'] },
+      { id: 'antimatter-ring', theme: 'sci-fi', rarity: 'legendary', name: 'Антиматерийный обруч', desc: 'Две разнонаправленные дуги создают сильный реакторный контраст.', tags: ['антиматерия', 'дуги', 'энергия'], colors: ['#59d8ff', '#ff4ea3', '#f2bd5f'] },
+      { id: 'starship-porthole', theme: 'sci-fi', rarity: 'common', name: 'Иллюминатор фрегата', desc: 'Металлическая тяжёлая рамка с заклёпками и холодной синей глубиной.', tags: ['корабль', 'металл', 'порт'], colors: ['#9ca3af', '#59d8ff', '#d1d5db'] },
+
+      { id: 'neon-vandal', theme: 'cyberpunk', rarity: 'rare', name: 'Неоновый вандал', desc: 'Рваные циановые и розовые штрихи, как граффити на стекле интерфейса.', tags: ['неон', 'граффити', 'рваный'], colors: ['#59d8ff', '#ff4ea3', '#ffd166'] },
+      { id: 'glitch-crown', theme: 'cyberpunk', rarity: 'epic', name: 'Глитч-корона', desc: 'RGB-смещение рамки, дрожащие полосы и резкая цифровая нестабильность.', tags: ['глитч', 'rgb', 'корона'], colors: ['#ff4ea3', '#59d8ff', '#ff5757'] },
+      { id: 'matrix-veil', theme: 'cyberpunk', rarity: 'rare', name: 'Матричная вуаль', desc: 'Зелёные вертикальные потоки остаются по ободу и не закрывают лицо.', tags: ['код', 'матрица', 'поток'], colors: ['#48ff9b', '#eafff2', '#0f3d27'] },
+      { id: 'corporate-redline', theme: 'cyberpunk', rarity: 'legendary', name: 'Корпоративный редлайн', desc: 'Красная рамка-сканер с прицельной линией и строгим охранным контуром.', tags: ['сканер', 'красный', 'корпорация'], colors: ['#ff5757', '#ffd1d6', '#7f1d1d'] },
+      { id: 'synthwave-grill', theme: 'cyberpunk', rarity: 'common', name: 'Синтвейв-решётка', desc: 'Горизонтальные неоновые полосы вокруг профиля, как вывеска ночного клуба.', tags: ['синтвейв', 'полосы', 'клуб'], colors: ['#ff4ea3', '#59d8ff', '#7c3aed'] },
+      { id: 'toxic-billboard', theme: 'cyberpunk', rarity: 'epic', name: 'Токсичный билборд', desc: 'Кислотная предупреждающая окантовка с мерцанием аварийного знака.', tags: ['токсин', 'авария', 'жёлтый'], colors: ['#d9ff42', '#10140b', '#59d8ff'] },
+      { id: 'chrome-wire', theme: 'cyberpunk', rarity: 'rare', name: 'Хромовая проводка', desc: 'Серебряный обод, циановые дорожки и розовые контакты по цепи.', tags: ['хром', 'проводка', 'цепь'], colors: ['#e5e7eb', '#59d8ff', '#ff4ea3'] },
+      { id: 'pink-noise', theme: 'cyberpunk', rarity: 'common', name: 'Розовый шум', desc: 'Пиксельные вспышки прыгают вокруг рамки, оставляя ощущение сбоя сигнала.', tags: ['пиксели', 'шум', 'сбой'], colors: ['#ff4ea3', '#59d8ff', '#ffd166'] },
+      { id: 'black-market-chip', theme: 'cyberpunk', rarity: 'epic', name: 'Чёрный чип', desc: 'Прямоугольная микросхема с бегущими контактами по внешнему контуру.', tags: ['чип', 'рынок', 'контакты'], colors: ['#ffffff', '#59d8ff', '#ff4ea3'] },
+      { id: 'overclock-heat', theme: 'cyberpunk', rarity: 'legendary', name: 'Перегрев разгона', desc: 'Быстрые горячие дуги и реакторное дыхание для агрессивных билдов.', tags: ['разгон', 'жар', 'скорость'], colors: ['#ff5757', '#ffd166', '#ff4ea3'] }
+    ];
+
+    const themeLabels = {
+      fantasy: 'Fantasy',
+      'sci-fi': 'Sci-fi',
+      cyberpunk: 'Cyberpunk'
+    };
+
+    const rarityLabels = {
+      common: 'Common',
+      rare: 'Rare',
+      epic: 'Epic',
+      legendary: 'Legendary'
+    };
+
+    const gallery = document.querySelector('#gallery');
+    const searchInput = document.querySelector('#searchInput');
+    const rarityFilter = document.querySelector('#rarityFilter');
+    const visibleCount = document.querySelector('#visibleCount');
+    let activeTheme = 'all';
+
+    function cardTemplate(item) {
+      const searchText = [item.name, item.desc, item.theme, item.rarity, ...item.tags].join(' ').toLowerCase();
+      return `
+        <article class="concept ${item.theme} rarity-${item.rarity} ${item.id}" data-theme="${item.theme}" data-rarity="${item.rarity}" data-search="${searchText}" style="--a:${item.colors[0]};--b:${item.colors[1]};--c:${item.colors[2]}">
+          <div class="stage">
+            <span class="halo"></span>
+            <span class="frame"></span>
+            <span class="detail"></span>
+            <span class="spark"></span>
+            <div class="portrait">
+              <img src="./inventory_body_cutout.png" alt="" loading="lazy" />
+            </div>
+          </div>
+          <div class="meta">
+            <div class="meta-row">
+              <span class="theme">${themeLabels[item.theme]} / ${rarityLabels[item.rarity]}</span>
+              <h2>${item.name}</h2>
+            </div>
+            <p class="desc">${item.desc}</p>
+            <div class="tokens">${item.tags.map(tag => `<span class="token">${tag}</span>`).join('')}</div>
+          </div>
+        </article>
+      `;
+    }
+
+    function render() {
+      gallery.innerHTML = concepts.map(cardTemplate).join('');
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const query = searchInput.value.trim().toLowerCase();
+      const rarity = rarityFilter.value;
+      let count = 0;
+
+      gallery.querySelectorAll('.concept').forEach(card => {
+        const themeMatch = activeTheme === 'all' || card.dataset.theme === activeTheme;
+        const rarityMatch = rarity === 'all' || card.dataset.rarity === rarity;
+        const searchMatch = !query || card.dataset.search.includes(query);
+        const visible = themeMatch && rarityMatch && searchMatch;
+        card.classList.toggle('hidden', !visible);
+        if (visible) count += 1;
+      });
+
+      visibleCount.textContent = String(count);
+    }
+
+    document.querySelector('#themeFilters').addEventListener('click', event => {
+      const button = event.target.closest('button[data-theme]');
+      if (!button) return;
+      activeTheme = button.dataset.theme;
+      document.querySelectorAll('#themeFilters button').forEach(btn => {
+        btn.classList.toggle('active', btn === button);
+      });
+      applyFilters();
+    });
+
+    searchInput.addEventListener('input', applyFilters);
+    rarityFilter.addEventListener('change', applyFilters);
+
+    render();
+  </script>
+</body>
+</html>

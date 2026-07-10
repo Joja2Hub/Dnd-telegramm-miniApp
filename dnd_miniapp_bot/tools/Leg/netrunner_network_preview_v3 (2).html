@@ -1,0 +1,2914 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Превью модуля нетраннера v3</title>
+    <style>
+      :root {
+        --bg0: #030712;
+        --bg1: #07111f;
+        --panel: rgba(15, 23, 42, 0.88);
+        --panel2: rgba(30, 41, 59, 0.62);
+        --line: rgba(148, 163, 184, 0.2);
+        --text: #eaf7ff;
+        --muted: #94a3b8;
+        --cyan: #22d3ee;
+        --yellow: #facc15;
+        --green: #4ade80;
+        --red: #fb7185;
+        --violet: #a78bfa;
+        --blue: #60a5fa;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+        --radius: 22px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        min-height: 100vh;
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background:
+          radial-gradient(
+            circle at 15% -8%,
+            rgba(34, 211, 238, 0.18),
+            transparent 32%
+          ),
+          radial-gradient(
+            circle at 84% 0%,
+            rgba(167, 139, 250, 0.17),
+            transparent 30%
+          ),
+          radial-gradient(
+            circle at 50% 114%,
+            rgba(250, 204, 21, 0.08),
+            transparent 42%
+          ),
+          linear-gradient(160deg, var(--bg0), var(--bg1) 54%, #0f172a);
+        padding: 18px 14px 40px;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+      button {
+        border: 1px solid var(--line);
+        background: rgba(15, 23, 42, 0.92);
+        color: var(--text);
+        border-radius: 14px;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: 0.14s ease;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(34, 211, 238, 0.42);
+        background: rgba(8, 47, 73, 0.7);
+      }
+      button:disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+        transform: none;
+      }
+      button.primary {
+        border-color: rgba(34, 211, 238, 0.52);
+        background: linear-gradient(
+          135deg,
+          rgba(8, 145, 178, 0.76),
+          rgba(79, 70, 229, 0.56)
+        );
+        font-weight: 900;
+      }
+      button.good {
+        border-color: rgba(74, 222, 128, 0.42);
+        background: rgba(22, 101, 52, 0.42);
+      }
+      button.warn {
+        border-color: rgba(250, 204, 21, 0.42);
+        background: rgba(113, 63, 18, 0.46);
+      }
+      button.danger {
+        border-color: rgba(251, 113, 133, 0.42);
+        background: rgba(127, 29, 29, 0.46);
+      }
+      button.small {
+        padding: 7px 9px;
+        border-radius: 11px;
+        font-size: 12px;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: rgba(2, 6, 23, 0.72);
+        color: var(--text);
+        border-radius: 14px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      textarea {
+        min-height: 100px;
+        resize: vertical;
+        line-height: 1.45;
+      }
+      label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      label span {
+        color: var(--muted);
+      }
+      .app {
+        width: min(1480px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      .hero,
+      .panel {
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.055),
+            rgba(255, 255, 255, 0.022)
+          ),
+          var(--panel);
+        box-shadow: var(--shadow);
+        border-radius: var(--radius);
+        backdrop-filter: blur(18px);
+      }
+      .hero {
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero:before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background:
+          linear-gradient(90deg, rgba(34, 211, 238, 0.1) 1px, transparent 1px),
+          linear-gradient(rgba(34, 211, 238, 0.08) 1px, transparent 1px);
+        background-size: 34px 34px;
+        opacity: 0.22;
+        pointer-events: none;
+        mask-image: linear-gradient(180deg, #000, transparent);
+      }
+      .hero-content {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        z-index: 1;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(24px, 3.4vw, 42px);
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.55;
+        max-width: 980px;
+      }
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .badge,
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        background: rgba(2, 6, 23, 0.52);
+        border-radius: 999px;
+        padding: 7px 10px;
+        color: #cbd5e1;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .chip {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+      }
+      .tab-btn.active {
+        border-color: rgba(34, 211, 238, 0.54);
+        background: rgba(14, 116, 144, 0.45);
+        color: #cffafe;
+      }
+      .panel {
+        padding: 16px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(360px, 470px) 1fr;
+        gap: 16px;
+      }
+      .game-layout {
+        display: grid;
+        grid-template-columns: 1fr 390px;
+        gap: 14px;
+      }
+      .panel-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .panel-title h2,
+      .panel-title h3 {
+        margin: 0;
+        font-size: 19px;
+        letter-spacing: -0.02em;
+      }
+      .stack {
+        display: grid;
+        gap: 10px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .split {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .hint,
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .template-list {
+        display: grid;
+        gap: 10px;
+        max-height: 420px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .template-card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.58);
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+      .template-card.active {
+        border-color: rgba(34, 211, 238, 0.48);
+        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.14) inset;
+      }
+      .template-name {
+        margin: 0;
+        font-weight: 950;
+      }
+      .tree-stage {
+        position: relative;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(
+            circle at 50% 0%,
+            rgba(34, 211, 238, 0.08),
+            transparent 38%
+          ),
+          rgba(2, 6, 23, 0.34);
+        border-radius: 18px;
+        padding: 26px 18px;
+        min-height: 520px;
+      }
+      .tree-lines {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+        z-index: 1;
+      }
+      .tree-lines path {
+        fill: none;
+        stroke: rgba(34, 211, 238, 0.25);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-dasharray: 6 7;
+        filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.22));
+      }
+      .tree-lines path.available-edge {
+        stroke: rgba(250, 204, 21, 0.92);
+        stroke-width: 4;
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.42));
+      }
+      .tree-lines path.cleared-edge {
+        stroke: rgba(74, 222, 128, 0.58);
+        stroke-width: 3;
+        stroke-dasharray: none;
+      }
+      .tree-lines path.tunnel-edge {
+        stroke: rgba(34, 211, 238, 0.18);
+        stroke-width: 2;
+        stroke-dasharray: 2 8;
+      }
+      .tree {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        gap: 52px;
+        min-width: 850px;
+      }
+      .tree-level {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 40px;
+        min-height: 112px;
+        position: relative;
+      }
+      .tree-level.fogged {
+        filter: blur(8px) saturate(0.45) brightness(0.7);
+        opacity: 0.72;
+      }
+      .tree-level.fogged:after {
+        content: "";
+        position: absolute;
+        inset: -18px;
+        z-index: 6;
+        pointer-events: none;
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(34, 211, 238, 0.12) 0 2px,
+            transparent 2px 11px
+          ),
+          linear-gradient(
+            90deg,
+            transparent 0 12%,
+            rgba(167, 139, 250, 0.22) 13% 16%,
+            transparent 17% 66%,
+            rgba(34, 211, 238, 0.18) 67% 71%,
+            transparent 72%
+          );
+        mix-blend-mode: screen;
+        animation: fogGlitch 1.15s steps(3, end) infinite;
+      }
+      .level-caption {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #bae6fd;
+        font-size: 12px;
+        font-weight: 900;
+        border: 1px solid var(--line);
+        background: rgba(15, 23, 42, 0.92);
+        border-radius: 999px;
+        padding: 7px 10px;
+        white-space: nowrap;
+      }
+      .node,
+      .fog-slot {
+        position: relative;
+        width: 174px;
+        min-height: 96px;
+      }
+      .node {
+        padding: 10px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: linear-gradient(
+          180deg,
+          rgba(15, 23, 42, 0.91),
+          rgba(15, 23, 42, 0.62)
+        );
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        user-select: none;
+        transition: 0.16s ease;
+      }
+      .node.clickable {
+        cursor: pointer;
+      }
+      .node.clickable:hover {
+        transform: translateY(-2px);
+      }
+      .node:before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at 18% 8%,
+          var(--node-color, rgba(34, 211, 238, 0.18)),
+          transparent 44%
+        );
+        opacity: 0.82;
+        pointer-events: none;
+      }
+      .node > * {
+        position: relative;
+        z-index: 1;
+      }
+      .node.root {
+        --node-color: rgba(34, 211, 238, 0.24);
+      }
+      .node.empty {
+        --node-color: rgba(148, 163, 184, 0.14);
+      }
+      .node.guardian {
+        --node-color: rgba(251, 113, 133, 0.27);
+      }
+      .node.trap {
+        --node-color: rgba(250, 204, 21, 0.23);
+      }
+      .node.data {
+        --node-color: rgba(96, 165, 250, 0.24);
+      }
+      .node.access {
+        --node-color: rgba(74, 222, 128, 0.22);
+      }
+      .node.current {
+        border-color: rgba(34, 211, 238, 1);
+        box-shadow:
+          0 0 0 3px rgba(34, 211, 238, 0.5) inset,
+          0 0 0 6px rgba(34, 211, 238, 0.12),
+          0 0 38px rgba(34, 211, 238, 0.45);
+        animation: currentPulse 1.4s ease-in-out infinite;
+      }
+      .node.current:after {
+        content: none;
+        position: absolute;
+        left: 50%;
+        top: -2px;
+        transform: translate(-50%, -50%);
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(8, 47, 73, 0.96);
+        border: 1px solid rgba(34, 211, 238, 0.7);
+        color: #cffafe;
+        font-size: 10px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        z-index: 5;
+      }
+      .node.available {
+        border-color: rgba(250, 204, 21, 0.98);
+        box-shadow:
+          0 0 0 2px rgba(250, 204, 21, 0.58) inset,
+          0 0 28px rgba(250, 204, 21, 0.3);
+      }
+      .node.cleared .clear-ring {
+        position: absolute;
+        inset: 6px;
+        border: 2px solid rgba(74, 222, 128, 0.9);
+        border-radius: 14px;
+        pointer-events: none;
+        box-shadow:
+          inset 0 0 12px rgba(74, 222, 128, 0.17),
+          0 0 16px rgba(74, 222, 128, 0.16);
+        z-index: 4;
+      }
+      .node.known-fog {
+        border-color: rgba(34, 211, 238, 0.2);
+        background:
+          repeating-linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.07) 0 2px,
+            transparent 2px 9px
+          ),
+          linear-gradient(
+            180deg,
+            rgba(15, 23, 42, 0.88),
+            rgba(15, 23, 42, 0.58)
+          );
+        animation: fogGlitch 1.6s steps(3, end) infinite;
+      }
+      .fog-slot {
+        display: grid;
+        place-items: center;
+        opacity: 0.9;
+      }
+      .unknown-route {
+        width: 230px;
+        min-height: 52px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        display: grid;
+        place-items: center;
+        position: relative;
+        cursor: pointer;
+        color: rgba(250, 204, 21, 0.9);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .unknown-route:before {
+        content: "";
+        position: absolute;
+        inset: 20px 0;
+        border-top: 3px dashed rgba(250, 204, 21, 0.88);
+        filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.42));
+      }
+      .unknown-route:after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 8px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(34, 211, 238, 0.54),
+          rgba(2, 6, 23, 0.98) 48%,
+          transparent 70%
+        );
+        animation: fogGlitch 1.1s steps(3, end) infinite;
+      }
+      .unknown-route span {
+        position: relative;
+        z-index: 1;
+        background: rgba(2, 6, 23, 0.84);
+        padding: 3px 8px;
+      }
+      .unknown-route:hover {
+        background: transparent;
+        transform: none;
+      }
+      .fog-slot.clickable {
+        cursor: pointer;
+      }
+      .tunnel-dot {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 2px solid rgba(34, 211, 238, 0.24);
+        background: rgba(2, 6, 23, 0.56);
+        box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+        position: relative;
+      }
+      .tunnel-dot:before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 50%;
+        background: rgba(34, 211, 238, 0.32);
+        animation: fogScanDot 1.2s linear infinite;
+      }
+      .fog-slot.available .tunnel-dot {
+        border-color: rgba(250, 204, 21, 0.96);
+        box-shadow: 0 0 24px rgba(250, 204, 21, 0.32);
+      }
+      .fog-slot.available .tunnel-dot:before {
+        background: rgba(250, 204, 21, 0.7);
+      }
+      @keyframes currentPulse {
+        0%,
+        100% {
+          filter: none;
+        }
+        50% {
+          filter: brightness(1.2);
+        }
+      }
+      @keyframes fogGlitch {
+        0%,
+        100% {
+          filter: none;
+        }
+        40% {
+          filter: hue-rotate(16deg) contrast(1.08);
+          transform: translateX(1px);
+        }
+        42% {
+          transform: translateX(-1px);
+        }
+        44% {
+          transform: translateX(0);
+        }
+      }
+      @keyframes fogScanDot {
+        0% {
+          transform: scale(0.6);
+          opacity: 0.3;
+        }
+        50% {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(0.6);
+          opacity: 0.3;
+        }
+      }
+      .node-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 950;
+        font-size: 13px;
+        line-height: 1.25;
+      }
+      .node-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      .node-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .type-pill {
+        border-radius: 999px;
+        padding: 3px 7px;
+        font-size: 10px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        background: rgba(2, 6, 23, 0.56);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+      }
+      .session-head {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .stat-card {
+        border: 1px solid var(--line);
+        background: rgba(2, 6, 23, 0.44);
+        border-radius: 16px;
+        padding: 10px;
+        display: grid;
+        gap: 5px;
+      }
+      .stat-card .label {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .stat-card .value {
+        font-size: 18px;
+        font-weight: 1000;
+      }
+      .bar {
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.92);
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+      }
+      .bar > i {
+        display: block;
+        height: 100%;
+        width: 50%;
+        background: linear-gradient(90deg, var(--cyan), var(--violet));
+        border-radius: inherit;
+      }
+      .bar.hp > i {
+        background: linear-gradient(90deg, var(--red), #fda4af);
+      }
+      .bar.net > i {
+        background: linear-gradient(90deg, var(--cyan), var(--blue));
+      }
+      .bar.actions > i {
+        background: linear-gradient(90deg, var(--green), var(--cyan));
+      }
+      .action-panel {
+        border: 1px solid var(--line);
+        background: rgba(15, 23, 42, 0.52);
+        border-radius: 18px;
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+      .log {
+        border: 1px solid var(--line);
+        background: rgba(2, 6, 23, 0.52);
+        border-radius: 18px;
+        padding: 10px;
+        min-height: 250px;
+        max-height: 360px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 8px;
+      }
+      .log-entry {
+        border-left: 3px solid rgba(34, 211, 238, 0.48);
+        padding: 7px 8px;
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 10px;
+        color: #dbeafe;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .log-entry.bad {
+        border-color: rgba(251, 113, 133, 0.72);
+      }
+      .log-entry.good {
+        border-color: rgba(74, 222, 128, 0.72);
+      }
+      .log-entry.warn {
+        border-color: rgba(250, 204, 21, 0.72);
+      }
+      .combat-dock {
+        position: sticky;
+        bottom: 12px;
+        z-index: 20;
+        margin-top: 12px;
+        border: 1px solid rgba(34, 211, 238, 0.34);
+        border-radius: 24px;
+        background: rgba(2, 6, 23, 0.88);
+        box-shadow:
+          0 24px 90px rgba(0, 0, 0, 0.42),
+          0 0 34px rgba(34, 211, 238, 0.1);
+        padding: 12px;
+        backdrop-filter: blur(18px);
+      }
+      .combat-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .fighter {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.72);
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .fighter.active {
+        border-color: rgba(250, 204, 21, 0.8);
+        box-shadow:
+          0 0 0 2px rgba(250, 204, 21, 0.22) inset,
+          0 0 24px rgba(250, 204, 21, 0.15);
+      }
+      .fighter-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 1000;
+      }
+      .versus {
+        display: grid;
+        place-items: center;
+        color: #bae6fd;
+        font-weight: 1000;
+        letter-spacing: 0.12em;
+      }
+      .combat-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .turn-chip {
+        color: #fef3c7;
+        border-color: rgba(250, 204, 21, 0.34);
+        background: rgba(113, 63, 18, 0.48);
+      }
+      .modal,
+      .hack-overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(2, 6, 23, 0.72);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+      }
+      .dialog,
+      .hack-modal {
+        width: min(520px, calc(100% - 28px));
+        border: 1px solid rgba(34, 211, 238, 0.42);
+        border-radius: 24px;
+        background: linear-gradient(
+          180deg,
+          rgba(15, 23, 42, 0.96),
+          rgba(2, 6, 23, 0.96)
+        );
+        box-shadow:
+          0 30px 120px rgba(0, 0, 0, 0.56),
+          0 0 50px rgba(34, 211, 238, 0.12);
+        padding: 18px;
+      }
+      .dialog h2,
+      .hack-title {
+        margin: 0 0 12px;
+        font-size: 22px;
+        letter-spacing: -0.03em;
+      }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .hack-modal {
+        overflow: hidden;
+        position: relative;
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(34, 211, 238, 0.045) 0 1px,
+            transparent 1px 7px
+          ),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.96));
+      }
+      .hack-modal:before {
+        content: "";
+        position: absolute;
+        inset: -40%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(34, 211, 238, 0.18),
+          transparent
+        );
+        animation: hackSweep 0.9s linear infinite;
+        pointer-events: none;
+      }
+      .hack-modal > * {
+        position: relative;
+        z-index: 1;
+      }
+      .hack-line {
+        height: 16px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(34, 211, 238, 0.26);
+        overflow: hidden;
+        margin: 14px 0 10px;
+      }
+      .hack-line i {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: linear-gradient(
+          90deg,
+          var(--cyan),
+          var(--violet),
+          var(--yellow)
+        );
+        animation: hackLoad 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      }
+      .hack-modal.success {
+        border-color: rgba(74, 222, 128, 0.75);
+        box-shadow:
+          0 30px 120px rgba(0, 0, 0, 0.56),
+          0 0 50px rgba(74, 222, 128, 0.18);
+      }
+      .hack-modal.success .hack-line i {
+        background: linear-gradient(90deg, #22c55e, #bbf7d0);
+      }
+      .hack-modal.error {
+        border-color: rgba(251, 113, 133, 0.82);
+        box-shadow:
+          0 30px 120px rgba(0, 0, 0, 0.56),
+          0 0 50px rgba(251, 113, 133, 0.2);
+      }
+      .hack-modal.error .hack-line i {
+        background: linear-gradient(90deg, #ef4444, #fb7185);
+      }
+      .hack-result {
+        font-size: 28px;
+        font-weight: 1000;
+        letter-spacing: 0.12em;
+        text-align: center;
+        margin: 10px 0 2px;
+      }
+      .hack-result.success {
+        color: #86efac;
+        text-shadow: 0 0 22px rgba(74, 222, 128, 0.45);
+      }
+      .hack-result.error {
+        color: #fda4af;
+        text-shadow: 0 0 22px rgba(251, 113, 133, 0.45);
+      }
+      .hack-glyphs {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: #a5f3fc;
+        font-size: 12px;
+        opacity: 0.86;
+        word-break: break-all;
+        animation: hackText 0.28s steps(2, end) infinite;
+      }
+      @keyframes hackSweep {
+        from {
+          transform: translateX(-30%);
+        }
+        to {
+          transform: translateX(30%);
+        }
+      }
+      @keyframes hackLoad {
+        from {
+          width: 4%;
+        }
+        72% {
+          width: 82%;
+        }
+        to {
+          width: 100%;
+        }
+      }
+      @keyframes hackText {
+        0%,
+        100% {
+          opacity: 0.86;
+        }
+        50% {
+          opacity: 0.42;
+          transform: translateX(1px);
+        }
+      }
+      @media (max-width: 1080px) {
+        .layout,
+        .game-layout {
+          grid-template-columns: 1fr;
+        }
+        .session-head {
+          grid-template-columns: 1fr 1fr;
+        }
+        .combat-grid {
+          grid-template-columns: 1fr;
+        }
+        .versus {
+          display: none;
+        }
+      }
+      @media (max-width: 680px) {
+        body {
+          padding: 10px 8px 26px;
+        }
+        .panel {
+          padding: 12px;
+        }
+        .grid2,
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+        .session-head {
+          grid-template-columns: 1fr;
+        }
+        .tree {
+          min-width: 700px;
+        }
+        .node,
+        .fog-slot {
+          width: 156px;
+        }
+        .tree-level {
+          gap: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero">
+        <div class="hero-content">
+          <div>
+            <h1>Превью модуля нетраннера v3</h1>
+            <p class="subtitle">
+              Карта стала более “настольной”: неизвестные блоки скрыты туманом
+              войны, видны только туннели. Игрок нажимает действие, вводит
+              бросок вручную, а взлом показывает глич-загрузку с SUCCESS или
+              ERROR.
+            </p>
+          </div>
+          <div class="badges">
+            <span class="badge">🟡 жёлтые пути</span
+            ><span class="badge">🟢 зачищенные узлы</span
+            ><span class="badge">🧩 туман по уровням</span
+            ><span class="badge">⚔️ нижнее окно боя</span
+            ><span class="badge">✍️ броски по запросу</span>
+          </div>
+        </div>
+      </section>
+      <section class="panel tabs">
+        <button class="tab-btn active" data-tab="builder">
+          Конструктор сети</button
+        ><button class="tab-btn" data-tab="session">Игровая сессия</button
+        ><button class="tab-btn" data-tab="rules">Правила</button>
+      </section>
+      <section id="tab-builder" class="tab-content">
+        <div class="layout">
+          <aside class="panel">
+            <div class="panel-title">
+              <h2>Библиотека готовых сетей</h2>
+              <button id="newTemplateBtn" class="small">Новая сеть</button>
+            </div>
+            <div id="templateList" class="template-list"></div>
+            <hr
+              style="
+                border: 0;
+                border-top: 1px solid var(--line);
+                margin: 14px 0;
+              "
+            />
+            <div class="stack">
+              <div class="panel-title" style="margin: 0">
+                <h3>Импорт / экспорт</h3>
+              </div>
+              <textarea id="jsonBox" placeholder="JSON шаблона сети"></textarea>
+              <div class="row">
+                <button id="exportBtn" class="small">Экспорт</button
+                ><button id="importBtn" class="small good">Импорт</button>
+              </div>
+              <p class="hint">
+                Шаблон сети хранит только карту, глубину и регенерацию.
+              </p>
+            </div>
+          </aside>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Редактор карты</h2>
+              <button id="saveTemplateBtn" class="primary">
+                Сохранить сеть
+              </button>
+            </div>
+            <div class="stack">
+              <div class="grid3">
+                <label
+                  ><span>Название сети</span
+                  ><input
+                    id="netName"
+                    value="Сеть корпорации «Гелиос»" /></label
+                ><label
+                  ><span>Глубина</span
+                  ><input
+                    id="netDepth"
+                    type="number"
+                    min="1"
+                    max="9"
+                    value="4" /></label
+                ><label
+                  ><span>Регенерация, раундов</span
+                  ><input
+                    id="regenEvery"
+                    type="number"
+                    min="0"
+                    max="20"
+                    value="3"
+                /></label>
+              </div>
+              <div
+                class="panel"
+                style="box-shadow: none; background: rgba(2, 6, 23, 0.28)"
+              >
+                <div class="panel-title"><h3>Добавить блок</h3></div>
+                <div class="grid3">
+                  <label
+                    ><span>Уровень</span
+                    ><select id="nodeLevel"></select></label
+                  ><label
+                    ><span>Родитель</span
+                    ><select id="nodeParent"></select></label
+                  ><label
+                    ><span>Тип</span
+                    ><select id="nodeType">
+                      <option value="empty">Пустой блок / развилка</option>
+                      <option value="guardian">Скрипт-защитник</option>
+                      <option value="trap">Ловушка</option>
+                      <option value="data">Данные</option>
+                      <option value="access">
+                        Доступ: камеры/турели/двери
+                      </option>
+                    </select></label
+                  >
+                </div>
+                <div class="grid3" style="margin-top: 10px">
+                  <label
+                    ><span>Название блока</span
+                    ><input
+                      id="nodeLabel"
+                      placeholder="Например: Узел камер" /></label
+                  ><label
+                    ><span>DC взлома</span
+                    ><input
+                      id="nodeDc"
+                      type="number"
+                      min="1"
+                      max="40"
+                      value="14" /></label
+                  ><label
+                    ><span>Защищён</span
+                    ><select id="nodeProtected">
+                      <option value="1">Да</option>
+                      <option value="0">Нет</option>
+                    </select></label
+                  >
+                </div>
+                <div id="guardianFields" class="grid3" style="margin-top: 10px">
+                  <label
+                    ><span>Имя скрипта</span
+                    ><input id="guardianName" value="Сторожевой демон" /></label
+                  ><label
+                    ><span>HP скрипта</span
+                    ><input
+                      id="guardianHp"
+                      type="number"
+                      min="1"
+                      value="12" /></label
+                  ><label
+                    ><span>КД скрипта</span
+                    ><input id="guardianAc" type="number" min="1" value="12"
+                  /></label>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <button id="addNodeBtn" class="good">Добавить блок</button>
+                </div>
+              </div>
+              <div id="builderStage" class="tree-stage">
+                <svg id="builderLines" class="tree-lines"></svg>
+                <div id="builderTree" class="tree"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="tab-session" class="tab-content hidden">
+        <div class="panel stack">
+          <div class="panel-title">
+            <h2>Сессия взлома</h2>
+            <div class="row">
+              <select id="spawnTemplateSelect" style="min-width: 260px"></select
+              ><button id="spawnBtn" class="primary">Спавнить сеть</button>
+            </div>
+          </div>
+          <div
+            class="panel"
+            style="box-shadow: none; background: rgba(2, 6, 23, 0.28)"
+          >
+            <div class="panel-title">
+              <h3>Оборудование нетраннера</h3>
+              <button id="saveRunnerBtn" class="small good">
+                Сохранить профиль
+              </button>
+            </div>
+            <div class="grid3">
+              <label
+                ><span>Действий за ход</span
+                ><input
+                  id="runnerActions"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value="8" /></label
+              ><label
+                ><span>Обычные HP</span
+                ><input id="runnerHp" type="number" min="1" value="24" /></label
+              ><label
+                ><span>NET-щит устройства</span
+                ><input id="runnerNetHp" type="number" min="0" value="18"
+              /></label>
+            </div>
+            <div class="grid2" style="margin-top: 10px">
+              <label
+                ><span>КД в сети</span
+                ><input id="runnerAc" type="number" min="1" value="13"
+              /></label>
+              <div class="hint" style="align-self: end">
+                Модификаторы взлома и атаки больше не хранятся тут: игрок вводит
+                их только в момент действия.
+              </div>
+            </div>
+          </div>
+          <div id="sessionEmpty" class="hint">
+            Выбери шаблон сети и нажми “Спавнить сеть”.
+          </div>
+          <div id="sessionUI" class="hidden">
+            <div class="session-head">
+              <div class="stat-card">
+                <div class="label">Обычные HP</div>
+                <div class="value" id="hpText">0/0</div>
+                <div class="bar hp"><i id="hpBar"></i></div>
+              </div>
+              <div class="stat-card">
+                <div class="label">NET-щит устройства</div>
+                <div class="value" id="netHpText">0/0</div>
+                <div class="bar net"><i id="netHpBar"></i></div>
+              </div>
+              <div class="stat-card">
+                <div class="label">Действия</div>
+                <div class="value" id="actionsText">0/0</div>
+                <div class="bar actions"><i id="actionsBar"></i></div>
+              </div>
+              <div class="stat-card">
+                <div class="label">Регенерация сети</div>
+                <div class="value" id="regenText">—</div>
+                <div class="hint" id="currentNodeText">Текущий блок: —</div>
+              </div>
+            </div>
+            <div class="game-layout">
+              <div>
+                <div id="sessionStage" class="tree-stage">
+                  <svg id="sessionLines" class="tree-lines"></svg>
+                  <div id="sessionTree" class="tree"></div>
+                </div>
+                <div id="combatDock" class="combat-dock hidden"></div>
+              </div>
+              <aside class="action-panel">
+                <div class="panel-title" style="margin: 0">
+                  <h3>Управление</h3>
+                </div>
+                <div id="currentNodeInfo" class="hint"></div>
+                <div class="row">
+                  <button id="analyzeBtn" class="warn">
+                    Анализ соседних блоков</button
+                  ><button id="hackBtn" class="good">Начать взлом</button
+                  ><button id="endTurnBtn" class="primary">Конец хода</button>
+                  ><button id="debugBtn" class="small danger">DEBUG</button>
+                </div>
+                <div
+                  class="panel"
+                  style="
+                    box-shadow: none;
+                    background: rgba(2, 6, 23, 0.3);
+                    padding: 10px;
+                  "
+                >
+                  <div class="panel-title" style="margin-bottom: 8px">
+                    <h3 style="font-size: 15px">Мастер: туман войны</h3>
+                  </div>
+                  <div class="grid2">
+                    <label
+                      ><span>Открыть структуру уровня</span
+                      ><select id="masterLevel"></select></label
+                    ><label
+                      ><span>Режим</span
+                      ><select id="masterRevealMode">
+                        <option value="level">Только уровень</option>
+                        <option value="all">Всю структуру</option>
+                      </select></label
+                    >
+                  </div>
+                  <div class="row" style="margin-top: 8px">
+                    <button id="masterRevealBtn" class="small good">
+                      Открыть структуру</button
+                    ><button id="masterHideBtn" class="small danger">
+                      Сбросить структуру
+                    </button>
+                  </div>
+                  <div
+                    id="hackRequestPanel"
+                    class="hint"
+                    style="margin-top: 10px"
+                  >
+                    <b>Запросы на взлом:</b> нет активных запросов.
+                  </div>
+                  <p class="hint">
+                    Открытая мастером структура показывает блоки без деталей:
+                    тип, название и DC остаются скрытыми, пока игрок не
+                    анализирует соседей.
+                  </p>
+                </div>
+                <div>
+                  <h3 style="margin: 4px 0 8px; font-size: 15px">Журнал</h3>
+                  <div id="log" class="log"></div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="tab-rules" class="tab-content hidden">
+        <div class="panel stack">
+          <h2 style="margin: 0">Демо: правила сети и интеграция в бота</h2>
+          <div class="grid2">
+            <article class="template-card">
+              <h3 class="template-name">Броски по действию</h3>
+              <p class="hint">
+                Поля d20 больше не висят постоянно. Нажатие “Начать взлом” или
+                “Атака” открывает отдельную панель ввода значения.
+              </p>
+            </article>
+            <article class="template-card">
+              <h3 class="template-name">Бой снизу</h3>
+              <p class="hint">
+                Когда нетраннер попадает на живой скрипт, снизу появляется
+                боевой док: слева игрок, справа скрипт. Активная сторона
+                подсвечивается.
+              </p>
+            </article>
+            <article class="template-card">
+              <h3 class="template-name">Туман по уровню</h3>
+              <p class="hint">
+                Неизвестные блоки не отображаются карточками. Видны только
+                туннели. Мастер может открыть структуру уровней без
+                подробностей.
+              </p>
+            </article>
+            <article class="template-card">
+              <h3 class="template-name">SUCCESS / ERROR</h3>
+              <p class="hint">
+                Взлом показывает глич-загрузку, а затем явный зелёный SUCCESS
+                или красный ERROR.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+    <div id="rollModal" class="modal hidden">
+      <div class="dialog">
+        <h2 id="rollTitle">Бросок</h2>
+        <p class="hint" id="rollHint"></p>
+        <div class="grid3">
+          <label
+            ><span>d20</span
+            ><input
+              id="rollD20"
+              type="number"
+              min="1"
+              max="20"
+              value="10" /></label
+          ><label
+            ><span>Модификатор</span
+            ><input id="rollMod" type="number" value="0" /></label
+          ><label id="rollDamageWrap"
+            ><span>Урон</span
+            ><input id="rollDamage" type="number" min="0" value="0"
+          /></label>
+        </div>
+        <div class="dialog-actions">
+          <button id="rollCancelBtn">Отмена</button
+          ><button id="rollConfirmBtn" class="primary">Подтвердить</button>
+        </div>
+      </div>
+    </div>
+    <div id="hackOverlay" class="hack-overlay hidden">
+      <div id="hackModal" class="hack-modal">
+        <h2 class="hack-title" id="hackTitle">Взлом узла...</h2>
+        <div class="hack-line"><i></i></div>
+        <div id="hackResult" class="hack-result hidden"></div>
+        <div class="hack-glyphs">
+          0x7A ACCESS // ROUTE_REWRITE // ICE_TRACE // █▒░ packet storm ░▒█ //
+          keyframe mismatch // decrypt...
+        </div>
+        <div class="dialog-actions">
+          <button id="hackPreviewCloseBtn" class="small">
+            Свернуть предпросмотр
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="debugModal" class="modal hidden">
+      <div class="dialog">
+        <h2>DEBUG: параметры боя</h2>
+        <p class="hint">
+          Мастер управляет обеими сторонами. Значения меняются только в текущей
+          демо-сессии.
+        </p>
+        <div class="grid2">
+          <label
+            ><span>HP нетраннера</span
+            ><input id="debugRunnerHp" type="number" min="0"
+          /></label>
+          <label
+            ><span>Максимум HP нетраннера</span
+            ><input id="debugRunnerMaxHp" type="number" min="1"
+          /></label>
+          <label
+            ><span>NET-щит</span
+            ><input id="debugRunnerNetHp" type="number" min="0"
+          /></label>
+          <label
+            ><span>Максимум NET-щита</span
+            ><input id="debugRunnerMaxNetHp" type="number" min="0"
+          /></label>
+          <label
+            ><span>КД нетраннера</span
+            ><input id="debugRunnerAc" type="number" min="1"
+          /></label>
+          <label
+            ><span>Действий осталось</span
+            ><input id="debugActions" type="number" min="0"
+          /></label>
+          <label
+            ><span>HP скрипта</span
+            ><input id="debugGuardianHp" type="number" min="0"
+          /></label>
+          <label
+            ><span>Максимум HP скрипта</span
+            ><input id="debugGuardianMaxHp" type="number" min="1"
+          /></label>
+          <label
+            ><span>КД скрипта</span
+            ><input id="debugGuardianAc" type="number" min="1"
+          /></label>
+        </div>
+        <div class="dialog-actions">
+          <button id="debugCancelBtn">Отмена</button>
+          <button id="debugApplyBtn" class="primary">Применить</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      const NETWORK_STORAGE = "dnd_netrunner_network_templates_v3";
+      const RUNNER_STORAGE = "dnd_netrunner_runner_profile_v3";
+      const NODE_TYPES = {
+        empty: { label: "Развилка", icon: "◇" },
+        guardian: { label: "Скрипт", icon: "⚔" },
+        trap: { label: "Ловушка", icon: "⚠" },
+        data: { label: "Данные", icon: "◆" },
+        access: { label: "Доступ", icon: "⬡" },
+      };
+      const $ = (id) => document.getElementById(id);
+      let templates = loadTemplates();
+      let selectedId = templates[0]?.id || null;
+      let builder = null;
+      let active = null;
+      let pendingRoll = null;
+      function uid(prefix = "id") {
+        return (
+          prefix +
+          "_" +
+          Math.random().toString(36).slice(2, 9) +
+          Date.now().toString(36).slice(-4)
+        );
+      }
+      function clone(o) {
+        return JSON.parse(JSON.stringify(o));
+      }
+      function clamp(n, min, max) {
+        return Math.max(min, Math.min(max, Number(n) || 0));
+      }
+      function escapeHtml(v) {
+        return String(v ?? "").replace(
+          /[&<>"']/g,
+          (s) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[s],
+        );
+      }
+      function percent(v, m) {
+        if (!m) return 0;
+        return Math.max(0, Math.min(100, Math.round((v / m) * 100)));
+      }
+      function sampleNetwork() {
+        return {
+          id: uid("net"),
+          name: "Сеть корпорации «Гелиос»",
+          depth: 4,
+          regenEvery: 3,
+          nodes: [
+            {
+              id: "n1",
+              level: 1,
+              parentId: "root",
+              label: "Внешний шлюз",
+              type: "empty",
+              protected: false,
+              dc: 10,
+              children: ["n2", "n3"],
+            },
+            {
+              id: "n2",
+              level: 2,
+              parentId: "n1",
+              label: "Камеры склада",
+              type: "access",
+              protected: true,
+              dc: 13,
+              children: ["n4", "n5"],
+            },
+            {
+              id: "n3",
+              level: 2,
+              parentId: "n1",
+              label: "Сторожевой ICE",
+              type: "guardian",
+              protected: false,
+              dc: 12,
+              guardian: { name: "ICE-сторож", hp: 14, maxHp: 14, ac: 12 },
+              children: ["n6"],
+            },
+            {
+              id: "n4",
+              level: 3,
+              parentId: "n2",
+              label: "Сейф данных",
+              type: "data",
+              protected: true,
+              dc: 15,
+              children: ["n7"],
+            },
+            {
+              id: "n5",
+              level: 3,
+              parentId: "n2",
+              label: "Слепая развилка",
+              type: "empty",
+              protected: false,
+              dc: 10,
+              children: ["n8"],
+            },
+            {
+              id: "n6",
+              level: 3,
+              parentId: "n3",
+              label: "Минное поле",
+              type: "trap",
+              protected: true,
+              dc: 14,
+              children: ["n8"],
+            },
+            {
+              id: "n7",
+              level: 4,
+              parentId: "n4",
+              label: "Ключи доступа",
+              type: "data",
+              protected: true,
+              dc: 17,
+              children: [],
+            },
+            {
+              id: "n8",
+              level: 4,
+              parentId: "n5",
+              label: "Ядро турелей",
+              type: "access",
+              protected: true,
+              dc: 17,
+              children: [],
+            },
+          ],
+        };
+      }
+      function presetLibrary() {
+        const helios = sampleNetwork();
+        helios.id = "preset_helios";
+        helios.name = "Гелиос: корпоративная сеть";
+
+        const storefront = clone(helios);
+        storefront.id = "preset_storefront";
+        storefront.name = "Витрина: быстрый взлом";
+        storefront.depth = 3;
+        storefront.regenEvery = 0;
+        storefront.nodes = storefront.nodes
+          .filter((n) => ["n1", "n2", "n3", "n4"].includes(n.id))
+          .map((n) => {
+            if (n.id === "n1") n.label = "Публичный шлюз";
+            if (n.id === "n2") n.label = "Кассовый сервер";
+            if (n.id === "n3") {
+              n.label = "Лёгкий ICE";
+              n.guardian = { name: "Магазинный ICE", hp: 8, maxHp: 8, ac: 10 };
+            }
+            if (n.id === "n4") {
+              n.label = "Архив чеков";
+              n.parentId = "n2";
+              n.level = 3;
+              n.dc = 12;
+            }
+            return n;
+          });
+
+        const fortress = clone(helios);
+        fortress.id = "preset_fortress";
+        fortress.name = "Крепость: закрытый дата-центр";
+        fortress.regenEvery = 2;
+        fortress.nodes.forEach((n) => {
+          n.dc = Math.min(25, n.dc + 4);
+          if (n.id === "n1") n.label = "Зашифрованный периметр";
+          if (n.id === "n3") {
+            n.label = "Военный ICE";
+            n.guardian = { name: "Цербер", hp: 26, maxHp: 26, ac: 16 };
+          }
+          if (n.id === "n7") n.label = "Чёрный архив";
+        });
+
+        const ghost = clone(helios);
+        ghost.id = "preset_ghost";
+        ghost.name = "Призрак: сеть-приманка";
+        ghost.regenEvery = 1;
+        ghost.nodes.forEach((n) => {
+          if (n.id === "n2") {
+            n.type = "trap";
+            n.label = "Ложный канал";
+            n.dc = 14;
+          }
+          if (n.id === "n3") {
+            n.type = "empty";
+            n.guardian = undefined;
+            n.label = "Фантомная развилка";
+          }
+          if (n.id === "n8") {
+            n.type = "data";
+            n.label = "Пустой контейнер";
+          }
+        });
+        return [helios, storefront, fortress, ghost].map(normalizeNetwork);
+      }
+      function loadTemplates() {
+        try {
+          const raw = localStorage.getItem(NETWORK_STORAGE);
+          if (raw) {
+            const p = JSON.parse(raw);
+            if (Array.isArray(p) && p.length) {
+              const saved = p.map(normalizeNetwork);
+              presetLibrary().forEach((preset) => {
+                if (!saved.some((item) => item.id === preset.id))
+                  saved.push(preset);
+              });
+              localStorage.setItem(NETWORK_STORAGE, JSON.stringify(saved));
+              return saved;
+            }
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+        const seeded = presetLibrary();
+        localStorage.setItem(NETWORK_STORAGE, JSON.stringify(seeded));
+        return seeded;
+      }
+      function normalizeNetwork(net) {
+        const n = {
+          id: net.id || uid("net"),
+          name: net.name || "Безымянная сеть",
+          depth: clamp(net.depth || 3, 1, 9),
+          regenEvery: clamp(net.regenEvery ?? 3, 0, 20),
+          nodes: (net.nodes || []).map((node) => ({
+            id: node.id || uid("node"),
+            level: clamp(node.level || 1, 1, 9),
+            parentId: node.parentId || "root",
+            label: node.label || "Блок",
+            type: node.type || "empty",
+            protected: !!node.protected,
+            dc: clamp(node.dc || 10, 1, 40),
+            guardian: node.guardian
+              ? {
+                  name: node.guardian.name || "Скрипт",
+                  hp: clamp(
+                    node.guardian.hp || node.guardian.maxHp || 10,
+                    1,
+                    999,
+                  ),
+                  maxHp: clamp(
+                    node.guardian.maxHp || node.guardian.hp || 10,
+                    1,
+                    999,
+                  ),
+                  ac: clamp(node.guardian.ac || 12, 1, 40),
+                }
+              : undefined,
+            children: Array.isArray(node.children) ? [...node.children] : [],
+          })),
+        };
+        rebuildChildren(n);
+        return n;
+      }
+      function rebuildChildren(net) {
+        net.nodes.forEach((n) => (n.children = []));
+        net.nodes.forEach((n) => {
+          if (n.parentId && n.parentId !== "root") {
+            const p = net.nodes.find((x) => x.id === n.parentId);
+            if (p && !p.children.includes(n.id)) p.children.push(n.id);
+          }
+        });
+      }
+      function persistTemplates() {
+        localStorage.setItem(NETWORK_STORAGE, JSON.stringify(templates));
+        renderTemplateList();
+        renderSpawnSelect();
+      }
+      function loadRunnerProfile() {
+        try {
+          const raw = localStorage.getItem(RUNNER_STORAGE);
+          if (raw) return normalizeRunner(JSON.parse(raw));
+        } catch (e) {
+          console.warn(e);
+        }
+        return normalizeRunner({});
+      }
+      function normalizeRunner(r) {
+        return {
+          actionsMax: clamp(r.actionsMax || 8, 1, 20),
+          hp: clamp(r.hp || r.maxHp || 24, 1, 999),
+          maxHp: clamp(r.maxHp || r.hp || 24, 1, 999),
+          netHp: clamp(r.netHp || r.maxNetHp || 18, 0, 999),
+          maxNetHp: clamp(r.maxNetHp || r.netHp || 18, 0, 999),
+          ac: clamp(r.ac || 13, 1, 40),
+        };
+      }
+      function readRunnerForm() {
+        return normalizeRunner({
+          actionsMax: $("runnerActions").value,
+          maxHp: $("runnerHp").value,
+          hp: $("runnerHp").value,
+          maxNetHp: $("runnerNetHp").value,
+          netHp: $("runnerNetHp").value,
+          ac: $("runnerAc").value,
+        });
+      }
+      function fillRunnerForm(r) {
+        $("runnerActions").value = r.actionsMax;
+        $("runnerHp").value = r.maxHp;
+        $("runnerNetHp").value = r.maxNetHp;
+        $("runnerAc").value = r.ac;
+      }
+      function saveRunnerProfile() {
+        const r = readRunnerForm();
+        localStorage.setItem(RUNNER_STORAGE, JSON.stringify(r));
+        alert("Профиль нетраннера сохранён.");
+      }
+      function setBuilder(tpl) {
+        builder = normalizeNetwork(clone(tpl || sampleNetwork()));
+        syncFormFromBuilder();
+        renderTemplateList();
+        renderBuilderGraph();
+      }
+      function syncBuilderFromForm() {
+        if (!builder) return;
+        builder.name = $("netName").value.trim() || "Безымянная сеть";
+        builder.depth = clamp($("netDepth").value, 1, 9);
+        builder.regenEvery = clamp($("regenEvery").value, 0, 20);
+        builder.nodes = builder.nodes.filter((n) => n.level <= builder.depth);
+        rebuildChildren(builder);
+      }
+      function syncFormFromBuilder() {
+        $("netName").value = builder.name;
+        $("netDepth").value = builder.depth;
+        $("regenEvery").value = builder.regenEvery;
+        renderLevelOptions();
+      }
+      function renderTemplateList() {
+        const wrap = $("templateList");
+        wrap.innerHTML = "";
+        templates.forEach((t) => {
+          const card = document.createElement("article");
+          card.className =
+            "template-card" + (t.id === selectedId ? " active" : "");
+          card.innerHTML = `<div class="split"><p class="template-name">${escapeHtml(t.name)}</p><span class="chip">${t.nodes?.length || 0} блок.</span></div><div class="row"><span class="chip">Глубина: ${t.depth}</span><span class="chip">Реген: ${t.regenEvery ? "кажд. " + t.regenEvery + " р." : "выкл."}</span></div><div class="row"><button class="small" data-act="edit">Редактировать</button><button class="small primary" data-act="spawn">Спавнить</button><button class="small danger" data-act="delete">Удалить</button></div>`;
+          card.querySelector('[data-act="edit"]').onclick = () => {
+            selectedId = t.id;
+            setBuilder(t);
+          };
+          card.querySelector('[data-act="spawn"]').onclick = () => {
+            selectedId = t.id;
+            switchTab("session");
+            startSession(t);
+          };
+          card.querySelector('[data-act="delete"]').onclick = () => {
+            if (templates.length <= 1)
+              return alert("Нужен хотя бы один шаблон.");
+            if (!confirm("Удалить шаблон сети?")) return;
+            templates = templates.filter((x) => x.id !== t.id);
+            if (selectedId === t.id) selectedId = templates[0]?.id || null;
+            persistTemplates();
+            setBuilder(templates.find((x) => x.id === selectedId));
+          };
+          wrap.appendChild(card);
+        });
+      }
+      function renderSpawnSelect() {
+        const sel = $("spawnTemplateSelect");
+        sel.innerHTML = "";
+        templates.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.id;
+          o.textContent = t.name;
+          sel.appendChild(o);
+        });
+        if (selectedId) sel.value = selectedId;
+      }
+      function renderLevelOptions() {
+        const level = $("nodeLevel");
+        level.innerHTML = "";
+        for (let i = 1; i <= builder.depth; i++)
+          level.appendChild(new Option("Уровень " + i, i));
+        renderParentOptions();
+        renderMasterLevelOptions();
+      }
+      function renderParentOptions() {
+        const lvl = Number($("nodeLevel")?.value || 1);
+        const parent = $("nodeParent");
+        if (!parent) return;
+        parent.innerHTML = "";
+        if (lvl <= 1) {
+          parent.appendChild(new Option("Вход сети", "root"));
+          return;
+        }
+        builder.nodes
+          .filter((n) => n.level === lvl - 1)
+          .forEach((n) =>
+            parent.appendChild(new Option(`${n.label} (${n.id})`, n.id)),
+          );
+        if (!parent.options.length)
+          parent.appendChild(new Option("Нет блоков на предыдущем уровне", ""));
+      }
+      function renderMasterLevelOptions() {
+        const sel = $("masterLevel");
+        if (!sel || !builder) return;
+        sel.innerHTML = "";
+        for (let i = 1; i <= builder.depth; i++)
+          sel.appendChild(new Option("Уровень " + i, i));
+      }
+      function addNode() {
+        syncBuilderFromForm();
+        const level = Number($("nodeLevel").value || 1);
+        const parentId = level <= 1 ? "root" : $("nodeParent").value;
+        if (level > 1 && !parentId)
+          return alert("Сначала добавь блок на предыдущем уровне.");
+        const type = $("nodeType").value;
+        const node = {
+          id: uid("node"),
+          level,
+          parentId,
+          label:
+            $("nodeLabel").value.trim() || NODE_TYPES[type]?.label || "Блок",
+          type,
+          protected: $("nodeProtected").value === "1",
+          dc: clamp($("nodeDc").value, 1, 40),
+          children: [],
+        };
+        if (type === "guardian") {
+          const hp = clamp($("guardianHp").value, 1, 999);
+          node.protected = false;
+          node.guardian = {
+            name: $("guardianName").value.trim() || "Скрипт",
+            hp,
+            maxHp: hp,
+            ac: clamp($("guardianAc").value, 1, 40),
+          };
+        }
+        builder.nodes.push(node);
+        rebuildChildren(builder);
+        $("nodeLabel").value = "";
+        renderBuilderGraph();
+      }
+      function removeNode(id) {
+        const desc = new Set([id]);
+        let changed = true;
+        while (changed) {
+          changed = false;
+          builder.nodes.forEach((n) => {
+            if (desc.has(n.parentId) && !desc.has(n.id)) {
+              desc.add(n.id);
+              changed = true;
+            }
+          });
+        }
+        builder.nodes = builder.nodes.filter((n) => !desc.has(n.id));
+        rebuildChildren(builder);
+        renderBuilderGraph();
+      }
+      function saveTemplate() {
+        syncBuilderFromForm();
+        rebuildChildren(builder);
+        const idx = templates.findIndex((t) => t.id === builder.id);
+        if (idx >= 0) templates[idx] = clone(builder);
+        else templates.push(clone(builder));
+        selectedId = builder.id;
+        persistTemplates();
+        renderBuilderGraph();
+        alert("Сеть сохранена.");
+      }
+      function renderBuilderGraph() {
+        renderTree(
+          builder,
+          "builderTree",
+          "builderStage",
+          "builderLines",
+          "builder",
+        );
+        renderParentOptions();
+      }
+      function renderSession() {
+        if (!active) return;
+        renderTree(
+          active.network,
+          "sessionTree",
+          "sessionStage",
+          "sessionLines",
+          "session",
+        );
+        $("hpText").textContent = `${active.runner.hp}/${active.runner.maxHp}`;
+        $("netHpText").textContent =
+          `${active.runner.netHp}/${active.runner.maxNetHp}`;
+        $("actionsText").textContent =
+          `${active.actionsLeft}/${active.actionsMax}`;
+        $("regenText").textContent = active.network.regenEvery
+          ? `${active.regenCountdown}/${active.network.regenEvery}`
+          : "выкл.";
+        $("currentNodeText").textContent =
+          "Текущий блок: " + currentNodeLabel();
+        $("hpBar").style.width =
+          percent(active.runner.hp, active.runner.maxHp) + "%";
+        $("netHpBar").style.width =
+          percent(active.runner.netHp, active.runner.maxNetHp || 1) + "%";
+        $("actionsBar").style.width =
+          percent(active.actionsLeft, active.actionsMax) + "%";
+        renderCurrentInfo();
+        renderLog();
+        renderHackRequest();
+        renderCombatDock();
+        updateButtons();
+        renderMasterLevelOptions();
+      }
+      function renderTree(net, treeId, stageId, linesId, mode) {
+        rebuildChildren(net);
+        const tree = $(treeId);
+        tree.innerHTML = "";
+        const rootLevel = document.createElement("div");
+        rootLevel.className = "tree-level";
+        rootLevel.innerHTML = '<div class="level-caption">Вход</div>';
+        rootLevel.appendChild(
+          makeNodeCard(
+            {
+              id: "root",
+              label: "Точка входа",
+              type: "root",
+              protected: false,
+              dc: 0,
+              level: 0,
+            },
+            net,
+            mode,
+          ),
+        );
+        tree.appendChild(rootLevel);
+        for (let lvl = 1; lvl <= net.depth; lvl++) {
+          const row = document.createElement("div");
+          row.className = "tree-level";
+          row.innerHTML = `<div class="level-caption">Уровень ${lvl}</div>`;
+          const nodes = net.nodes.filter((n) => n.level === lvl);
+          if (!nodes.length) {
+            const e = document.createElement("div");
+            e.className = "hint";
+            e.textContent = "Блоков нет";
+            row.appendChild(e);
+          }
+          nodes.forEach((n) => {
+            const el = makeNodeCard(n, net, mode);
+            if (el) row.appendChild(el);
+          });
+          tree.appendChild(row);
+        }
+        requestAnimationFrame(() => drawLines(net, stageId, linesId, mode));
+      }
+      function nextUnknownRoute() {
+        if (!active) return null;
+        const current = getNode(active.currentNodeId);
+        const currentLevel = Number(current?.level || 0);
+        return (
+          getAdjacentIds(active.currentNodeId)
+            .map((id) => getNode(id))
+            .find(
+              (node) =>
+                node &&
+                Number(node.level || 0) > currentLevel &&
+                !active.revealedDetails.includes(node.id),
+            ) || null
+        );
+      }
+      function makeUnknownRoute(node) {
+        const route = document.createElement("button");
+        route.type = "button";
+        route.className = "unknown-route";
+        route.dataset.nodeId = node.id;
+        route.setAttribute("aria-label", "Перейти по неизвестному маршруту");
+        route.innerHTML = "<span>маршрут уходит в туман</span>";
+        route.onclick = () => moveTo(node.id);
+        return route;
+      }
+      function renderTree(net, treeId, stageId, linesId, mode) {
+        if (mode !== "session" || !active) {
+          return renderBuilderTree(net, treeId, stageId, linesId, mode);
+        }
+        rebuildChildren(net);
+        const tree = $(treeId);
+        tree.innerHTML = "";
+        const rootLevel = document.createElement("div");
+        rootLevel.className = "tree-level";
+        rootLevel.innerHTML = '<div class="level-caption">Вход</div>';
+        rootLevel.appendChild(
+          makeNodeCard(
+            {
+              id: "root",
+              label: "Точка входа",
+              type: "root",
+              protected: false,
+              dc: 0,
+              level: 0,
+            },
+            net,
+            mode,
+          ),
+        );
+        tree.appendChild(rootLevel);
+        for (let level = 1; level <= net.depth; level++) {
+          const nodes = net.nodes.filter((node) => node.level === level);
+          const row = document.createElement("div");
+          row.className =
+            "tree-level" +
+            (active.revealedLevels.includes(level) ? "" : " fogged");
+          row.innerHTML = `<div class="level-caption">Уровень ${level}</div>`;
+          nodes.forEach((node) =>
+            row.appendChild(makeNodeCard(node, net, mode)),
+          );
+          tree.appendChild(row);
+        }
+        requestAnimationFrame(() => drawLines(net, stageId, linesId, mode));
+      }
+      function renderBuilderTree(net, treeId, stageId, linesId, mode) {
+        rebuildChildren(net);
+        const tree = $(treeId);
+        tree.innerHTML = "";
+        const rootLevel = document.createElement("div");
+        rootLevel.className = "tree-level";
+        rootLevel.innerHTML = '<div class="level-caption">Вход</div>';
+        rootLevel.appendChild(
+          makeNodeCard(
+            {
+              id: "root",
+              label: "Точка входа",
+              type: "root",
+              protected: false,
+              dc: 0,
+              level: 0,
+            },
+            net,
+            mode,
+          ),
+        );
+        tree.appendChild(rootLevel);
+        for (let level = 1; level <= net.depth; level++) {
+          const row = document.createElement("div");
+          row.className = "tree-level";
+          row.innerHTML = `<div class="level-caption">Уровень ${level}</div>`;
+          const nodes = net.nodes.filter((node) => node.level === level);
+          if (!nodes.length)
+            row.innerHTML += '<div class="hint">Блоков нет</div>';
+          nodes.forEach((node) =>
+            row.appendChild(makeNodeCard(node, net, mode)),
+          );
+          tree.appendChild(row);
+        }
+        requestAnimationFrame(() => drawLines(net, stageId, linesId, mode));
+      }
+      function renderTree(net, treeId, stageId, linesId, mode) {
+        return renderBuilderTree(net, treeId, stageId, linesId, mode);
+      }
+      function isStructureVisible(n) {
+        return !active
+          ? true
+          : active.revealedDetails.includes(n.id) ||
+              active.structureLevels.includes(n.level) ||
+              active.currentNodeId === n.id ||
+              getAdjacentIds(active.currentNodeId).includes(n.id);
+      }
+      function isDetailsVisible(n) {
+        return !active
+          ? true
+          : active.revealedDetails.includes(n.id) ||
+              active.currentNodeId === n.id;
+      }
+      function makeNodeCard(n, net, mode) {
+        const session = mode === "session" && active;
+        const isRoot = n.id === "root";
+        let revealed = true,
+          details = true,
+          structure = true;
+        if (session && !isRoot) {
+          details = isDetailsVisible(n);
+          structure = isStructureVisible(n);
+          revealed = details || structure;
+        }
+        if (session && !isRoot && !structure) {
+          const slot = document.createElement("div");
+          slot.className =
+            "fog-slot" +
+            (getAdjacentIds(active.currentNodeId).includes(n.id)
+              ? " available clickable"
+              : "");
+          slot.dataset.nodeId = n.id;
+          if (slot.classList.contains("clickable"))
+            slot.onclick = () => moveTo(n.id);
+          slot.innerHTML =
+            '<div class="tunnel-dot" title="Скрытый туннель"></div>';
+          return slot;
+        }
+        const current = session && active.currentNodeId === n.id;
+        const available =
+          session &&
+          !current &&
+          getAdjacentIds(active.currentNodeId).includes(n.id);
+        const cleared = session && active.cleared.includes(n.id);
+        const fog = session && !isRoot && !details;
+        const card = document.createElement("article");
+        const typeCls = isRoot ? "root" : fog ? "known-fog" : n.type;
+        card.className = `node ${typeCls} ${current ? "current" : ""} ${available ? "available clickable" : ""} ${cleared ? "cleared" : ""}`;
+        card.dataset.nodeId = n.id;
+        if (session) {
+          card.onclick = () => {
+            if (available) moveTo(n.id);
+            else selectNode(n.id);
+          };
+        }
+        const type = isRoot
+          ? { label: "ROOT", icon: "⌂" }
+          : fog
+            ? { label: "???", icon: "▒" }
+            : NODE_TYPES[n.type];
+        const title = fog ? "Неизвестный блок" : n.label;
+        const subtitle =
+          mode === "builder"
+            ? builderSubtitle(n, net)
+            : sessionSubtitle(n, details, fog, cleared);
+        card.innerHTML = `<div class="node-title"><span>${escapeHtml(title)}</span><span class="type-pill">${type.icon} ${type.label}</span></div><div class="node-sub">${subtitle}</div>${cleared ? '<i class="clear-ring"></i>' : ""}`;
+        if (mode === "builder" && !isRoot) {
+          const actions = document.createElement("div");
+          actions.className = "node-actions";
+          const del = document.createElement("button");
+          del.className = "small danger";
+          del.textContent = "Удалить";
+          del.onclick = () => removeNode(n.id);
+          actions.appendChild(del);
+          card.appendChild(actions);
+        }
+        return card;
+      }
+      function builderSubtitle(n, net) {
+        if (n.id === "root") return "Стартовая позиция нетраннера";
+        const p =
+          n.parentId === "root"
+            ? "Вход"
+            : net.nodes.find((x) => x.id === n.parentId)?.label || "—";
+        const bits = [
+          `Родитель: ${p}`,
+          `DC ${n.dc}`,
+          n.protected ? "защищён" : "открыт",
+        ];
+        if (n.type === "guardian" && n.guardian)
+          bits.push(
+            `${n.guardian.name}: HP ${n.guardian.maxHp}, КД ${n.guardian.ac}`,
+          );
+        return bits.map(escapeHtml).join(" · ");
+      }
+      function sessionSubtitle(n, details, fog, cleared) {
+        if (n.id === "root")
+          return "Стартовая позиция. Жёлтые туннели доступны для перехода.";
+        if (fog)
+          return "Структура видна, но подробности скрыты. Нужен анализ соседних блоков.";
+        const bits = [];
+        bits.push(cleared ? "зачищен" : n.protected ? "защищён" : "открыт");
+        bits.push(`DC ${n.dc}`);
+        if (n.type === "guardian" && n.guardian)
+          bits.push(
+            `${n.guardian.name}: HP ${n.guardian.hp}/${n.guardian.maxHp}, КД ${n.guardian.ac}`,
+          );
+        if (n.type === "access") bits.push("контроль камер/турелей/дверей");
+        if (n.type === "data") bits.push("данные");
+        return bits.map(escapeHtml).join(" · ");
+      }
+      function drawLines(net, stageId, linesId, mode) {
+        const stage = $(stageId),
+          svg = $(linesId);
+        if (!stage || !svg) return;
+        const r = stage.getBoundingClientRect(),
+          sl = stage.scrollLeft,
+          st = stage.scrollTop,
+          w = Math.max(stage.scrollWidth, stage.clientWidth),
+          h = Math.max(stage.scrollHeight, stage.clientHeight);
+        svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        svg.setAttribute("width", w);
+        svg.setAttribute("height", h);
+        svg.innerHTML = "";
+        net.nodes.forEach((n) => {
+          const from = n.parentId || "root",
+            to = n.id;
+          const a = stage.querySelector(`[data-node-id="${CSS.escape(from)}"]`),
+            b = stage.querySelector(`[data-node-id="${CSS.escape(to)}"]`);
+          if (!a || !b) return;
+          const ar = a.getBoundingClientRect(),
+            br = b.getBoundingClientRect();
+          const x1 = ar.left - r.left + ar.width / 2 + sl,
+            y1 = ar.top - r.top + ar.height + st,
+            x2 = br.left - r.left + br.width / 2 + sl,
+            y2 = br.top - r.top + st,
+            mid = (y1 + y2) / 2;
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path",
+          );
+          path.setAttribute(
+            "d",
+            `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`,
+          );
+          if (mode === "session" && active) {
+            if (
+              getAdjacentIds(active.currentNodeId).includes(to) ||
+              getAdjacentIds(active.currentNodeId).includes(from)
+            )
+              path.classList.add("available-edge");
+            if (active.cleared.includes(to) && active.cleared.includes(from))
+              path.classList.add("cleared-edge");
+            if (!isStructureVisible(n)) path.classList.add("tunnel-edge");
+          }
+          svg.appendChild(path);
+        });
+      }
+      function switchTab(name) {
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((t) => t.classList.add("hidden"));
+        $("tab-" + name).classList.remove("hidden");
+        if (name === "session") renderSpawnSelect();
+        setTimeout(() => {
+          if (name === "builder") renderBuilderGraph();
+          if (name === "session" && active) renderSession();
+        }, 30);
+      }
+      function startSession(tpl) {
+        const runner = readRunnerForm(),
+          net = normalizeNetwork(clone(tpl));
+        active = {
+          network: net,
+          runner,
+          actionsMax: runner.actionsMax,
+          actionsLeft: runner.actionsMax,
+          regenCountdown: net.regenEvery || 0,
+          currentNodeId: "root",
+          selectedNodeId: "root",
+          revealedDetails: ["root"],
+          revealedLevels: [0],
+          structureLevels: [],
+          visited: ["root"],
+          cleared: ["root"],
+          log: [],
+          combatTurn: null,
+        };
+        $("sessionEmpty").classList.add("hidden");
+        $("sessionUI").classList.remove("hidden");
+        addLog(`Сеть запущена: ${net.name}.`, "good");
+        renderSession();
+      }
+      function getNode(id) {
+        if (!active) return null;
+        if (id === "root")
+          return {
+            id: "root",
+            label: "Точка входа",
+            children: active.network.nodes
+              .filter((n) => n.parentId === "root")
+              .map((n) => n.id),
+            parentId: null,
+          };
+        return active.network.nodes.find((n) => n.id === id) || null;
+      }
+      function getAdjacentIds(id) {
+        if (!active) return [];
+        if (id === "root")
+          return active.network.nodes
+            .filter((n) => n.parentId === "root")
+            .map((n) => n.id);
+        const n = getNode(id);
+        if (!n) return [];
+        const ids = [];
+        if (n.parentId) ids.push(n.parentId);
+        (n.children || []).forEach((c) => ids.push(c));
+        return ids;
+      }
+      function revealAdjacentDetails(id, withLog = true) {
+        const ids = getAdjacentIds(id);
+        ids.forEach((x) => {
+          if (!active.revealedDetails.includes(x))
+            active.revealedDetails.push(x);
+        });
+        if (withLog)
+          addLog(
+            `Анализ соседних блоков: раскрыто ${ids.length} связей.`,
+            "good",
+          );
+      }
+      function selectNode(id) {
+        active.selectedNodeId = id;
+        renderCurrentInfo();
+      }
+      function moveTo(id) {
+        if (!active || active.actionsLeft <= 0) return;
+        if (liveGuardianAt(active.currentNodeId)) {
+          addLog("Сначала нужно завершить бой со скриптом.", "bad");
+          return;
+        }
+        if (!getAdjacentIds(active.currentNodeId).includes(id)) return;
+        active.currentNodeId = id;
+        active.selectedNodeId = id;
+        if (!active.visited.includes(id)) active.visited.push(id);
+        if (!active.revealedDetails.includes(id))
+          active.revealedDetails.push(id);
+        spendAction();
+        if (id === "root") addLog("Нетраннер вернулся ко входу сети.", "warn");
+        else {
+          const n = getNode(id);
+          if (false && !active.revealedLevels.includes(n.level)) {
+            active.revealedLevels.push(n.level);
+            addLog(
+              `Гличный туман уровня ${n.level} рассеялся: параметры узлов раскрыты.`,
+              "good",
+            );
+          }
+          addLog(`Переход в блок: ${n.label}.`, "good");
+          if (n.type === "empty")
+            markCleared(id, "Пустой блок отмечен как зачищенный.");
+          if (n.type === "guardian" && n.guardian?.hp > 0) {
+            active.combatTurn = "player";
+            addLog(`Начался бой со скриптом: ${n.guardian.name}.`, "warn");
+          }
+          if (n.protected) addLog("Блок защищён. Нужен взлом.", "warn");
+        }
+        renderSession();
+      }
+      function analyzeCurrentNeighbors() {
+        if (!active || active.actionsLeft <= 0) return;
+        revealAdjacentDetails(active.currentNodeId, true);
+        spendAction();
+        renderSession();
+      }
+      function requestHack() {
+        if (!active || active.hackRequest || active.actionsLeft <= 0) return;
+        const node = getNode(active.currentNodeId);
+        if (!node || node.id === "root" || liveGuardianAt(node.id)) return;
+        if (!node.protected && !["data", "access", "trap"].includes(node.type))
+          return;
+        spendAction();
+        active.hackRequest = {
+          nodeId: node.id,
+          label: node.label,
+          dc: node.dc,
+          createdAt: Date.now(),
+          status: "pending",
+        };
+        addLog(
+          `Нетраннер начал взлом «${node.label}». Запрос отправлен мастеру.`,
+          "warn",
+        );
+        renderSession();
+        showHackPendingAnimation();
+      }
+      function showHackPendingAnimation() {
+        const overlay = $("hackOverlay"),
+          modal = $("hackModal"),
+          res = $("hackResult"),
+          title = $("hackTitle");
+        modal.className = "hack-modal";
+        title.textContent = "Взлом узла… ожидается решение мастера";
+        res.className = "hack-result";
+        res.textContent = "PENDING";
+        overlay.classList.remove("hidden");
+      }
+      function renderHackRequest() {
+        const panel = $("hackRequestPanel");
+        if (!panel) return;
+        const request = active?.hackRequest;
+        panel.innerHTML = request
+          ? `<b>Ожидает решения:</b> ${escapeHtml(request.label)} · DC ${request.dc}<br><span class="muted">В демке запрос фиксируется, анимация у игрока остаётся в состоянии PENDING. В боте мастер получит кнопки «Подтвердить» и «Отклонить».</span>`
+          : "<b>Запросы на взлом:</b> нет активных запросов.";
+      }
+      function openRollModal(kind) {
+        if (!active) return;
+        const n = getNode(active.currentNodeId);
+        if (kind === "hack" && (!n || n.id === "root")) return;
+        if (kind === "hack" && liveGuardianAt(n.id)) {
+          addLog("Скрипт мешает взлому. Сначала уничтожь его.", "bad");
+          return;
+        }
+        if (kind === "hack" && active.actionsLeft <= 0) return;
+        if (
+          kind === "playerAttack" &&
+          (!liveGuardianAt(active.currentNodeId) || active.actionsLeft <= 0)
+        )
+          return;
+        if (kind === "scriptAttack" && !liveGuardianAt(active.currentNodeId))
+          return;
+        pendingRoll = kind;
+        $("rollTitle").textContent =
+          kind === "hack"
+            ? "Бросок взлома"
+            : kind === "playerAttack"
+              ? "Атака нетраннера"
+              : "Атака скрипта / мастера";
+        $("rollHint").textContent =
+          kind === "hack"
+            ? `Введи d20 и модификатор. Цель: DC ${n.dc}.`
+            : kind === "playerAttack"
+              ? `Введи d20, модификатор и урон. Цель: КД ${n.guardian.ac}.`
+              : `Введи d20, модификатор и урон скрипта. Цель: КД игрока ${active.runner.ac}.`;
+        $("rollDamageWrap").classList.toggle("hidden", kind === "hack");
+        $("rollDamage").value = kind === "playerAttack" ? 7 : 5;
+        $("rollD20").value = 10;
+        $("rollMod").value = 0;
+        $("rollModal").classList.remove("hidden");
+      }
+      function confirmRoll() {
+        const kind = pendingRoll;
+        const roll = clamp($("rollD20").value, 1, 20),
+          mod = Number($("rollMod").value || 0),
+          dmg = Math.max(0, Number($("rollDamage").value || 0));
+        $("rollModal").classList.add("hidden");
+        pendingRoll = null;
+        if (kind === "hack") doHack(roll, mod);
+        else if (kind === "playerAttack") doPlayerAttack(roll, mod, dmg);
+        else if (kind === "scriptAttack") doScriptAttack(roll, mod, dmg);
+      }
+      function doHack(roll, mod) {
+        const n = getNode(active.currentNodeId);
+        if (!n) return;
+        const total = roll + mod;
+        spendAction();
+        const success = total >= n.dc;
+        showHackAnimation(success, () => {
+          if (success) {
+            n.protected = false;
+            markCleared(n.id);
+            if (n.type === "access")
+              addLog(
+                `SUCCESS: ${roll} + ${mod} = ${total} против DC ${n.dc}. Получен доступ к камерам/турелям/дверям.`,
+                "good",
+              );
+            else if (n.type === "data")
+              addLog(
+                `SUCCESS: ${roll} + ${mod} = ${total}. Данные извлечены.`,
+                "good",
+              );
+            else if (n.type === "trap")
+              addLog(
+                `SUCCESS: ${roll} + ${mod} = ${total}. Ловушка обезврежена.`,
+                "good",
+              );
+            else
+              addLog(
+                `SUCCESS: ${roll} + ${mod} = ${total}. Защита снята.`,
+                "good",
+              );
+          } else {
+            addLog(
+              `ERROR: ${roll} + ${mod} = ${total} против DC ${n.dc}. Взлом провален.`,
+              "bad",
+            );
+          }
+          renderSession();
+        });
+      }
+      function doPlayerAttack(roll, mod, dmg) {
+        const n = getNode(active.currentNodeId);
+        if (!n?.guardian) return;
+        const total = roll + mod;
+        spendAction();
+        if (roll === 20 || total >= n.guardian.ac) {
+          n.guardian.hp = Math.max(0, n.guardian.hp - dmg);
+          addLog(
+            `Атака нетраннера: ${roll} + ${mod} = ${total}. Попадание, урон ${dmg}.`,
+            "good",
+          );
+          if (n.guardian.hp <= 0) {
+            markCleared(n.id);
+            active.combatTurn = null;
+            addLog(`${n.guardian.name} уничтожен. Блок зачищен.`, "good");
+          } else active.combatTurn = "script";
+        } else {
+          addLog(
+            `Атака нетраннера: ${roll} + ${mod} = ${total}. Промах по КД ${n.guardian.ac}.`,
+            "warn",
+          );
+          active.combatTurn = "script";
+        }
+        renderSession();
+      }
+      function doScriptAttack(roll, mod, dmg) {
+        const total = roll + mod;
+        if (roll === 20 || total >= active.runner.ac) {
+          applyRunnerDamage(dmg);
+          addLog(
+            `Атака скрипта: ${roll} + ${mod} = ${total}. Попадание по КД ${active.runner.ac}, урон ${dmg}.`,
+            "bad",
+          );
+        } else
+          addLog(
+            `Атака скрипта: ${roll} + ${mod} = ${total}. Промах по КД ${active.runner.ac}.`,
+            "warn",
+          );
+        active.combatTurn = "player";
+        renderSession();
+      }
+      function applyRunnerDamage(amount) {
+        let left = Math.max(0, Number(amount) || 0);
+        if (active.runner.netHp > 0) {
+          const a = Math.min(active.runner.netHp, left);
+          active.runner.netHp -= a;
+          left -= a;
+          if (a) addLog(`NET-щит устройства поглотил ${a} урона.`, "good");
+        }
+        if (left > 0) {
+          active.runner.hp = Math.max(0, active.runner.hp - left);
+          addLog(`Обычные HP получили ${left} урона.`, "bad");
+          if (active.runner.hp <= 0) addLog("Нетраннер выбит из сети.", "bad");
+        }
+      }
+      function showHackAnimation(success, cb) {
+        const overlay = $("hackOverlay"),
+          modal = $("hackModal"),
+          res = $("hackResult"),
+          title = $("hackTitle");
+        modal.className = "hack-modal";
+        res.className = "hack-result hidden";
+        res.textContent = "";
+        title.textContent = "Взлом узла...";
+        overlay.classList.remove("hidden");
+        setTimeout(() => {
+          modal.classList.add(success ? "success" : "error");
+          res.className = "hack-result " + (success ? "success" : "error");
+          res.textContent = success ? "SUCCESS" : "ERROR";
+          title.textContent = success
+            ? "Доступ подтверждён"
+            : "Доступ отклонён";
+        }, 950);
+        setTimeout(() => {
+          overlay.classList.add("hidden");
+          cb();
+        }, 1700);
+      }
+      function markCleared(id, msg) {
+        if (!active.cleared.includes(id)) active.cleared.push(id);
+        const n = getNode(id);
+        if (n) n.protected = false;
+        if (msg) addLog(msg, "good");
+      }
+      function liveGuardianAt(id) {
+        const n = getNode(id);
+        return !!(
+          n &&
+          n.type === "guardian" &&
+          n.guardian &&
+          n.guardian.hp > 0
+        );
+      }
+      function spendAction() {
+        active.actionsLeft = Math.max(0, active.actionsLeft - 1);
+      }
+      function endTurn() {
+        if (!active) return;
+        active.actionsLeft = active.actionsMax;
+        if (active.network.regenEvery > 0) {
+          active.regenCountdown -= 1;
+          if (active.regenCountdown <= 0) {
+            active.regenCountdown = active.network.regenEvery;
+            regenPushback();
+          } else
+            addLog(
+              `Раунд завершён. До регенерации сети: ${active.regenCountdown}.`,
+              "warn",
+            );
+        } else addLog("Раунд завершён. Регенерация отключена.", "warn");
+        renderSession();
+      }
+      function regenPushback() {
+        if (active.currentNodeId === "root") {
+          addLog("Сеть регенерирует, но нетраннер уже у входа.", "warn");
+          return;
+        }
+        if (liveGuardianAt(active.currentNodeId)) {
+          addLog(
+            "Регенерация не сдвигает нетраннера во время боя со скриптом.",
+            "warn",
+          );
+          return;
+        }
+        const cur = getNode(active.currentNodeId);
+        active.currentNodeId = cur?.parentId || "root";
+        active.selectedNodeId = active.currentNodeId;
+        addLog(
+          "Регенерация сети отбросила нетраннера на предыдущий уровень.",
+          "bad",
+        );
+      }
+      function currentNodeLabel() {
+        const n = getNode(active.currentNodeId);
+        return n ? n.label : "—";
+      }
+      function renderCurrentInfo() {
+        const cur = getNode(active.currentNodeId),
+          sel = getNode(active.selectedNodeId || active.currentNodeId);
+        if (!sel || sel.id === "root") {
+          $("currentNodeInfo").innerHTML =
+            `<b>Текущий блок:</b> ${escapeHtml(cur?.label || "—")}<br><span class="muted">Клик по жёлтому блоку или жёлтому туннелю перемещает нетраннера.</span>`;
+          return;
+        }
+        const details =
+          active.revealedDetails.includes(sel.id) ||
+          sel.id === active.currentNodeId;
+        if (!details) {
+          $("currentNodeInfo").innerHTML =
+            '<b>Выбран неизвестный блок.</b><br><span class="muted">Структура видна, но детали скрыты. Используй анализ соседних блоков.</span>';
+          return;
+        }
+        const type = NODE_TYPES[sel.type]?.label || sel.type;
+        let extra = "";
+        if (sel.type === "guardian" && sel.guardian)
+          extra = `<br>Скрипт: ${escapeHtml(sel.guardian.name)}, HP ${sel.guardian.hp}/${sel.guardian.maxHp}, КД ${sel.guardian.ac}`;
+        $("currentNodeInfo").innerHTML =
+          `<b>Текущий блок:</b> ${escapeHtml(cur?.label || "—")}<br><b>Выбран:</b> ${escapeHtml(sel.label)}<br>Тип: ${escapeHtml(type)} · DC ${sel.dc} · ${sel.protected ? "защищён" : "открыт"}${extra}`;
+      }
+      function updateButtons() {
+        const n = getNode(active.currentNodeId);
+        $("analyzeBtn").disabled = active.actionsLeft <= 0;
+        $("hackBtn").disabled =
+          active.actionsLeft <= 0 ||
+          !!active.hackRequest ||
+          active.currentNodeId === "root" ||
+          liveGuardianAt(active.currentNodeId) ||
+          !n ||
+          (!n.protected && !["data", "access", "trap"].includes(n.type));
+        $("endTurnBtn").disabled = !active;
+      }
+      function renderCombatDock() {
+        const dock = $("combatDock"),
+          n = getNode(active.currentNodeId);
+        if (!n || n.type !== "guardian" || !n.guardian || n.guardian.hp <= 0) {
+          dock.classList.add("hidden");
+          dock.innerHTML = "";
+          return;
+        }
+        dock.classList.remove("hidden");
+        const turn = active.combatTurn || "player";
+        dock.innerHTML = `<div class="panel-title" style="margin-bottom:10px"><h3>Бой в сети</h3><span class="chip turn-chip">Ход: ${turn === "player" ? "нетраннер" : "скрипт"}</span></div><div class="combat-grid"><article class="fighter ${turn === "player" ? "active" : ""}"><div class="fighter-title"><span>Нетраннер</span><span>КД ${active.runner.ac}</span></div><div class="hint">HP ${active.runner.hp}/${active.runner.maxHp} · NET ${active.runner.netHp}/${active.runner.maxNetHp}</div><div class="combat-actions"><button id="combatPlayerAttack" class="warn">Атака игрока</button></div></article><div class="versus">VS</div><article class="fighter ${turn === "script" ? "active" : ""}"><div class="fighter-title"><span>${escapeHtml(n.guardian.name)}</span><span>КД ${n.guardian.ac}</span></div><div class="hint">HP ${n.guardian.hp}/${n.guardian.maxHp}</div><div class="combat-actions"><button id="combatScriptAttack" class="danger">Атака мастера</button></div></article></div>`;
+        $("combatPlayerAttack").onclick = () => openRollModal("playerAttack");
+        $("combatScriptAttack").onclick = () => openRollModal("scriptAttack");
+      }
+      function applyDirectCombatDamage(target) {
+        const node = getNode(active?.currentNodeId);
+        const input = $(
+          target === "runner" ? "damageToRunner" : "damageToGuardian",
+        );
+        const amount = Math.max(0, Number(input?.value || 0));
+        if (!amount) return;
+        if (target === "runner") {
+          applyRunnerDamage(amount);
+          addLog(`Мастер нанёс нетраннеру ${amount} урона.`, "bad");
+        } else if (node?.guardian) {
+          node.guardian.hp = Math.max(0, Number(node.guardian.hp) - amount);
+          addLog(
+            `Мастер нанёс скрипту «${node.guardian.name}» ${amount} урона.`,
+            "good",
+          );
+          if (node.guardian.hp <= 0) {
+            markCleared(node.id);
+            active.combatTurn = null;
+            addLog(`${node.guardian.name} уничтожен. Блок зачищен.`, "good");
+          }
+        }
+        input.value = "";
+        renderSession();
+      }
+      function renderCombatDock() {
+        const dock = $("combatDock"),
+          node = getNode(active?.currentNodeId);
+        if (
+          !node ||
+          node.type !== "guardian" ||
+          !node.guardian ||
+          node.guardian.hp <= 0
+        ) {
+          dock.classList.add("hidden");
+          dock.innerHTML = "";
+          return;
+        }
+        dock.classList.remove("hidden");
+        dock.innerHTML = `<div class="panel-title" style="margin-bottom:10px"><h3>Бой в сети</h3><span class="chip turn-chip">мастер контролирует обе стороны</span></div><div class="combat-grid"><article class="fighter"><div class="fighter-title"><span>Нетраннер</span><span>КД ${active.runner.ac}</span></div><div class="hint">HP ${active.runner.hp}/${active.runner.maxHp} · NET ${active.runner.netHp}/${active.runner.maxNetHp}</div><div class="combat-actions"><input id="damageToRunner" type="number" min="0" placeholder="Урон нетраннеру" aria-label="Урон нетраннеру"><button id="applyRunnerDamage" class="danger">Нанести урон</button></div></article><div class="versus">VS</div><article class="fighter"><div class="fighter-title"><span>${escapeHtml(node.guardian.name)}</span><span>КД ${node.guardian.ac}</span></div><div class="hint">HP ${node.guardian.hp}/${node.guardian.maxHp}</div><div class="combat-actions"><input id="damageToGuardian" type="number" min="0" placeholder="Урон скрипту" aria-label="Урон скрипту"><button id="applyGuardianDamage" class="warn">Нанести урон</button></div></article></div>`;
+        $("applyRunnerDamage").onclick = () =>
+          applyDirectCombatDamage("runner");
+        $("applyGuardianDamage").onclick = () =>
+          applyDirectCombatDamage("guardian");
+      }
+      function openDebug() {
+        if (!active) return;
+        const guardian = getNode(active.currentNodeId)?.guardian;
+        $("debugRunnerHp").value = active.runner.hp;
+        $("debugRunnerMaxHp").value = active.runner.maxHp;
+        $("debugRunnerNetHp").value = active.runner.netHp;
+        $("debugRunnerMaxNetHp").value = active.runner.maxNetHp;
+        $("debugRunnerAc").value = active.runner.ac;
+        $("debugActions").value = active.actionsLeft;
+        ["debugGuardianHp", "debugGuardianMaxHp", "debugGuardianAc"].forEach(
+          (id) => {
+            $(id).disabled = !guardian;
+          },
+        );
+        $("debugGuardianHp").value = guardian?.hp ?? "";
+        $("debugGuardianMaxHp").value = guardian?.maxHp ?? "";
+        $("debugGuardianAc").value = guardian?.ac ?? "";
+        $("debugModal").classList.remove("hidden");
+      }
+      function applyDebug() {
+        if (!active) return;
+        const runner = active.runner;
+        runner.maxHp = clamp($("debugRunnerMaxHp").value, 1, 999);
+        runner.hp = clamp($("debugRunnerHp").value, 0, runner.maxHp);
+        runner.maxNetHp = clamp($("debugRunnerMaxNetHp").value, 0, 999);
+        runner.netHp = clamp($("debugRunnerNetHp").value, 0, runner.maxNetHp);
+        runner.ac = clamp($("debugRunnerAc").value, 1, 40);
+        active.actionsLeft = clamp(
+          $("debugActions").value,
+          0,
+          active.actionsMax,
+        );
+        const guardian = getNode(active.currentNodeId)?.guardian;
+        if (guardian) {
+          guardian.maxHp = clamp($("debugGuardianMaxHp").value, 1, 999);
+          guardian.hp = clamp($("debugGuardianHp").value, 0, guardian.maxHp);
+          guardian.ac = clamp($("debugGuardianAc").value, 1, 40);
+        }
+        addLog("Мастер применил DEBUG-настройки боя.", "warn");
+        $("debugModal").classList.add("hidden");
+        renderSession();
+      }
+      function masterReveal() {
+        if (!active) return;
+        const mode = $("masterRevealMode").value;
+        if (mode === "all") {
+          active.structureLevels = [];
+          for (let i = 1; i <= active.network.depth; i++)
+            active.structureLevels.push(i);
+          addLog("Мастер открыл структуру всей сети без подробностей.", "good");
+        } else {
+          const lvl = Number($("masterLevel").value || 1);
+          if (!active.structureLevels.includes(lvl))
+            active.structureLevels.push(lvl);
+          addLog(
+            `Мастер открыл структуру уровня ${lvl} без подробностей.`,
+            "good",
+          );
+        }
+        renderSession();
+      }
+      function masterHide() {
+        if (!active) return;
+        active.structureLevels = [];
+        addLog("Мастер снова скрыл нераскрытую структуру уровней.", "warn");
+        renderSession();
+      }
+      function addLog(text, kind = "") {
+        if (!active) return;
+        active.log.push({ text, kind, at: Date.now() });
+      }
+      function renderLog() {
+        const box = $("log");
+        box.innerHTML = "";
+        active.log.slice(-80).forEach((e) => {
+          const div = document.createElement("div");
+          div.className = "log-entry " + (e.kind || "");
+          div.textContent = e.text;
+          box.appendChild(div);
+        });
+      }
+      function wire() {
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
+        $("newTemplateBtn").onclick = () => {
+          const f = sampleNetwork();
+          f.id = uid("net");
+          f.name = "Новая сеть";
+          f.nodes = [];
+          selectedId = null;
+          setBuilder(f);
+        };
+        ["netName", "netDepth", "regenEvery"].forEach((id) =>
+          $(id).addEventListener("input", () => {
+            syncBuilderFromForm();
+            renderLevelOptions();
+            renderBuilderGraph();
+          }),
+        );
+        $("nodeLevel").onchange = renderParentOptions;
+        $("nodeType").onchange = () =>
+          $("guardianFields").classList.toggle(
+            "hidden",
+            $("nodeType").value !== "guardian",
+          );
+        $("addNodeBtn").onclick = addNode;
+        $("saveTemplateBtn").onclick = saveTemplate;
+        $("exportBtn").onclick = () => {
+          syncBuilderFromForm();
+          $("jsonBox").value = JSON.stringify(builder, null, 2);
+        };
+        $("importBtn").onclick = () => {
+          try {
+            const p = normalizeNetwork(JSON.parse($("jsonBox").value));
+            if (templates.some((t) => t.id === p.id)) p.id = uid("net");
+            templates.push(p);
+            selectedId = p.id;
+            persistTemplates();
+            setBuilder(p);
+            alert("Сеть импортирована.");
+          } catch (e) {
+            alert("Не удалось импортировать JSON: " + e.message);
+          }
+        };
+        $("saveRunnerBtn").onclick = saveRunnerProfile;
+        $("spawnBtn").onclick = () => {
+          const t = templates.find(
+            (x) => x.id === $("spawnTemplateSelect").value,
+          );
+          if (t) {
+            selectedId = t.id;
+            startSession(t);
+          }
+        };
+        $("analyzeBtn").onclick = analyzeCurrentNeighbors;
+        $("hackBtn").onclick = requestHack;
+        $("endTurnBtn").onclick = endTurn;
+        $("debugBtn").onclick = openDebug;
+        $("debugCancelBtn").onclick = () =>
+          $("debugModal").classList.add("hidden");
+        $("debugApplyBtn").onclick = applyDebug;
+        $("rollCancelBtn").onclick = () =>
+          $("rollModal").classList.add("hidden");
+        $("rollConfirmBtn").onclick = confirmRoll;
+        $("masterRevealBtn").onclick = masterReveal;
+        $("masterHideBtn").onclick = masterHide;
+        $("hackPreviewCloseBtn").onclick = () =>
+          $("hackOverlay").classList.add("hidden");
+        window.addEventListener("resize", () => {
+          if (builder) renderBuilderGraph();
+          if (active) renderSession();
+        });
+      }
+      wire();
+      fillRunnerForm(loadRunnerProfile());
+      setBuilder(templates.find((t) => t.id === selectedId) || templates[0]);
+      renderSpawnSelect();
+      $("nodeType").onchange();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+python main.py
+
+ngrok http 8000
+
+cloudflared tunnel --url http://localhost:8000
