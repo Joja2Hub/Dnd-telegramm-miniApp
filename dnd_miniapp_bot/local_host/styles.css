@@ -1,0 +1,228 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: #151b24;
+  --panel-2: #1c2531;
+  --line: rgba(255,255,255,.1);
+  --text: #f5f7fb;
+  --muted: #9da8b8;
+  --accent: #ffd166;
+  --blue: #72a7ff;
+  --green: #54d38a;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(114,167,255,.18), transparent 34rem),
+    radial-gradient(circle at 90% 12%, rgba(84,211,138,.12), transparent 28rem),
+    var(--bg);
+  color: var(--text);
+}
+
+button, select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid rgba(255,209,102,.45);
+  background: linear-gradient(180deg, #f7c75d, #c78b25);
+  color: #1d1303;
+  font-weight: 800;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+button.secondary {
+  border-color: rgba(114,167,255,.36);
+  background: rgba(114,167,255,.12);
+  color: var(--text);
+}
+
+button.character {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  border-color: rgba(255,255,255,.1);
+  background: rgba(255,255,255,.055);
+  color: var(--text);
+}
+
+button.character:hover, button.secondary:hover {
+  border-color: rgba(114,167,255,.58);
+  background: rgba(114,167,255,.16);
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.shell {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.hero {
+  min-height: 190px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px 0;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+h1, h2, p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: clamp(34px, 8vw, 72px);
+  line-height: .95;
+}
+
+h2 {
+  margin-bottom: 4px;
+  font-size: 20px;
+}
+
+.lead {
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  background: rgba(21,27,36,.86);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.section-head p, .muted {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.campaign-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.active-box {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(84,211,138,.22);
+  background: rgba(84,211,138,.08);
+  border-radius: 8px;
+}
+
+.login-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.host-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--char-color, var(--blue));
+  color: #08111d;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.char-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.char-meta b, .char-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.char-meta small, .badge {
+  color: var(--muted);
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.error {
+  border-color: rgba(255,107,107,.35);
+  background: rgba(255,107,107,.1);
+  color: #ffd6d6;
+}
+
+@media (max-width: 640px) {
+  .shell { padding: 14px; }
+  .hero { min-height: 160px; align-items: flex-start; padding-top: 24px; }
+  .campaign-row { grid-template-columns: 1fr; }
+  .section-head { display: block; }
+}

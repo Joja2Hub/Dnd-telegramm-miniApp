@@ -17,6 +17,7 @@ data/*.db
 data/*.db-*
 data/backups/
 data/uploads/
+local_host/*.json
 
 # =========================
 # Logs / runtime output

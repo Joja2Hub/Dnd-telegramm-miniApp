@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DND Local Host</title>
+  <link rel="stylesheet" href="/local/styles.css?v=local2">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">LOCAL TABLE MODE</p>
+        <h1>DND Mini App</h1>
+        <p class="lead">Локальный запасной вход для игры по Wi-Fi. Мастер выбирает активную кампанию, игроки заходят со своих телефонов и выбирают персонажа.</p>
+      </div>
+      <button id="refreshBtn" class="icon-btn" type="button" title="Обновить">↻</button>
+    </section>
+
+    <section class="panel host-panel">
+      <div class="section-head">
+        <div>
+          <h2>Активная кампания</h2>
+          <p>Выбери кампанию, которую будут видеть телефоны игроков.</p>
+        </div>
+      </div>
+      <div class="campaign-row">
+        <select id="campaignSelect"></select>
+        <button id="activateBtn" type="button">Сделать активной</button>
+      </div>
+      <div id="activeBox" class="active-box"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>Вход</h2>
+          <p>На компьютере мастера входи как хост. На телефонах игроки выбирают своего персонажа.</p>
+        </div>
+      </div>
+      <div id="loginBox" class="login-box"></div>
+    </section>
+  </main>
+
+  <script src="/local/app.js?v=local2"></script>
+</body>
+</html>
