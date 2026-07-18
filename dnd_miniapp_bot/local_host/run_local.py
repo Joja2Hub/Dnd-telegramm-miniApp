@@ -3,11 +3,14 @@ from __future__ import annotations
 import os
 import socket
 import sqlite3
+import subprocess
 import sys
 import json
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import uvicorn
@@ -46,6 +49,67 @@ def local_ipv4_addresses() -> list[str]:
     except OSError:
         pass
     return sorted(addresses)
+
+
+def preferred_local_ipv4() -> str | None:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("8.8.8.8", 80))
+            ip = probe.getsockname()[0]
+            if ip and not ip.startswith("127."):
+                return ip
+    except OSError:
+        pass
+    addresses = local_ipv4_addresses()
+    return addresses[0] if addresses else None
+
+
+def port_listener_pids(port: int) -> set[int]:
+    if os.name != "nt":
+        return set()
+    current_pid = os.getpid()
+    try:
+        out = subprocess.run(
+            ["netstat", "-ano", "-p", "TCP"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            check=False,
+        ).stdout
+    except OSError:
+        return set()
+    pids: set[int] = set()
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) < 5 or parts[0].upper() != "TCP":
+            continue
+        local_addr, state, pid_text = parts[1], parts[-2].upper(), parts[-1]
+        if state != "LISTENING":
+            continue
+        if local_addr.rsplit(":", 1)[-1] != str(port):
+            continue
+        try:
+            pid = int(pid_text)
+        except ValueError:
+            continue
+        if pid and pid != current_pid:
+            pids.add(pid)
+    return pids
+
+
+def stop_port_listeners(port: int) -> None:
+    pids = port_listener_pids(port)
+    if not pids:
+        return
+    print(f"Stopping old local server on port {port}: {', '.join(map(str, sorted(pids)))}")
+    for pid in sorted(pids):
+        subprocess.run(["taskkill", "/PID", str(pid), "/F", "/T"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        if not port_listener_pids(port):
+            return
+        time.sleep(0.25)
 
 
 def build_local_app(db: Database, settings: Settings) -> FastAPI:
@@ -130,6 +194,22 @@ def build_local_app(db: Database, settings: Settings) -> FastAPI:
         payload["active_campaign_id"] = int(data.campaign_id)
         return payload
 
+    @app.get("/local")
+    async def local_root_redirect() -> RedirectResponse:
+        return RedirectResponse(url="/local/")
+
+    @app.get("/local/")
+    async def local_index() -> FileResponse:
+        return FileResponse(LOCAL_ROOT / "index.html")
+
+    @app.get("/local-app")
+    async def local_app_redirect() -> RedirectResponse:
+        return RedirectResponse(url="/local-app/")
+
+    @app.get("/local-app/")
+    async def local_miniapp() -> FileResponse:
+        return FileResponse(LOCAL_ROOT / "miniapp.html")
+
     app.mount("/local", StaticFiles(directory=str(LOCAL_ROOT), html=True), name="local_host")
     app.mount("/", create_app(db, settings, bot=None), name="miniapp")
     return app
@@ -137,6 +217,7 @@ def build_local_app(db: Database, settings: Settings) -> FastAPI:
 
 def main() -> None:
     port = int(os.getenv("LOCAL_PORT", os.getenv("PORT", "8000")) or "8000")
+    stop_port_listeners(port)
     db_path = os.getenv("DB_PATH", "data/dnd_bot.sqlite3")
     settings = Settings(
         bot_token="",
@@ -160,15 +241,19 @@ def main() -> None:
             return
         raise
     app = build_local_app(db, settings)
+    player_ip = preferred_local_ipv4()
+    player_url = f"http://{player_ip}:{port}/local/" if player_ip else f"http://localhost:{port}/local/"
 
     print("")
-    print("DND local site is starting.")
-    print(f"Host page: http://localhost:{port}/local/")
-    for ip in local_ipv4_addresses():
-        print(f"Wi-Fi/LAN:  http://{ip}:{port}/local/")
-    print("Press Ctrl+C to stop.")
+    print("DND local site is running.")
+    print("Give this link to players:")
+    print(player_url)
     print("")
-    uvicorn.run(app, host=settings.host, port=settings.port, log_level="info")
+    print("Press Ctrl+C to stop.")
+    print("If a phone shows detail: Not Found, close old server windows and start local_host\\START_LOCAL_SITE.bat again.")
+    print("If phones cannot open the link at all, run local_host\\ALLOW_FIREWALL_PORT_8000_AS_ADMIN.bat once.")
+    print("")
+    uvicorn.run(app, host=settings.host, port=settings.port, log_level="warning")
 
 
 if __name__ == "__main__":

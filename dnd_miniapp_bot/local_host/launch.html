@@ -45,7 +45,12 @@
       else localStorage.removeItem('dev_view_character_id');
       localStorage.setItem('campaign_id', localCampaignId);
       localStorage.setItem('local_host_mode', localCharacterId ? 'player' : 'host');
-      window.location.replace('/');
+      const appParams = new URLSearchParams({
+        local_tg_id: localTgId,
+        campaign_id: localCampaignId,
+      });
+      if (localCharacterId) appParams.set('local_character_id', localCharacterId);
+      window.location.replace(`/local-app/?${appParams.toString()}`);
     }
   </script>
 </body>

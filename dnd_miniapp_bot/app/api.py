@@ -290,6 +290,10 @@ class CyberInventorySlotIn(BaseModel):
     slot_id: str = Field(min_length=1, max_length=80)
     item_id: int | None = Field(default=None, ge=1)
 
+class FantasyInventorySlotIn(BaseModel):
+    slot_id: str = Field(min_length=1, max_length=80)
+    item_id: int | None = Field(default=None, ge=1)
+
 class ReloadRequestIn(BaseModel):
     magazine_id: int = Field(ge=1)
 
@@ -933,7 +937,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "map_pings": [] if not MAPS_FEATURE_ENABLED else db.list_active_pings(campaign_id),
             "inventory_requests": db.list_inventory_requests(campaign_id) if role == "master" else [],
             "inventories": {str(ch["id"]): db.list_inventory(int(ch["id"])) for ch in inventory_characters},
-            "cyber_inventory_slots": {str(ch["id"]): db.list_cyber_inventory_slots(int(ch["id"])) for ch in inventory_characters} if c.get("rule_type") == "cyberpunk" else {},
+            "cyber_inventory_slots": {str(ch["id"]): db.list_cyber_inventory_slots(int(ch["id"])) for ch in inventory_characters} if c.get("rule_type") in {"cyberpunk", "fantasy"} else {},
             "cyber": cyber,
         }
 
@@ -1863,6 +1867,21 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             raise HTTPException(403, "Нет доступа к кибер-инвентарю")
         try:
             slots = db.set_cyber_inventory_slot(character_id, data.mode, data.slot_id, data.item_id)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        return {"slots": slots, "inventory": db.list_inventory(character_id)}
+
+    @app.post("/api/characters/{character_id}/fantasy-inventory/slot")
+    async def set_fantasy_inventory_slot(character_id: int, data: FantasyInventorySlotIn, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
+        ch = _character_or_404(db, character_id)
+        campaign = _campaign_or_404(db, int(ch["campaign_id"]))
+        if campaign.get("rule_type") != "fantasy":
+            raise HTTPException(400, "Фэнтези-инвентарь доступен только в фэнтези-кампаниях")
+        role = _role(db, int(ch["campaign_id"]), user.id)
+        if role != "master" and int(ch.get("telegram_user_id") or 0) != int(user.id):
+            raise HTTPException(403, "Нет доступа к фэнтези-инвентарю")
+        try:
+            slots = db.set_cyber_inventory_slot(character_id, "fantasy", data.slot_id, data.item_id)
         except ValueError as exc:
             raise HTTPException(400, str(exc))
         return {"slots": slots, "inventory": db.list_inventory(character_id)}

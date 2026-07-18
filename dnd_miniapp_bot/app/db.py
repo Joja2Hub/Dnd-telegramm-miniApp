@@ -2729,7 +2729,9 @@ class Database:
         ]
 
     def set_cyber_inventory_slot(self, character_id: int, mode: str, slot_id: str, item_id: int | None) -> list[dict[str, Any]]:
-        mode = "gear" if str(mode) == "gear" else "implants"
+        mode = str(mode or "implants")
+        if mode not in {"implants", "gear", "fantasy"}:
+            mode = "implants"
         slot_id = str(slot_id or "").strip()[:80]
         if not slot_id:
             raise ValueError("Слот не найден")

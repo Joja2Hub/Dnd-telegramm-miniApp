@@ -28,6 +28,21 @@ if (localStorage.getItem('ui_state_version') !== UI_STATE_VERSION) {
   localStorage.setItem('ui_state_version', UI_STATE_VERSION);
 }
 
+function applyLocalLaunchParams() {
+  const params = new URLSearchParams(window.location.search || '');
+  const localTgId = params.get('local_tg_id') || '';
+  const localCampaignId = params.get('campaign_id') || '';
+  const localCharacterId = params.get('local_character_id') || '';
+  if (!localTgId || !localCampaignId) return;
+  localStorage.setItem('dev_tg_id', localTgId);
+  localStorage.setItem('campaign_id', localCampaignId);
+  localStorage.setItem('local_host_mode', localCharacterId ? 'player' : 'host');
+  if (localCharacterId) localStorage.setItem('dev_view_character_id', localCharacterId);
+  else localStorage.removeItem('dev_view_character_id');
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+applyLocalLaunchParams();
+
 const state = {
   me: null,
   currentCampaignId: Number(localStorage.getItem('campaign_id') || 0),
@@ -59,6 +74,7 @@ const state = {
   cyberInventoryPickedItemId: 0,
   cyberInventorySelectedItemId: 0,
   cyberInventorySelectedSlot: null,
+  fantasyInventoryPortraitByCharacter: {},
 };
 const CUSTOMIZATION_COLLAPSED_BY_DEFAULT_KEYS = new Set([
   'player-custom-frames', 'player-custom-effects',
@@ -3534,7 +3550,8 @@ async function init() {
     startAutoRefresh();
     setupPullToRefresh();
   } catch (e) {
-    app(`<div class="card"><div class="title">Ошибка входа</div>${msg(e.message, 'error')}<p class="muted">Если запускаешь не внутри Telegram, включи DEV_MODE=1 и введи Telegram ID.</p><button onclick="resetDev()">Сбросить dev ID</button></div>`);
+    const localBack = localStorage.getItem('local_host_mode') ? '<button class="secondary" onclick="location.href=\'/local/\'">Вернуться к выбору персонажа</button>' : '';
+    app(`<div class="card"><div class="title">Ошибка входа</div>${msg(e.message, 'error')}<p class="muted">Если запускаешь не внутри Telegram, включи DEV_MODE=1 и введи Telegram ID.</p><button onclick="resetDev()">Сбросить dev ID</button>${localBack}</div>`);
   }
 }
 
@@ -3705,9 +3722,10 @@ function renderCampaign() {
   rememberUiScroll();
   const c = state.campaignState.campaign;
   const role = state.campaignState.role;
+  const visualInventoryEnabled = ['cyberpunk', 'fantasy'].includes(state.campaignState?.campaign?.rule_type);
   const tabs = role === 'master'
-    ? ['characters','combat', ...(MAPS_FEATURE_ENABLED ? ['maps'] : []), 'requests', ...(state.campaignState?.campaign?.rule_type === 'cyberpunk' ? ['cyber_inventory','netrunner_master'] : []), 'achievements','settings','journal']
-    : ['characters','party', ...(MAPS_FEATURE_ENABLED ? ['maps'] : []), 'combat', ...(state.campaignState?.campaign?.rule_type === 'cyberpunk' ? ['cyber_inventory'] : []), ...(state.campaignState?.cyber?.is_netrunner ? ['netrunner'] : []), 'achievements','settings'];
+    ? ['characters','combat', ...(MAPS_FEATURE_ENABLED ? ['maps'] : []), 'requests', ...(visualInventoryEnabled ? ['cyber_inventory'] : []), ...(state.campaignState?.campaign?.rule_type === 'cyberpunk' ? ['netrunner_master'] : []), 'achievements','settings','journal']
+    : ['characters','party', ...(MAPS_FEATURE_ENABLED ? ['maps'] : []), 'combat', ...(visualInventoryEnabled ? ['cyber_inventory'] : []), ...(state.campaignState?.cyber?.is_netrunner ? ['netrunner'] : []), 'achievements','settings'];
   if (!tabs.includes(state.tab)) state.tab = state.tab === 'generators' ? 'settings' : 'characters';
   const unreadAchievements = (state.campaignState?.achievement_grants || []).some(g => !g.opened_at);
   const tabHtml = `<nav class="tabs bottom-nav">${tabs.map(id => `<button class="${state.tab===id?'active':''}" title="${esc(navLabel(id, role))}" aria-label="${esc(navLabel(id, role))}" onclick="setTab('${id}')">${navIcon(id)}${id==='achievements' && unreadAchievements ? '<span class="nav-dot"></span>' : ''}</button>`).join('')}</nav>`;
@@ -4833,6 +4851,31 @@ async function cyberHackDecision(approve){ try { await api(`/api/campaigns/${sta
 async function cyberDamage(target){ try { const damage=Number(val(target==='runner'?'cyberRunnerDamage':'cyberGuardianDamage')||0); await api(`/api/campaigns/${state.currentCampaignId}/cyber/damage`,{method:'POST',body:{target,damage}}); await refreshAll(); } catch(e){showToast(e.message,'error');} }
 async function cyberDebug(){ try { await api(`/api/campaigns/${state.currentCampaignId}/cyber/debug`,{method:'POST',body:{runner_hp:Number(val('cyberDebugRunnerHp')),runner_net_hp:Number(val('cyberDebugRunnerNetHp')),guardian_hp:Number(val('cyberDebugGuardianHp')),guardian_ac:Number(val('cyberDebugGuardianAc'))}}); await refreshAll(); } catch(e){showToast(e.message,'error');} }
 
+function isFantasyCampaign() {
+  return state.campaignState?.campaign?.rule_type === 'fantasy';
+}
+function hasVisualInventory() {
+  return ['cyberpunk', 'fantasy'].includes(state.campaignState?.campaign?.rule_type);
+}
+function visualInventoryMode() {
+  return isFantasyCampaign() ? 'fantasy' : (state.cyberInventoryMode === 'gear' ? 'gear' : 'implants');
+}
+
+const FANTASY_INVENTORY_PORTRAITS = [
+  '/inventory_body_cutout_fantsy.png',
+  '/inventory_body_cutout_fantsy_sword.png',
+  '/inventory_body_cutout_fantsy_rogue.png',
+];
+
+function fantasyInventoryPortraitFor(ch) {
+  const key = String(ch?.id || 'default');
+  if (!state.fantasyInventoryPortraitByCharacter[key]) {
+    const index = Math.floor(Math.random() * FANTASY_INVENTORY_PORTRAITS.length);
+    state.fantasyInventoryPortraitByCharacter[key] = FANTASY_INVENTORY_PORTRAITS[index] || FANTASY_INVENTORY_PORTRAITS[0];
+  }
+  return state.fantasyInventoryPortraitByCharacter[key];
+}
+
 const CYBER_INV_MODES = {
   implants: [
     { id:'brain-1', label:'Мозг 1', x:15, y:5, accepts:['brain','cyber'], lineX:50.407827833075324, lineY:27.266665649414062 },
@@ -4855,6 +4898,16 @@ const CYBER_INV_MODES = {
     { id:'clothes', label:'Одежда', x:85, y:30, accepts:['clothes'], lineX:50, lineY:40 },
     { id:'weapon-1', label:'Оружие 1', x:15, y:60, accepts:['weapon'], lineX:35, lineY:55 },
     { id:'weapon-2', label:'Оружие 2', x:85, y:60, accepts:['weapon'], lineX:65, lineY:55 }
+  ],
+  fantasy: [
+    { id:'armor', label:'Броня', x:15, y:34, accepts:['armor','clothes','cyber'], lineX:48, lineY:42 },
+    { id:'weapon-1', label:'Оружие 1', x:85, y:29, accepts:['weapon'], lineX:64, lineY:47 },
+    { id:'weapon-2', label:'Оружие 2', x:85, y:46, accepts:['weapon'], lineX:67, lineY:58 },
+    { id:'accessory-1', label:'Доп 1', x:10, y:87, accepts:['accessory','equipment','cyber'], lineX:42, lineY:67 },
+    { id:'accessory-2', label:'Доп 2', x:30, y:87, accepts:['accessory','equipment','cyber'], lineX:47, lineY:72 },
+    { id:'accessory-3', label:'Доп 3', x:50, y:87, accepts:['accessory','equipment','cyber'], lineX:50, lineY:70 },
+    { id:'accessory-4', label:'Доп 4', x:70, y:87, accepts:['accessory','equipment','cyber'], lineX:53, lineY:72 },
+    { id:'accessory-5', label:'Доп 5', x:90, y:87, accepts:['accessory','equipment','cyber'], lineX:58, lineY:67 }
   ]
 };
 
@@ -4910,14 +4963,16 @@ function cyberItemById(ch, itemId) {
 function cyberItemIcon(it) {
   if (!it) return '•';
   if (it.emoji) return it.emoji;
-  if (it.item_type === 'weapon') return '🔫';
+  if (it.item_type === 'weapon') return isFantasyCampaign() ? '⚔️' : '🔫';
   const kind = cyberItemKind(it);
-  return ({eyes:'👁️', brain:'🧠', organ:'🫀', arms:'🦾', palms:'✋', skin:'🔳', body:'🫁', legs:'🦿', armor:'🧥', clothes:'👕', ammo:'📦', equipment:'🧰', cyber:'✦'})[kind] || '📦';
+  return ({eyes:'👁️', brain:'🧠', organ:'🫀', arms:'🦾', palms:'✋', skin:'🔳', body:'🫁', legs:'🦿', armor:'🧥', clothes:'👕', weapon:'⚔️', accessory:'💍', ammo:'📦', equipment:'🧰', cyber:'✦'})[kind] || '📦';
 }
 function cyberItemKind(it) {
   if (!it) return 'cyber';
   if (it.item_type === 'weapon') return 'weapon';
   const text = `${it.name || ''} ${it.description || ''}`.toLowerCase();
+  if (/меч|кинжал|лук|арбалет|посох|топор|копь|молот|булав|рапир|клинок|sword|dagger|bow|crossbow|staff|axe|spear|mace|blade|weapon/.test(text)) return 'weapon';
+  if (/кольц|амулет|талисман|браслет|ожерель|перстен|аксессуар|ring|amulet|talisman|bracelet|necklace|accessory/.test(text)) return 'accessory';
   if (/патрон|боеприпас|ammo|bullet/.test(text)) return 'ammo';
   if (/оборуд|гаджет|модул|сканер|раци|tool|gear|gadget|module/.test(text)) return 'equipment';
   if (/брон|armor|куртк|vest/.test(text)) return 'armor';
@@ -4979,38 +5034,44 @@ function cyberActiveMagazine(weapon) {
   return (weapon.magazines || []).find(mag => Number(mag.id) === Number(weapon.active_magazine_id)) || null;
 }
 function renderCyberInventory() {
-  if (state.campaignState?.campaign?.rule_type !== 'cyberpunk') return '<div class="card muted">Кибер-инвентарь доступен только в кампании Киберпанк.</div>';
+  if (!hasVisualInventory()) return '<div class="card muted">Инвентарь доступен только в кампании Киберпанк или Фэнтези.</div>';
   const ch = activeCyberInventoryCharacter();
   if (!ch) return '<div class="card muted">Персонаж не найден.</div>';
-  const activeWeapon = state.cyberInventoryWeaponId ? cyberItemById(ch, state.cyberInventoryWeaponId) : null;
-  if (state.cyberInventoryWeaponId && (!activeWeapon || activeWeapon.item_type !== 'weapon')) setCyberInventoryWeapon(0, false);
-  else if (activeWeapon?.item_type === 'weapon') return renderCyberWeaponInventory(ch, activeWeapon);
+  const fantasy = isFantasyCampaign();
+  if (fantasy && state.cyberInventoryWeaponId) setCyberInventoryWeapon(0, false);
+  const activeWeapon = !fantasy && state.cyberInventoryWeaponId ? cyberItemById(ch, state.cyberInventoryWeaponId) : null;
+  if (!fantasy && state.cyberInventoryWeaponId && (!activeWeapon || activeWeapon.item_type !== 'weapon')) setCyberInventoryWeapon(0, false);
+  else if (!fantasy && activeWeapon?.item_type === 'weapon') return renderCyberWeaponInventory(ch, activeWeapon);
   const chars = cyberInventoryCharacters();
-  const mode = state.cyberInventoryMode === 'gear' ? 'gear' : 'implants';
+  const mode = visualInventoryMode();
   const picker = state.campaignState?.role === 'master' ? `<select class="cyber-inv-character-select" onchange="setCyberInventoryCharacter(this.value)">${chars.map(c => `<option value="${c.id}" ${Number(c.id)===Number(ch.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>` : '';
   const slots = renderCyberInventorySlots(ch, mode);
   const bag = renderCyberInventoryBag(ch);
   const bagCount = cyberInventoryBagEntries(ch).length;
-  return `<div class="cyber-inventory-screen ${state.cyberInventoryPickedItemId ? 'picking' : ''}">
-    <div class="cyber-inv-top">
-      <div><span class="cyber-inv-eyebrow">cyberware / inventory</span><div class="name">🎒 ${esc(ch.name || 'Инвентарь')}</div></div>
-      ${picker}
-    </div>
-    <section class="cyber-inv-mode" aria-label="Режим инвентаря">
+  const modeSwitcher = fantasy ? '' : `<section class="cyber-inv-mode" aria-label="Режим инвентаря">
       <button class="${mode==='implants'?'active':''}" onclick="setCyberInventoryMode('implants')">Импланты</button>
       <button class="${mode==='gear'?'active':''}" onclick="setCyberInventoryMode('gear')">Броня / одежда</button>
-    </section>
+    </section>`;
+  const figureSrc = fantasy ? fantasyInventoryPortraitFor(ch) : '/inventory_body_cutout.png';
+  const weaponCreateButton = !fantasy && state.campaignState?.campaign?.weapons_enabled ? `<button onclick="openItemModal(${Number(ch.id)}, 'weapon')">🔫</button>` : '';
+  const bagCaption = fantasy ? `${bagCount} карточек · предметы, броня и снаряжение` : `${bagCount} карточек · предметы и оружие`;
+  return `<div class="cyber-inventory-screen ${fantasy ? 'fantasy-inventory-screen' : ''} ${state.cyberInventoryPickedItemId ? 'picking' : ''}">
+    <div class="cyber-inv-top">
+      <div><span class="cyber-inv-eyebrow">${fantasy ? 'fantasy inventory' : 'cyberware / inventory'}</span><div class="name">🎒 ${esc(ch.name || 'Инвентарь')}</div></div>
+      ${picker}
+    </div>
+    ${modeSwitcher}
     <section class="cyber-inv-stage-card">
       <div class="cyber-inv-stage" id="cyberInvStage">
-        <div class="cyber-inv-figure"><img src="/inventory_body_cutout.png" alt=""></div>
+        <div class="cyber-inv-figure"><img src="${figureSrc}" alt=""></div>
         <svg class="cyber-inv-lines" id="cyberInvLines" aria-hidden="true"></svg>
         <div class="cyber-inv-slot-map">${slots}</div>
       </div>
     </section>
     <section class="cyber-inv-bag-card">
       <div class="cyber-inv-bag-head">
-        <div><b>Сумка</b><span>${bagCount} карточек · предметы и оружие</span></div>
-        <div class="cyber-inv-bag-actions"><button onclick="openItemModal(${Number(ch.id)}, 'normal')">＋</button>${state.campaignState?.campaign?.weapons_enabled?`<button onclick="openItemModal(${Number(ch.id)}, 'weapon')">🔫</button>`:''}</div>
+        <div><b>Сумка</b><span>${bagCaption}</span></div>
+        <div class="cyber-inv-bag-actions"><button onclick="openItemModal(${Number(ch.id)}, 'normal')">＋</button>${weaponCreateButton}</div>
       </div>
       <div class="cyber-inv-bag-grid">${bag}</div>
     </section>
@@ -5023,7 +5084,7 @@ function renderCyberInventorySlots(ch, mode) {
   return (CYBER_INV_MODES[mode] || []).map(slot => {
     const itemId = slotMap[`${mode}:${slot.id}`];
     const it = itemId ? cyberItemById(ch, itemId) : null;
-    const ammo = it?.item_type === 'weapon' ? cyberWeaponAmmoText(it) : '';
+    const ammo = it?.item_type === 'weapon' && !isFantasyCampaign() ? cyberWeaponAmmoText(it) : '';
     const cls = ['cyber-inv-slot'];
     if (it) cls.push('busy');
     if (picked && cyberCanEquip(picked, slot)) cls.push('compatible');
@@ -5072,7 +5133,7 @@ function renderCyberInventoryBagItem(ch, entry) {
     ${equipped ? '<span class="cyber-inv-equipped-badge">✓</span>' : ''}
     <span class="cyber-inv-bag-icon">${esc(cyberItemIcon(it))}</span>
     <span class="cyber-inv-bag-name">${esc(it.name)}</span>
-    <span class="cyber-inv-qty">${esc(it.item_type === 'weapon' ? cyberWeaponAmmoText(it) : (it.quantity || 1))}</span>
+    <span class="cyber-inv-qty">${esc(it.item_type === 'weapon' && !isFantasyCampaign() ? cyberWeaponAmmoText(it) : (it.quantity || 1))}</span>
   </button>`;
 }
 function renderCyberWeaponInventory(ch, weapon) {
@@ -5140,7 +5201,7 @@ function renderCyberInventorySheet(ch) {
   if (!it) return '';
   const equipped = cyberEquippedSlotForItem(ch, it.id);
   const slot = equipped ? cyberSlotById(equipped.mode, equipped.slot_id) : null;
-  const weaponControls = it.item_type === 'weapon' ? renderCyberInventoryWeaponControls(it) : '';
+  const weaponControls = it.item_type === 'weapon' && !isFantasyCampaign() ? renderCyberInventoryWeaponControls(it) : '';
   return `<aside class="cyber-inv-sheet open">
     <div class="cyber-inv-sheet-head">
       <div class="cyber-inv-item-summary"><div class="cyber-inv-big-icon">${esc(cyberItemIcon(it))}</div><div><strong>${esc(it.name)}</strong><span>${it.item_type==='weapon'?'Оружие':`Количество: ${esc(it.quantity || 1)}`}${slot?` · ${esc(slot.label)}`:''}</span></div></div>
@@ -5150,7 +5211,7 @@ function renderCyberInventorySheet(ch) {
     ${weaponControls}
     <div class="cyber-inv-sheet-actions">
       <button class="primary" onclick="pickCyberInventoryItem(${Number(it.id)})">Выбрать</button>
-      <button onclick="${it.item_type==='weapon' ? `openWeaponSettings(${Number(it.id)})` : `openItemEditModal(${Number(it.id)})`}">Изменить</button>
+      <button onclick="${it.item_type==='weapon' && !isFantasyCampaign() ? `openWeaponSettings(${Number(it.id)})` : `openItemEditModal(${Number(it.id)})`}">Изменить</button>
       <button class="danger" ${equipped?'':'disabled'} onclick="cyberUnequipItem(${Number(ch.id)}, '${equipped ? esc(equipped.mode) : 'implants'}', '${equipped ? esc(equipped.slot_id) : ''}')">Снять</button>
     </div>
   </aside>`;
@@ -5159,10 +5220,10 @@ function openCyberInventoryItemModal(characterId, itemId) {
   const ch = findChar(characterId) || activeCyberInventoryCharacter();
   const it = cyberItemById(ch, itemId);
   if (!it) return showToast('Предмет не найден', 'error');
-  if (it.item_type === 'weapon') return setCyberInventoryWeapon(it.id);
+  if (it.item_type === 'weapon' && !isFantasyCampaign()) return setCyberInventoryWeapon(it.id);
   const equipped = cyberEquippedSlotForItem(ch, it.id);
   const slot = equipped ? cyberSlotById(equipped.mode, equipped.slot_id) : null;
-  const weaponControls = it.item_type === 'weapon' ? renderCyberInventoryWeaponControls(it) : '';
+  const weaponControls = it.item_type === 'weapon' && !isFantasyCampaign() ? renderCyberInventoryWeaponControls(it) : '';
   showModal(`<div class="modal-card compact cyber-inv-item-modal">
     <button class="modal-close" onclick="closeModal()">×</button>
     <div class="cyber-inv-item-summary modal-summary"><div class="cyber-inv-big-icon">${esc(cyberItemIcon(it))}</div><div><strong>${esc(it.name)}</strong><span>${it.item_type==='weapon'?'Оружие':`Количество: ${esc(it.quantity || 1)}`}${slot?` · ${esc(slot.label)}`:''}</span></div></div>
@@ -5221,13 +5282,16 @@ function cyberInventorySlotTap(characterId, mode, slotId) {
   }
   if (slotItemId) {
     const slotItem = cyberItemById(ch, slotItemId);
-    if (slotItem?.item_type === 'weapon') openCyberEquippedWeaponModal(characterId, Number(slotItemId));
+    if (slotItem?.item_type === 'weapon' && !isFantasyCampaign()) openCyberEquippedWeaponModal(characterId, Number(slotItemId));
     else openCyberInventoryItemModal(characterId, Number(slotItemId));
   }
 }
 async function cyberEquipItem(characterId, mode, slotId, itemId) {
   try {
-    const out = await api(`/api/characters/${characterId}/cyber-inventory/slot`, {method:'POST', body:{mode, slot_id:slotId, item_id:Number(itemId)}});
+    const fantasy = mode === 'fantasy';
+    const endpoint = fantasy ? `/api/characters/${characterId}/fantasy-inventory/slot` : `/api/characters/${characterId}/cyber-inventory/slot`;
+    const body = fantasy ? {slot_id:slotId, item_id:Number(itemId)} : {mode, slot_id:slotId, item_id:Number(itemId)};
+    const out = await api(endpoint, {method:'POST', body});
     if (state.campaignState?.cyber_inventory_slots) state.campaignState.cyber_inventory_slots[String(characterId)] = out.slots || [];
     if (state.campaignState?.inventories) state.campaignState.inventories[String(characterId)] = out.inventory || currentInventory({id:characterId});
     state.cyberInventoryPickedItemId = 0;
@@ -5239,7 +5303,10 @@ async function cyberEquipItem(characterId, mode, slotId, itemId) {
 async function cyberUnequipItem(characterId, mode, slotId) {
   if (!slotId) return;
   try {
-    const out = await api(`/api/characters/${characterId}/cyber-inventory/slot`, {method:'POST', body:{mode, slot_id:slotId, item_id:null}});
+    const fantasy = mode === 'fantasy';
+    const endpoint = fantasy ? `/api/characters/${characterId}/fantasy-inventory/slot` : `/api/characters/${characterId}/cyber-inventory/slot`;
+    const body = fantasy ? {slot_id:slotId, item_id:null} : {mode, slot_id:slotId, item_id:null};
+    const out = await api(endpoint, {method:'POST', body});
     if (state.campaignState?.cyber_inventory_slots) state.campaignState.cyber_inventory_slots[String(characterId)] = out.slots || [];
     if (state.campaignState?.inventories) state.campaignState.inventories[String(characterId)] = out.inventory || currentInventory({id:characterId});
     showToast('Предмет снят', 'heal');
@@ -5265,7 +5332,7 @@ function drawCyberInventoryLines() {
   const stage = document.getElementById('cyberInvStage');
   const svg = document.getElementById('cyberInvLines');
   if (!stage || !svg) return;
-  const mode = state.cyberInventoryMode === 'gear' ? 'gear' : 'implants';
+  const mode = visualInventoryMode();
   svg.innerHTML = '';
   const rect = stage.getBoundingClientRect();
   svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
@@ -5351,7 +5418,7 @@ function startCyberInventoryPointer(event) {
       if (state.cyberInventoryPickedItemId) return;
       const ch = findChar(characterId) || activeCyberInventoryCharacter();
       const it = cyberItemById(ch, itemId);
-      if (it?.item_type === 'weapon') setCyberInventoryWeapon(itemId);
+      if (it?.item_type === 'weapon' && !isFantasyCampaign()) setCyberInventoryWeapon(itemId);
       else openCyberInventoryItemModal(characterId, itemId);
       return;
     }
@@ -5865,7 +5932,7 @@ function currentInventory(ch) {
 function renderInventoryBlock(ch) {
   const items = currentInventory(ch);
   const c = state.campaignState?.campaign || {};
-  if (c.rule_type === 'cyberpunk') return '';
+  if (['cyberpunk', 'fantasy'].includes(c.rule_type)) return '';
   const list = items.length ? renderInventoryRows(ch, items) : '<div class="muted">Инвентарь пуст.</div>';
   const weaponBtn = c.weapons_enabled ? `<button class="secondary" onclick="openItemModal(${ch.id}, 'weapon')">🔫 Оружие</button>` : '';
   const hint = c.weapons_enabled ? '' : '<div class="muted small">Оружейная система выключена в этой кампании.</div>';
