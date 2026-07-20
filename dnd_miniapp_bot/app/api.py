@@ -151,6 +151,7 @@ class AchievementCreateIn(BaseModel):
     cosmetic_reward_id: str | None = Field(default=None, max_length=80)
     cosmetic_effect_reward_id: str | None = Field(default=None, max_length=80)
     tag_reward_id: str | None = Field(default=None, max_length=80)
+    inventory_model_reward_id: str | None = Field(default=None, max_length=80)
     custom_tag_name: str = Field(default="", max_length=40)
     custom_tag_emoji: str = Field(default="", max_length=8)
     custom_tag_style: str = Field(default="tag_shape_classic", max_length=80)
@@ -180,7 +181,7 @@ class CurrencyGrantIn(BaseModel):
 
 class SparkTopUpIn(BaseModel):
     master_tg_id: int = Field(ge=1)
-    amount: int = Field(ge=1, le=1000000)
+    amount: int = Field(ge=-1000000, le=1000000)
     comment: str = Field(default="", max_length=500)
 
 
@@ -293,6 +294,16 @@ class CyberInventorySlotIn(BaseModel):
 class FantasyInventorySlotIn(BaseModel):
     slot_id: str = Field(min_length=1, max_length=80)
     item_id: int | None = Field(default=None, ge=1)
+
+class InventoryModelSelectIn(BaseModel):
+    model_id: str = Field(min_length=1, max_length=80)
+
+class InventoryModelSeenIn(BaseModel):
+    character_id: int | None = Field(default=None, ge=1)
+    model_ids: list[str] = Field(default_factory=list)
+
+class InventoryModelGrantIn(BaseModel):
+    character_id: int = Field(ge=1)
 
 class ReloadRequestIn(BaseModel):
     magazine_id: int = Field(ge=1)
@@ -925,9 +936,12 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "cosmetics": db.list_cosmetics(),
             "cosmetic_effects": db.list_cosmetic_effects(),
             "cosmetic_tags": db.list_tags(),
+            "inventory_models": db.list_inventory_models(),
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(viewer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(viewer_tg_id),
             "unlocked_tag_ids": db.list_unlocked_tag_ids(viewer_tg_id),
+            "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
+            "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
             "currency_transactions": db.list_currency_transactions(viewer_tg_id, 20),
             "spark_management": db.spark_management_state(user.id, is_admin=_is_spark_admin(db, settings, user)) if actual_role == "master" else None,
@@ -1627,6 +1641,9 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             cosmetic_tag = db.get_tag(tag_reward)
             if not cosmetic_tag or str(tag_reward) == "tag_none":
                 raise HTTPException(400, "Тэг-награда не найден")
+        model_reward = (data.inventory_model_reward_id or '').strip() or None
+        if model_reward and not db.get_inventory_model(model_reward):
+            raise HTTPException(400, "Модель-награда не найдена")
         try:
             ach = db.create_achievement(
                 campaign_id,
@@ -1639,6 +1656,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                 cosmetic_reward_id=reward,
                 cosmetic_effect_reward_id=effect_reward,
                 tag_reward_id=tag_reward,
+                inventory_model_reward_id=model_reward,
                 currency_reward=data.currency_reward,
             )
         except Exception as e:
@@ -1711,8 +1729,8 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         user: TelegramUser = Depends(get_current_user),
         x_dev_view_character_id: str | None = Header(default=None, alias="X-Dev-View-Character-Id"),
     ) -> dict[str, Any]:
-        # В dev-режиме мастер может открыть достижение как выбранный персонаж.
         viewer_tg_id = user.id
+        dev_character = None
         raw_grant = db._one("SELECT * FROM achievement_grants WHERE id=?", (int(grant_id),))
         if raw_grant and x_dev_view_character_id:
             dev_character = _dev_impersonated_character(db, settings, int(raw_grant.get("campaign_id") or 0), user, x_dev_view_character_id)
@@ -1721,13 +1739,27 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         try:
             grant = db.open_achievement_grant(grant_id, viewer_tg_id)
         except Exception as e:
-            raise HTTPException(404, str(e))
+            if not dev_character:
+                raise HTTPException(404, str(e))
+            raw_for_character = db._one(
+                "SELECT * FROM achievement_grants WHERE id=? AND character_id=?",
+                (int(grant_id), int(dev_character["id"])),
+            )
+            if not raw_for_character or not raw_for_character.get("telegram_user_id"):
+                raise HTTPException(404, str(e))
+            viewer_tg_id = int(raw_for_character["telegram_user_id"])
+            try:
+                grant = db.open_achievement_grant(grant_id, viewer_tg_id)
+            except Exception as fallback_error:
+                raise HTTPException(404, str(fallback_error))
         return {
             "grant": grant,
             "achievement_grants": db.list_player_achievement_grants(viewer_tg_id),
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(viewer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(viewer_tg_id),
             "unlocked_tag_ids": db.list_unlocked_tag_ids(viewer_tg_id),
+            "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
+            "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
             "currency_transactions": db.list_currency_transactions(viewer_tg_id, 20),
         }
@@ -1885,6 +1917,80 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         except ValueError as exc:
             raise HTTPException(400, str(exc))
         return {"slots": slots, "inventory": db.list_inventory(character_id)}
+
+    @app.post("/api/characters/{character_id}/inventory-model")
+    async def set_inventory_model(
+        character_id: int,
+        data: InventoryModelSelectIn,
+        user: TelegramUser = Depends(get_current_user),
+        x_dev_view_character_id: str | None = Header(default=None, alias="X-Dev-View-Character-Id"),
+    ) -> dict[str, Any]:
+        ch = _character_or_404(db, character_id)
+        campaign_id = int(ch["campaign_id"])
+        actual_role = _require_access(db, campaign_id, user)
+        dev_character = _dev_impersonated_character(db, settings, campaign_id, user, x_dev_view_character_id)
+        dev_ok = bool(dev_character and int(dev_character.get("id") or 0) == int(character_id))
+        owns_character = int(ch.get("telegram_user_id") or 0) == int(user.id)
+        if actual_role != "master" and not owns_character and not dev_ok:
+            raise HTTPException(403, "Нет доступа к модели этого персонажа")
+        viewer_tg_id = _effective_player_id_for_dev(user, ch) if dev_ok else int(ch.get("telegram_user_id") or user.id)
+        if actual_role != "master" or dev_ok:
+            if not db.has_inventory_model_unlocked(viewer_tg_id, data.model_id):
+                raise HTTPException(403, "Эта модель ещё не открыта")
+        try:
+            updated = db.set_character_inventory_model(character_id, data.model_id)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        model = updated.get("inventory_model") or db.get_inventory_model(data.model_id)
+        db.log(campaign_id, character_id, "inventory", f"{updated.get('name')}: выбрана модель инвентаря {model.get('name') if model else data.model_id}", {"inventory_model_id": data.model_id})
+        return {
+            "character": updated,
+            "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
+            "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
+        }
+
+    @app.post("/api/inventory-models/seen")
+    async def mark_inventory_models_seen(
+        data: InventoryModelSeenIn,
+        user: TelegramUser = Depends(get_current_user),
+        x_dev_view_character_id: str | None = Header(default=None, alias="X-Dev-View-Character-Id"),
+    ) -> dict[str, Any]:
+        viewer_tg_id = int(user.id)
+        if data.character_id:
+            ch = _character_or_404(db, int(data.character_id))
+            dev_character = _dev_impersonated_character(db, settings, int(ch.get("campaign_id") or 0), user, x_dev_view_character_id or data.character_id)
+            if dev_character and dev_character.get("telegram_user_id"):
+                viewer_tg_id = int(dev_character["telegram_user_id"])
+            elif int(ch.get("telegram_user_id") or 0) == int(user.id):
+                viewer_tg_id = int(user.id)
+            elif _role(db, int(ch.get("campaign_id") or 0), user.id) == "master" and ch.get("telegram_user_id"):
+                viewer_tg_id = int(ch["telegram_user_id"])
+        unseen = db.mark_inventory_models_seen(viewer_tg_id, data.model_ids or None)
+        return {
+            "unseen_inventory_model_ids": unseen,
+            "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
+        }
+
+    @app.post("/api/campaigns/{campaign_id}/inventory-models/{model_id}/grant")
+    async def grant_inventory_model(campaign_id: int, model_id: str, data: InventoryModelGrantIn, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        model = db.get_inventory_model(model_id)
+        if not model:
+            raise HTTPException(404, "Модель не найдена")
+        ch = _character_or_404(db, int(data.character_id))
+        if int(ch.get("campaign_id") or 0) != int(campaign_id):
+            raise HTTPException(400, "Персонаж из другой кампании")
+        tg_id = ch.get("telegram_user_id")
+        if not tg_id:
+            raise HTTPException(400, "Персонаж ещё не привязан к игроку")
+        db.unlock_inventory_model(int(tg_id), str(model_id), source="master_grant", source_id=int(campaign_id))
+        db.log(campaign_id, int(ch["id"]), "inventory", f"{ch['name']}: выдана модель {model.get('name')}", {"inventory_model_id": model_id, "target_tg_id": int(tg_id)})
+        return {
+            "model": db.get_inventory_model(model_id),
+            "character": db.get_character(int(ch["id"])),
+            "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(int(tg_id)),
+            "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(int(tg_id)),
+        }
 
     @app.patch("/api/inventory/items/{item_id}")
     async def patch_inventory_item(item_id: int, data: InventoryPatchIn, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
@@ -2092,8 +2198,10 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
     async def top_up_master_sparks(data: SparkTopUpIn, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
         if not _is_spark_admin(db, settings, user):
             raise HTTPException(403, "Пополнять запас искр может только главный мастер")
+        if int(data.amount) == 0:
+            raise HTTPException(400, "Количество искр не может быть нулевым")
         try:
-            balance = db.top_up_master_sparks(data.master_tg_id, data.amount, comment=data.comment or "Пополнение главным мастером", created_by_tg_id=user.id)
+            balance = db.top_up_master_sparks(data.master_tg_id, data.amount, comment=data.comment or "Корректировка главным мастером", created_by_tg_id=user.id)
         except Exception as e:
             raise HTTPException(400, str(e))
         return {"balance": balance, "spark_management": db.spark_management_state(user.id, is_admin=True)}

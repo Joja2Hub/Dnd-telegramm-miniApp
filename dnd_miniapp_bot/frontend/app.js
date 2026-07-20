@@ -33,9 +33,14 @@ function applyLocalLaunchParams() {
   const localTgId = params.get('local_tg_id') || '';
   const localCampaignId = params.get('campaign_id') || '';
   const localCharacterId = params.get('local_character_id') || '';
-  if (!localTgId || !localCampaignId) return;
+  const localUsername = params.get('local_tg_username') || '';
+  const localFirstName = params.get('local_tg_first_name') || localUsername || '';
+  if (!localTgId) return;
   localStorage.setItem('dev_tg_id', localTgId);
-  localStorage.setItem('campaign_id', localCampaignId);
+  if (localUsername) localStorage.setItem('dev_tg_username', localUsername.replace(/^@+/, ''));
+  if (localFirstName) localStorage.setItem('dev_tg_first_name', localFirstName);
+  if (localCampaignId) localStorage.setItem('campaign_id', localCampaignId);
+  else localStorage.removeItem('campaign_id');
   localStorage.setItem('local_host_mode', localCharacterId ? 'player' : 'host');
   if (localCharacterId) localStorage.setItem('dev_view_character_id', localCharacterId);
   else localStorage.removeItem('dev_view_character_id');
@@ -3294,6 +3299,10 @@ function authHeaders() {
       if (dev) localStorage.setItem('dev_tg_id', dev);
     }
     if (dev) headers['X-Dev-Telegram-Id'] = dev;
+    const devUsername = (localStorage.getItem('dev_tg_username') || '').replace(/^@+/, '');
+    const devFirstName = localStorage.getItem('dev_tg_first_name') || '';
+    if (devUsername) headers['X-Dev-Telegram-Username'] = devUsername;
+    if (devFirstName) headers['X-Dev-Telegram-First-Name'] = devFirstName;
   }
   return headers;
 }
@@ -3728,7 +3737,8 @@ function renderCampaign() {
     : ['characters','party', ...(MAPS_FEATURE_ENABLED ? ['maps'] : []), 'combat', ...(visualInventoryEnabled ? ['cyber_inventory'] : []), ...(state.campaignState?.cyber?.is_netrunner ? ['netrunner'] : []), 'achievements','settings'];
   if (!tabs.includes(state.tab)) state.tab = state.tab === 'generators' ? 'settings' : 'characters';
   const unreadAchievements = (state.campaignState?.achievement_grants || []).some(g => !g.opened_at);
-  const tabHtml = `<nav class="tabs bottom-nav">${tabs.map(id => `<button class="${state.tab===id?'active':''}" title="${esc(navLabel(id, role))}" aria-label="${esc(navLabel(id, role))}" onclick="setTab('${id}')">${navIcon(id)}${id==='achievements' && unreadAchievements ? '<span class="nav-dot"></span>' : ''}</button>`).join('')}</nav>`;
+  const unreadModels = hasUnseenInventoryModels();
+  const tabHtml = `<nav class="tabs bottom-nav">${tabs.map(id => `<button class="${state.tab===id?'active':''}" title="${esc(navLabel(id, role))}" aria-label="${esc(navLabel(id, role))}" onclick="setTab('${id}')">${navIcon(id)}${id==='achievements' && unreadAchievements ? '<span class="nav-dot"></span>' : ''}${id==='cyber_inventory' && unreadModels ? '<span class="nav-dot"></span>' : ''}</button>`).join('')}</nav>`;
   let body = '';
   if (state.tab === 'characters') body = role === 'master' ? renderMasterCharacters() : renderPlayerCharacter();
   if (state.tab === 'combat') body = role === 'master' ? renderMasterCombat() : renderPlayerCombat();
@@ -4536,7 +4546,7 @@ function setDevViewCharacter(value) {
 
 function sparkManagement() { return state.campaignState?.spark_management || {}; }
 function sparkKindLabel(kind) {
-  return ({grant:'выдача', revoke:'коррекция', topup:'пополнение', achievement:'ачивка'})[String(kind || '')] || String(kind || 'операция');
+  return ({grant:'выдача', revoke:'коррекция', topup:'пополнение', admin_revoke:'снятие', achievement:'ачивка'})[String(kind || '')] || String(kind || 'операция');
 }
 function sparkGuideHtml() {
   return `<div class="spark-guide">
@@ -4571,8 +4581,9 @@ function renderSparkAdminMasters(sm) {
     return `<details class="spark-master-card custom-collapse" ${sectionAttrs('spark-master-'+id)}>
       <summary><div><b>${esc(m.display_name || ('Мастер TG '+id))}</b><small>${esc(m.campaign_names || 'Кампании не указаны')}</small></div><span class="spark-balance-pill">✦ ${esc(m.balance || 0)}</span></summary>
       <div class="custom-collapse-body stack">
-        <div class="grid two"><label>Пополнить запас<input id="sparkTopupAmount_${id}" type="number" min="1" value="500"></label><label>Комментарий<input id="sparkTopupComment_${id}" placeholder="Плановая выдача / бонус за сезон"></label></div>
-        <button class="ok small" onclick="topUpMasterSparks(${id})">Пополнить запас мастера</button>
+        <div class="quick-spark-row"><button class="small secondary" onclick="setVal('sparkTopupAmount_${id}', 500)">+500</button><button class="small secondary" onclick="setVal('sparkTopupAmount_${id}', 2000)">+2000</button><button class="small secondary" onclick="setVal('sparkTopupAmount_${id}', -500)">-500</button><button class="small secondary" onclick="setVal('sparkTopupAmount_${id}', -2000)">-2000</button></div>
+        <div class="grid two"><label>Изменить запас<input id="sparkTopupAmount_${id}" type="number" value="500"></label><label>Комментарий<input id="sparkTopupComment_${id}" placeholder="Пополнение / снятие / корректировка"></label></div>
+        <button class="ok small" onclick="topUpMasterSparks(${id})">Применить изменение запаса</button>
         <div class="spark-subtitle">История мастера</div>${sparkHistoryHtml(m.history || [])}
       </div>
     </details>`;
@@ -4621,10 +4632,10 @@ function renderSparkManagementCard() {
 async function topUpMasterSparks(masterId) {
   try {
     const amount = Number(val(`sparkTopupAmount_${masterId}`) || 0);
-    if (!amount || amount < 1) throw new Error('Укажи положительное пополнение');
+    if (!amount) throw new Error('Укажи количество искр');
     const out = await api('/api/sparks/admin/top-up', {method:'POST', body:{master_tg_id:Number(masterId), amount, comment:val(`sparkTopupComment_${masterId}`)}});
     state.campaignState.spark_management = out.spark_management || state.campaignState.spark_management;
-    showToast('Запас искр пополнен', 'heal');
+    showToast('Запас искр изменён', 'heal');
     renderCampaign();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -4861,19 +4872,65 @@ function visualInventoryMode() {
   return isFantasyCampaign() ? 'fantasy' : (state.cyberInventoryMode === 'gear' ? 'gear' : 'implants');
 }
 
-const FANTASY_INVENTORY_PORTRAITS = [
-  '/inventory_body_cutout_fantsy.png',
-  '/inventory_body_cutout_fantsy_sword.png',
-  '/inventory_body_cutout_fantsy_rogue.png',
-];
-
-function fantasyInventoryPortraitFor(ch) {
-  const key = String(ch?.id || 'default');
-  if (!state.fantasyInventoryPortraitByCharacter[key]) {
-    const index = Math.floor(Math.random() * FANTASY_INVENTORY_PORTRAITS.length);
-    state.fantasyInventoryPortraitByCharacter[key] = FANTASY_INVENTORY_PORTRAITS[index] || FANTASY_INVENTORY_PORTRAITS[0];
-  }
-  return state.fantasyInventoryPortraitByCharacter[key];
+function inventoryModels() {
+  return state.campaignState?.inventory_models || [];
+}
+function inventoryModelById(id) {
+  return inventoryModels().find(m => String(m.id) === String(id || '')) || null;
+}
+function defaultInventoryModel() {
+  return inventoryModelById('fantasy_default') || inventoryModels()[0] || null;
+}
+function selectedInventoryModel(ch) {
+  return inventoryModelById(ch?.selected_inventory_model_id || ch?.inventory_model?.id) || ch?.inventory_model || defaultInventoryModel();
+}
+function inventoryModelImgPath(model) {
+  return model?.thumb_path || model?.asset_path || '/inventory_body_cutout_fantsy.png';
+}
+function unlockedInventoryModelSet() {
+  return new Set((state.campaignState?.unlocked_inventory_model_ids || []).map(String));
+}
+function unseenInventoryModelSet() {
+  return new Set((state.campaignState?.unseen_inventory_model_ids || []).map(String));
+}
+function hasUnseenInventoryModels() {
+  return unseenInventoryModelSet().size > 0;
+}
+function isInventoryModelUnlocked(model) {
+  if (!model?.id) return false;
+  return String(model.rarity || 'common') === 'common' || String(model.category || 'base') === 'base' || unlockedInventoryModelSet().has(String(model.id));
+}
+function campaignGroupLabel(item) {
+  return item?.campaign_id ? (item.campaign_name || `Кампания #${item.campaign_id}`) : 'Общие модели';
+}
+function groupByCampaign(items, currentCampaignId=state.currentCampaignId, commonLabel='Общие') {
+  const groups = new Map();
+  (items || []).forEach(item => {
+    const key = item?.campaign_id ? `campaign:${item.campaign_id}` : 'common';
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        campaign_id: Number(item?.campaign_id || 0),
+        title: item?.campaign_id ? (item.campaign_name || `Кампания #${item.campaign_id}`) : commonLabel,
+        items: [],
+      });
+    }
+    groups.get(key).items.push(item);
+  });
+  return [...groups.values()].sort((a,b) => {
+    const current = Number(currentCampaignId || 0);
+    const ar = a.campaign_id === current ? 0 : a.key === 'common' ? 1 : 2;
+    const br = b.campaign_id === current ? 0 : b.key === 'common' ? 1 : 2;
+    if (ar !== br) return ar - br;
+    return String(a.title).localeCompare(String(b.title), 'ru');
+  });
+}
+function inventoryModelFigureStyle(model) {
+  const w = Number(model?.width_px || 240);
+  const h = Number(model?.height_px || 414);
+  const y = Number(model?.offset_y || 0);
+  const glow = String(model?.glow_css || '').replace(/"/g, '&quot;');
+  return `width:${w}px;height:${h}px;transform:translate(-50%, calc(-50% + ${y}px));--model-glow:${glow};`;
 }
 
 const CYBER_INV_MODES = {
@@ -5052,18 +5109,24 @@ function renderCyberInventory() {
       <button class="${mode==='implants'?'active':''}" onclick="setCyberInventoryMode('implants')">Импланты</button>
       <button class="${mode==='gear'?'active':''}" onclick="setCyberInventoryMode('gear')">Броня / одежда</button>
     </section>`;
-  const figureSrc = fantasy ? fantasyInventoryPortraitFor(ch) : '/inventory_body_cutout.png';
+  const model = fantasy ? selectedInventoryModel(ch) : null;
+  const figureSrc = fantasy ? inventoryModelImgPath(model) : '/inventory_body_cutout.png';
+  const figureHtml = fantasy
+    ? `<div class="cyber-inv-figure" style="${inventoryModelFigureStyle(model)}"><img src="${esc(figureSrc)}" alt=""></div>`
+    : `<div class="cyber-inv-figure"><img src="${esc(figureSrc)}" alt=""></div>`;
+  const modelButton = fantasy ? `<button type="button" class="cyber-inv-model-btn ${hasUnseenInventoryModels() ? 'has-unseen' : ''}" onclick="openInventoryModelGallery(${Number(ch.id)})">Модель${hasUnseenInventoryModels() ? '<span class="nav-dot"></span>' : ''}</button>` : '';
+  const topTools = (picker || modelButton) ? `<div class="cyber-inv-top-tools">${picker}${modelButton}</div>` : '';
   const weaponCreateButton = !fantasy && state.campaignState?.campaign?.weapons_enabled ? `<button onclick="openItemModal(${Number(ch.id)}, 'weapon')">🔫</button>` : '';
   const bagCaption = fantasy ? `${bagCount} карточек · предметы, броня и снаряжение` : `${bagCount} карточек · предметы и оружие`;
   return `<div class="cyber-inventory-screen ${fantasy ? 'fantasy-inventory-screen' : ''} ${state.cyberInventoryPickedItemId ? 'picking' : ''}">
     <div class="cyber-inv-top">
       <div><span class="cyber-inv-eyebrow">${fantasy ? 'fantasy inventory' : 'cyberware / inventory'}</span><div class="name">🎒 ${esc(ch.name || 'Инвентарь')}</div></div>
-      ${picker}
+      ${topTools}
     </div>
     ${modeSwitcher}
     <section class="cyber-inv-stage-card">
       <div class="cyber-inv-stage" id="cyberInvStage">
-        <div class="cyber-inv-figure"><img src="${figureSrc}" alt=""></div>
+        ${figureHtml}
         <svg class="cyber-inv-lines" id="cyberInvLines" aria-hidden="true"></svg>
         <div class="cyber-inv-slot-map">${slots}</div>
       </div>
@@ -5077,6 +5140,56 @@ function renderCyberInventory() {
     </section>
     ${renderCyberInventorySheet(ch)}
   </div>`;
+}
+function renderInventoryModelCard(model, ch) {
+  const selected = String(ch?.selected_inventory_model_id || ch?.inventory_model?.id || '') === String(model.id);
+  const unlocked = isInventoryModelUnlocked(model);
+  const unseen = unseenInventoryModelSet().has(String(model.id));
+  return `<button type="button" class="inventory-model-card ${selected?'selected':''} ${unlocked?'':'locked'}" ${unlocked?`onclick="selectInventoryModel(${Number(ch.id)}, '${esc(model.id)}')"`:'disabled'}>
+    <span class="inventory-model-preview"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span>
+    <b>${esc(model.name || 'Модель')}${unseen ? '<span class="model-new-dot"></span>' : ''}</b>
+    <small>${unlocked ? (selected ? 'выбрана' : 'доступна') : 'закрыта'}</small>
+  </button>`;
+}
+function openInventoryModelGallery(characterId) {
+  const ch = cyberInventoryCharacters().find(x => Number(x.id) === Number(characterId)) || activeCyberInventoryCharacter();
+  if (!ch) return;
+  const models = inventoryModels().filter(isInventoryModelUnlocked);
+  const groups = groupByCampaign(models, Number(ch.campaign_id || state.currentCampaignId), 'Общие модели');
+  const cards = groups.length
+    ? groups.map(g => `<section class="inventory-model-group"><div class="model-group-title">${esc(g.title)}</div><div class="inventory-model-grid">${g.items.map(m => renderInventoryModelCard(m, ch)).join('')}</div></section>`).join('')
+    : '<div class="muted">Моделей пока нет.</div>';
+  showModal(`<div class="modal-card inventory-model-modal"><button class="modal-close" onclick="closeModal(); renderCampaign();">×</button><div class="name">Модель инвентаря</div><div class="inventory-model-groups">${cards}</div></div>`);
+  markInventoryModelsSeen(characterId);
+}
+async function markInventoryModelsSeen(characterId) {
+  try {
+    const out = await api('/api/inventory-models/seen', {method:'POST', body:{character_id:Number(characterId), model_ids:[]}});
+    state.campaignState.unseen_inventory_model_ids = out.unseen_inventory_model_ids || [];
+    state.campaignState.unlocked_inventory_model_ids = out.unlocked_inventory_model_ids || state.campaignState.unlocked_inventory_model_ids;
+  } catch(_) {}
+}
+async function selectInventoryModel(characterId, modelId) {
+  try {
+    const out = await api(`/api/characters/${Number(characterId)}/inventory-model`, {method:'POST', body:{model_id:modelId}});
+    if (out.unlocked_inventory_model_ids) state.campaignState.unlocked_inventory_model_ids = out.unlocked_inventory_model_ids;
+    if (out.unseen_inventory_model_ids) state.campaignState.unseen_inventory_model_ids = out.unseen_inventory_model_ids;
+    if (out.character) {
+      const lists = [state.campaignState.characters || [], state.campaignState.player_character ? [state.campaignState.player_character] : []];
+      lists.forEach(list => {
+        const idx = list.findIndex(ch => Number(ch.id) === Number(out.character.id));
+        if (idx >= 0) list[idx] = out.character;
+      });
+      if (state.campaignState.player_character && Number(state.campaignState.player_character.id) === Number(out.character.id)) {
+        state.campaignState.player_character = out.character;
+      }
+    }
+    closeModal();
+    showToast('Модель сохранена', 'heal');
+    renderCampaign();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
 }
 function renderCyberInventorySlots(ch, mode) {
   const slotMap = cyberInventorySlotMap(ch);
@@ -6419,11 +6532,59 @@ async function genWeather(){ try{ const out=await api(`/api/campaigns/${state.cu
 async function genEvents(){ try{ const out=await api(`/api/campaigns/${state.currentCampaignId}/generators/events`, {method:'POST'}); state.lastGeneratorText=out.text; state.lastGeneratorPayload=out.payload; state.lastGeneratorKind='events'; renderCampaign(); }catch(e){alert(e.message);} }
 async function broadcastLast(){ if(!state.lastGeneratorText) return alert('Сначала сгенерируй результат.'); try{ const out=await api(`/api/campaigns/${state.currentCampaignId}/broadcast`, {method:'POST', body:{text:state.lastGeneratorText}}); alert(`Отправлено: ${out.sent}`); }catch(e){alert(e.message);} }
 
+function renderInventoryModelLibrary() {
+  const models = inventoryModels();
+  if (!models.length) return '<div class="empty-state">Моделей пока нет.</div>';
+  const groups = groupByCampaign(models, Number(state.currentCampaignId || 0), 'Общие модели');
+  return `<div class="campaign-group-list">${groups.map(g => `<section class="campaign-library-group"><div class="campaign-library-title">${esc(g.title)}</div><div class="inventory-model-library-grid small-model-library">${g.items.map(m => `<button type="button" class="inventory-model-library-card" onclick="openMasterInventoryModel('${esc(m.id)}')">
+    <span class="inventory-model-library-preview"><img loading="lazy" src="${esc(inventoryModelImgPath(m))}" alt=""></span>
+    <div><b>${esc(m.name || 'Модель')}</b><small>${rarityEmoji(m.rarity || 'common')} ${esc(rarityRu(m.rarity || 'common'))}${String(m.category || '') === 'base' ? ' · доступна всем' : ''}</small><p>${esc(m.description || '')}</p></div>
+  </button>`).join('')}</div></section>`).join('')}</div>`;
+}
+
+function renderAchievementTemplateCard(a) {
+  return `<div class="achievement-template-card card" onclick="openMasterAchievement(${Number(a.id)})">
+    <div class="ach-icon big">${achIconHtml(a.icon || '🏆', '', '')}</div><div class="ach-main"><b>${esc(a.title)}</b><small>${esc(a.tag || 'Без тэга')}</small>${a.cosmetic_reward?`<span class="pill reward">${esc(a.cosmetic_reward.emoji || '✨')} рамка: ${esc(a.cosmetic_reward.name)}</span>`:''}${a.cosmetic_effect_reward?`<span class="pill reward effect">${esc(a.cosmetic_effect_reward.emoji || '✨')} эффект: ${esc(a.cosmetic_effect_reward.name)}</span>`:''}${a.tag_reward?`<span class="pill reward">🏷️ тэг: ${esc(a.tag_reward.name)}</span>`:''}${a.inventory_model_reward?`<span class="pill reward">🧍 модель: ${esc(a.inventory_model_reward.name)}</span>`:''}${a.currency_reward?`<span class="pill reward">✦ ${esc(a.currency_reward)} искр</span>`:''}</div>
+  </div>`;
+}
+
+function renderAchievementLibraryGroups(templates) {
+  if (!templates.length) return '<div class="empty-state">Достижений пока нет. Создай первое.</div>';
+  const groups = groupByCampaign(templates, Number(state.currentCampaignId || 0), 'Без кампании');
+  return `<div class="campaign-group-list">${groups.map(g => `<section class="campaign-library-group"><div class="campaign-library-title">${esc(g.title)}</div><div class="achievement-template-list">${g.items.map(renderAchievementTemplateCard).join('')}</div></section>`).join('')}</div>`;
+}
+
+function openMasterInventoryModel(modelId) {
+  const model = inventoryModelById(modelId);
+  if (!model) return;
+  const chars = allChars().filter(ch => ch.telegram_user_id);
+  const options = chars.map(ch => `<option value="${Number(ch.id)}">${esc(ch.name)} · TG ${esc(ch.telegram_user_id)}</option>`).join('');
+  showModal(`<div class="modal-card inventory-model-master-modal"><button class="modal-close" onclick="closeModal()">×</button>
+    <div class="inventory-model-master-head"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><div class="name">${esc(model.name || 'Модель')}</div><small>${esc(campaignGroupLabel(model))}</small></div></div>
+    <p class="muted">${esc(model.description || '')}</p>
+    <div class="hr"></div>
+    <label>Выдать игроку<select id="grantInventoryModelChar">${options || '<option value="">Нет привязанных игроков</option>'}</select></label>
+    <button class="ok" onclick="grantInventoryModel('${esc(model.id)}')">Выдать модель</button>
+    <div id="grantInventoryModelOut"></div>
+  </div>`);
+}
+
+async function grantInventoryModel(modelId) {
+  try {
+    const character_id = Number(val('grantInventoryModelChar') || 0);
+    if (!character_id) throw new Error('Выбери игрока');
+    await api(`/api/campaigns/${state.currentCampaignId}/inventory-models/${encodeURIComponent(modelId)}/grant`, {method:'POST', body:{character_id}});
+    showToast('Модель выдана', 'heal');
+    closeModal();
+  } catch(e) {
+    const box = document.getElementById('grantInventoryModelOut');
+    if (box) box.innerHTML = msg(e.message, 'error'); else showToast(e.message, 'error');
+  }
+}
+
 function renderMasterAchievements() {
   const templates = state.campaignState?.achievement_templates || [];
-  const list = templates.length ? templates.map(a => `<div class="achievement-template-card card" onclick="openMasterAchievement(${Number(a.id)})">
-    <div class="ach-icon big">${achIconHtml(a.icon || '🏆', '', '')}</div><div class="ach-main"><b>${esc(a.title)}</b><small>${esc(a.tag || 'Без тэга')}</small>${a.cosmetic_reward?`<span class="pill reward">${esc(a.cosmetic_reward.emoji || '✨')} рамка: ${esc(a.cosmetic_reward.name)}</span>`:''}${a.cosmetic_effect_reward?`<span class="pill reward effect">${esc(a.cosmetic_effect_reward.emoji || '✨')} эффект: ${esc(a.cosmetic_effect_reward.name)}</span>`:''}${a.tag_reward?`<span class="pill reward">🏷️ тэг: ${esc(a.tag_reward.name)}</span>`:''}${a.currency_reward?`<span class="pill reward">✦ ${esc(a.currency_reward)} искр</span>`:''}</div>
-  </div>`).join('') : '<div class="empty-state">Достижений пока нет. Создай первое.</div>';
+  const list = renderAchievementLibraryGroups(templates);
   return `<div class="stack achievements-screen">
     <details class="card stack achievement-create" ${sectionAttrs('master-ach-create')}><summary><span>🏆</span><b>Создать достижение</b><small>PNG/JPG-иконка, описание, тэг и визуальная награда</small></summary>
       <div class="grid two achievement-form">
@@ -6437,10 +6598,11 @@ function renderMasterAchievements() {
         <label class="wide">Название<input id="achTitle" placeholder="Например: Неистовая удача" maxlength="80"></label>
         <label class="wide">Описание<textarea id="achDescription" placeholder="За что выдаётся достижение" maxlength="2000"></textarea></label>
         <input id="achReward" type="hidden" value="">
-        <input id="achEffectReward" type="hidden" value=""><input id="achTagReward" type="hidden" value="">
+        <input id="achEffectReward" type="hidden" value=""><input id="achTagReward" type="hidden" value=""><input id="achModelReward" type="hidden" value="">
         <div class="wide achievement-rewards-grid">
           <div class="reward-picker-box"><div class="reward-picker-head"><b>Награда-рамка</b><button class="secondary small" onclick="openRewardPicker('frame')">Выбрать</button></div><div id="achRewardPreview" class="reward-empty">Без рамки</div><button class="small warn" onclick="openCustomFrameModal()">➕ Добавить кастомную рамку</button></div>
           <div class="reward-picker-box"><div class="reward-picker-head"><b>Награда-эффект</b><button class="secondary small" onclick="openRewardPicker('effect')">Выбрать</button></div><div id="achEffectRewardPreview" class="reward-empty">Без эффекта</div></div>
+          <div class="reward-picker-box"><div class="reward-picker-head"><b>Награда-модель</b><button class="secondary small" onclick="openRewardPicker('model')">Выбрать</button></div><div id="achModelRewardPreview" class="reward-empty">Без модели</div></div>
           <div class="reward-picker-box tag-reward-box"><div class="reward-picker-head"><b>Награда-текст тэга</b><button class="secondary small" onclick="chooseReadyTagReward()">Выбрать готовый текст</button></div><div id="achTagRewardPreview" class="reward-empty">Без текста тэга</div><details class="custom-tag-create-details"><summary><b>➕ Создать уникальный текст</b><small>Например: «Кровожадный» за достижение «Кровожадность». Игрок потом сможет поставить этот текст на любую открытую форму.</small></summary><div class="unique-tag-create"><label>Текст тэга<input id="achCustomTagName" placeholder="Например: Кровожадный" maxlength="40" oninput="updateCustomTagPreview(); clearReadyTagRewardIfCustom()"></label><input id="achCustomTagEmoji" type="hidden" value=""><input id="achCustomTagStyle" type="hidden" value="tag_shape_classic"><div id="customTagPreview" class="tag-preview-demo tag-style-preview"><span class="character-tag rarity-unique tag-shape-classic"><span>🏷️</span><b>Кровожадный</b></span></div><small class="muted">За достижение выдаётся только текст. Форму тэга игрок выбирает отдельно в магазине/кастомизации.</small></div></details></div>
           <label class="reward-picker-box"><b>Искры ✦</b><input id="achCurrencyReward" type="number" min="0" value="0" placeholder="Например: 100"><small class="muted">Начисляются игроку, когда он раскрывает ачивку.</small></label>
         </div>
@@ -6448,7 +6610,8 @@ function renderMasterAchievements() {
       <button class="ok" onclick="createAchievement()">Создать достижение</button><div id="achCreateOut"></div>
     </details>
     <details class="card stack" ${sectionAttrs('master-currency-grant')}><summary><span>✦</span><b>Выдать искры</b><small>Ручная награда валютой игроку.</small></summary>${renderCurrencyGrantForm()}</details>
-    <div class="card stack"><div class="name">🎖 Библиотека достижений кампании</div>${list}</div>
+    <details class="card stack custom-collapse" ${sectionAttrs('achievement-library')}><summary><b>🎖 Библиотека достижений кампании</b><small>${templates.length} шаблонов</small></summary><div class="custom-collapse-body stack">${list}</div></details>
+    <details class="card stack custom-collapse" ${sectionAttrs('inventory-model-library')}><summary><b>🧍 Модели</b><small>${inventoryModels().length} моделей</small></summary><div class="custom-collapse-body stack">${renderInventoryModelLibrary()}</div></details>
   </div>`;
 }
 
@@ -6499,18 +6662,28 @@ function rewardTagCard(t) {
   if (!t) return `<button class="shop-card reward-none" onclick="selectAchReward('tag','')"><span class="tag-preview-demo">—</span><b>Без текста</b><small>Достижение не выдаёт текст тэга</small></button>`;
   return `<button class="shop-card rarity-${esc(t.rarity || 'common')}" onclick="selectAchReward('tag','${esc(t.id)}')">${tagTextPreview(t, defaultTagShapeId())}<b>${esc(t.name)}</b><small>${rarityEmoji(t.rarity)} ${esc(rarityRu(t.rarity))}</small><p>${esc(t.description || '')}</p></button>`;
 }
+function rewardModelPreview(model) {
+  if (!model) return '<div class="reward-empty">Без модели</div>';
+  return `<div class="reward-preview inline"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><b>${esc(model.name)}</b><small>${rarityEmoji(model.rarity || 'common')} ${esc(rarityRu(model.rarity || 'common'))} · ${esc(model.description || '')}</small></div></div>`;
+}
+function rewardModelCard(model) {
+  if (!model) return `<button class="shop-card reward-none" onclick="selectAchReward('model','')"><span class="frame-demo plain">○</span><b>Без модели</b><small>Достижение не выдаёт модель</small></button>`;
+  return `<button class="shop-card inventory-model-reward-card rarity-${esc(model.rarity || 'common')}" onclick="selectAchReward('model','${esc(model.id)}')"><span class="inventory-model-card-preview"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><b>${esc(model.name)}</b><small>${rarityEmoji(model.rarity || 'common')} ${esc(rarityRu(model.rarity || 'common'))}</small><p>${esc(model.description || '')}</p></button>`;
+}
 function openRewardPicker(kind) {
   const isFrame = kind === 'frame';
   const isEffect = kind === 'effect';
   const isTag = kind === 'tag';
+  const isModel = kind === 'model';
   const rewardEligible = x => String(x?.rarity || 'common') !== 'common';
-  const items = sortByRarity(
+  const items = isModel ? inventoryModels() : sortByRarity(
     isFrame ? baseCosmetics().concat(uniqueCosmetics()).filter(rewardEligible)
     : isEffect ? baseEffects().filter(e=>e.id!=='effect_none').concat(uniqueEffects()).filter(rewardEligible)
     : tagTexts().filter(rewardEligible)
   );
-  const cards = [(isFrame ? rewardFrameCard(null) : isEffect ? rewardEffectCard(null) : rewardTagCard(null))].concat(items.map(x => isFrame ? rewardFrameCard(x) : isEffect ? rewardEffectCard(x) : rewardTagCard(x))).join('');
-  showModal(`<div class="modal-card reward-shop-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${isFrame ? '🖼️ Выбор рамки-награды' : isEffect ? '✨ Выбор эффекта-награды' : '🏷️ Выбор тэга-награды'}</div><p class="muted">В награды показывается косметика и тексты тэгов выше обычного качества. Формы тэгов покупаются отдельно в магазине.</p><div class="reward-shop-grid ${isFrame ? 'frame-shop-grid' : 'effect-shop-grid'}">${cards}</div></div>`);
+  const emptyCard = isFrame ? rewardFrameCard(null) : isEffect ? rewardEffectCard(null) : isModel ? rewardModelCard(null) : rewardTagCard(null);
+  const cards = [emptyCard].concat(items.map(x => isFrame ? rewardFrameCard(x) : isEffect ? rewardEffectCard(x) : isModel ? rewardModelCard(x) : rewardTagCard(x))).join('');
+  showModal(`<div class="modal-card reward-shop-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${isFrame ? '🖼️ Выбор рамки-награды' : isEffect ? '✨ Выбор эффекта-награды' : isModel ? '🧍 Выбор модели-награды' : '🏷️ Выбор тэга-награды'}</div><p class="muted">${isModel ? 'Модель откроется игроку, когда он раскроет достижение.' : 'В награды показывается косметика и тексты тэгов выше обычного качества. Формы тэгов покупаются отдельно в магазине.'}</p><div class="reward-shop-grid ${isFrame ? 'frame-shop-grid' : isModel ? 'inventory-model-shop-grid' : 'effect-shop-grid'}">${cards}</div></div>`);
 }
 function selectAchReward(kind, id) {
   if (kind === 'frame') {
@@ -6519,6 +6692,9 @@ function selectAchReward(kind, id) {
   } else if (kind === 'effect') {
     const input = document.getElementById('achEffectReward'); if (input) input.value = id;
     const box = document.getElementById('achEffectRewardPreview'); if (box) box.innerHTML = rewardEffectPreview(effectById(id));
+  } else if (kind === 'model') {
+    const input = document.getElementById('achModelReward'); if (input) input.value = id;
+    const box = document.getElementById('achModelRewardPreview'); if (box) box.innerHTML = rewardModelPreview(inventoryModelById(id));
   } else {
     const input = document.getElementById('achTagReward'); if (input) input.value = id;
     const box = document.getElementById('achTagRewardPreview'); if (box) box.innerHTML = rewardTagPreview(tagById(id));
@@ -6701,6 +6877,7 @@ function openMasterAchievement(id) {
     ${a.cosmetic_reward ? frameRewardPreviewHtml(a.cosmetic_reward) : ''}
     ${a.cosmetic_effect_reward ? effectRewardPreviewHtml(a.cosmetic_effect_reward) : ''}
     ${a.tag_reward?`<div class="reward-preview">${tagTextPreview(a.tag_reward, defaultTagShapeId())}<div><b>Текст тэга: ${esc(a.tag_reward.name)}</b><small>${esc(a.tag_reward.description || '')}</small></div></div>`:''}
+    ${a.inventory_model_reward ? modelRewardPreviewHtml(a.inventory_model_reward) : ''}
     ${a.currency_reward?`<div class="reward-preview"><span class="currency-icon">✦</span><div><b>Искры: +${esc(a.currency_reward)}</b><small>Валюта аккаунта</small></div></div>`:''}
     <div class="hr"></div>
     <details class="grant-mode" open><summary>Выдать одному игроку</summary><label>Игрок</label><select id="grantChar">${options || '<option value="">Нет привязанных игроков</option>'}</select><button class="ok" onclick="grantAchievement(${Number(a.id)})">Выдать одному</button></details>
@@ -6735,7 +6912,7 @@ async function createAchievement() {
     const icon_thumb = val('achIconThumb') || '';
     const customTagName = val('achCustomTagName');
     await api(`/api/campaigns/${state.currentCampaignId}/achievements`, {method:'POST', body:{
-      icon, icon_thumb, title, description: val('achDescription'), tag: val('achTag'), cosmetic_reward_id: val('achReward') || null, cosmetic_effect_reward_id: val('achEffectReward') || null, tag_reward_id: customTagName ? null : (val('achTagReward') || null), custom_tag_name: customTagName, custom_tag_emoji: val('achCustomTagEmoji'), custom_tag_style: val('achCustomTagStyle') || 'tag_shape_classic', currency_reward: num('achCurrencyReward', 0)
+      icon, icon_thumb, title, description: val('achDescription'), tag: val('achTag'), cosmetic_reward_id: val('achReward') || null, cosmetic_effect_reward_id: val('achEffectReward') || null, tag_reward_id: customTagName ? null : (val('achTagReward') || null), inventory_model_reward_id: val('achModelReward') || null, custom_tag_name: customTagName, custom_tag_emoji: val('achCustomTagEmoji'), custom_tag_style: val('achCustomTagStyle') || 'tag_shape_classic', currency_reward: num('achCurrencyReward', 0)
     }});
     state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
     showToast('Достижение создано', 'heal'); renderCampaign();
@@ -6797,11 +6974,16 @@ function tagRewardPreviewHtml(tag) {
   if (!tag) return '';
   return `<div class="reward-preview">${tagTextPreview(tag, defaultTagShapeId())}<div><b>Текст тэга: ${esc(tag.name)}</b><small>${esc(tag.description || '')}</small></div></div>`;
 }
+function modelRewardPreviewHtml(model) {
+  if (!model) return '';
+  return `<div class="reward-preview"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><b>Модель: ${esc(model.name)}</b><small>${esc(model.description || 'Открывает новую модель в фэнтези-инвентаре.')}</small></div></div>`;
+}
 function achievementRewardsHtml(a) {
   const parts = [];
   if (a.cosmetic_reward) parts.push(frameRewardPreviewHtml(a.cosmetic_reward));
   if (a.cosmetic_effect_reward) parts.push(effectRewardPreviewHtml(a.cosmetic_effect_reward));
   if (a.tag_reward) parts.push(tagRewardPreviewHtml(a.tag_reward));
+  if (a.inventory_model_reward) parts.push(modelRewardPreviewHtml(a.inventory_model_reward));
   if (Number(a.currency_reward || 0) > 0) parts.push(`<div class="reward-preview"><div class="currency-icon">✦</div><div><b>Искры: +${esc(a.currency_reward)}</b><small>Валюта аккаунта</small></div></div>`);
   return parts.join('');
 }
@@ -6817,11 +6999,12 @@ async function openPlayerAchievement(grantId) {
       state.campaignState.unlocked_cosmetic_ids = out.unlocked_cosmetic_ids || state.campaignState.unlocked_cosmetic_ids;
       state.campaignState.unlocked_effect_ids = out.unlocked_effect_ids || state.campaignState.unlocked_effect_ids;
       state.campaignState.unlocked_tag_ids = out.unlocked_tag_ids || state.campaignState.unlocked_tag_ids;
+      state.campaignState.unlocked_inventory_model_ids = out.unlocked_inventory_model_ids || state.campaignState.unlocked_inventory_model_ids;
       state.campaignState.currency_balance = out.currency_balance ?? state.campaignState.currency_balance;
       state.campaignState.currency_transactions = out.currency_transactions || state.campaignState.currency_transactions;
       g = (state.campaignState?.achievement_grants || []).find(x => Number(x.id) === Number(grantId)) || out.grant || g;
       showToast('Награда за достижение получена', 'heal');
-    } catch(e) { showToast(e.message, 'error'); }
+    } catch(e) { showToast(e.message, 'error'); return; }
   }
   const a = g.achievement || {};
   const rewards = achievementRewardsHtml(a) || '<div class="muted">Без награды</div>';

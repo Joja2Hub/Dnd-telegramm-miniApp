@@ -52,12 +52,16 @@ def get_current_user_factory(settings):
     async def get_current_user(
         x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
         x_dev_telegram_id: str | None = Header(default=None, alias="X-Dev-Telegram-Id"),
+        x_dev_telegram_username: str | None = Header(default=None, alias="X-Dev-Telegram-Username"),
+        x_dev_telegram_first_name: str | None = Header(default=None, alias="X-Dev-Telegram-First-Name"),
     ) -> TelegramUser:
         if x_telegram_init_data:
             return _validate_init_data(x_telegram_init_data, settings.bot_token)
         if settings.dev_mode and x_dev_telegram_id:
             try:
-                return TelegramUser(id=int(x_dev_telegram_id), first_name="DEV")
+                username = (x_dev_telegram_username or "").strip()[:64] or None
+                first_name = (x_dev_telegram_first_name or "").strip()[:80] or "DEV"
+                return TelegramUser(id=int(x_dev_telegram_id), first_name=first_name, username=username)
             except ValueError:
                 pass
         raise HTTPException(status_code=401, detail="Не удалось определить Telegram-пользователя")

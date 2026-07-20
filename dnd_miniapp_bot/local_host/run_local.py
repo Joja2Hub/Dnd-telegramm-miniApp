@@ -128,6 +128,57 @@ def build_local_app(db: Database, settings: Settings) -> FastAPI:
     def list_campaigns() -> list[dict]:
         return [db._hydrate_campaign(row) for row in db._many("SELECT * FROM campaigns ORDER BY id DESC")]
 
+    def list_local_users() -> list[dict]:
+        users: dict[int, dict] = {}
+
+        def user_for(tg_id: int) -> dict:
+            if tg_id not in users:
+                users[tg_id] = {
+                    "telegram_user_id": tg_id,
+                    "display_name": f"TG {tg_id}",
+                    "character_names": [],
+                    "master_campaign_names": [],
+                    "roles": [],
+                }
+            return users[tg_id]
+
+        for campaign in list_campaigns():
+            tg_id = int(campaign.get("master_tg_id") or 0)
+            if not tg_id:
+                continue
+            item = user_for(tg_id)
+            item["master_campaign_names"].append(str(campaign.get("name") or f"Кампания {campaign.get('id')}"))
+            if "master" not in item["roles"]:
+                item["roles"].append("master")
+
+        rows = db._many(
+            """
+            SELECT ch.telegram_user_id, ch.name AS character_name, c.name AS campaign_name
+            FROM characters ch
+            LEFT JOIN campaigns c ON c.id=ch.campaign_id
+            WHERE ch.telegram_user_id IS NOT NULL
+            ORDER BY ch.id DESC
+            """
+        )
+        for row in rows:
+            tg_id = int(row.get("telegram_user_id") or 0)
+            if not tg_id:
+                continue
+            item = user_for(tg_id)
+            if row.get("character_name"):
+                item["character_names"].append(str(row["character_name"]))
+            if "player" not in item["roles"]:
+                item["roles"].append("player")
+
+        for item in users.values():
+            names = item["master_campaign_names"] or item["character_names"]
+            if names:
+                role = "Мастер" if "master" in item["roles"] else "Игрок"
+                item["display_name"] = f"{role}: {names[0]} · TG {item['telegram_user_id']}"
+            item["character_names"] = list(dict.fromkeys(item["character_names"]))[:8]
+            item["master_campaign_names"] = list(dict.fromkeys(item["master_campaign_names"]))[:8]
+        return sorted(users.values(), key=lambda x: (0 if "master" in x["roles"] else 1, str(x["display_name"]).lower()))
+
     def local_campaign_payload(campaign_id: int | None = None) -> dict:
         campaign = db.get_campaign(int(campaign_id)) if campaign_id else None
         if not campaign:
@@ -176,6 +227,10 @@ def build_local_app(db: Database, settings: Settings) -> FastAPI:
             )
         active_id = int(read_local_state().get("active_campaign_id") or 0)
         return {"campaigns": campaigns, "active_campaign_id": active_id or None}
+
+    @app.get("/local-api/users")
+    async def local_users() -> dict:
+        return {"users": list_local_users()}
 
     @app.get("/local-api/active-campaign")
     async def local_active_campaign() -> dict:

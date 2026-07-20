@@ -36,20 +36,27 @@
     const localTgId = params.get('local_tg_id') || '';
     const localCharacterId = params.get('local_character_id') || '';
     const localCampaignId = params.get('campaign_id') || '';
+    const localUsername = params.get('local_tg_username') || '';
+    const localFirstName = params.get('local_tg_first_name') || localUsername || '';
 
-    if (!localTgId || !localCampaignId) {
+    if (!localTgId) {
       document.getElementById('status').textContent = 'Не хватает данных для локального входа.';
     } else {
       localStorage.setItem('dev_tg_id', localTgId);
+      if (localUsername) localStorage.setItem('dev_tg_username', localUsername.replace(/^@+/, ''));
+      if (localFirstName) localStorage.setItem('dev_tg_first_name', localFirstName);
       if (localCharacterId) localStorage.setItem('dev_view_character_id', localCharacterId);
       else localStorage.removeItem('dev_view_character_id');
-      localStorage.setItem('campaign_id', localCampaignId);
+      if (localCampaignId) localStorage.setItem('campaign_id', localCampaignId);
+      else localStorage.removeItem('campaign_id');
       localStorage.setItem('local_host_mode', localCharacterId ? 'player' : 'host');
       const appParams = new URLSearchParams({
         local_tg_id: localTgId,
-        campaign_id: localCampaignId,
       });
+      if (localCampaignId) appParams.set('campaign_id', localCampaignId);
       if (localCharacterId) appParams.set('local_character_id', localCharacterId);
+      if (localUsername) appParams.set('local_tg_username', localUsername);
+      if (localFirstName) appParams.set('local_tg_first_name', localFirstName);
       window.location.replace(`/local-app/?${appParams.toString()}`);
     }
   </script>

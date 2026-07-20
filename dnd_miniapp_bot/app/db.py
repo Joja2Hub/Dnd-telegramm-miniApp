@@ -515,6 +515,7 @@ class Database:
                 avatar_thumb_path TEXT NOT NULL DEFAULT '',
                 custom_frame TEXT NOT NULL DEFAULT '',
                 custom_effect TEXT NOT NULL DEFAULT '',
+                selected_inventory_model_id TEXT NOT NULL DEFAULT '',
                 statuses_json TEXT NOT NULL DEFAULT '[]',
                 notes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
@@ -611,6 +612,38 @@ class Database:
                 PRIMARY KEY (telegram_user_id, effect_id)
             );
 
+            CREATE TABLE IF NOT EXISTS inventory_models (
+                id TEXT PRIMARY KEY,
+                campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                asset_path TEXT NOT NULL,
+                thumb_path TEXT NOT NULL DEFAULT '',
+                rarity TEXT NOT NULL DEFAULT 'common',
+                category TEXT NOT NULL DEFAULT 'base',
+                width_px INTEGER NOT NULL DEFAULT 240,
+                height_px INTEGER NOT NULL DEFAULT 414,
+                offset_y INTEGER NOT NULL DEFAULT 0,
+                glow_css TEXT NOT NULL DEFAULT '',
+                sort_order INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS user_inventory_model_unlocks (
+                telegram_user_id INTEGER NOT NULL,
+                model_id TEXT NOT NULL REFERENCES inventory_models(id) ON DELETE CASCADE,
+                source TEXT NOT NULL DEFAULT '',
+                source_id INTEGER,
+                unlocked_at TEXT NOT NULL,
+                PRIMARY KEY (telegram_user_id, model_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_inventory_model_seen (
+                telegram_user_id INTEGER NOT NULL,
+                model_id TEXT NOT NULL REFERENCES inventory_models(id) ON DELETE CASCADE,
+                seen_at TEXT NOT NULL,
+                PRIMARY KEY (telegram_user_id, model_id)
+            );
+
             CREATE TABLE IF NOT EXISTS achievements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -622,6 +655,7 @@ class Database:
                 tag TEXT NOT NULL DEFAULT '',
                 cosmetic_reward_id TEXT REFERENCES cosmetics(id) ON DELETE SET NULL,
                 cosmetic_effect_reward_id TEXT REFERENCES cosmetic_effects(id) ON DELETE SET NULL,
+                inventory_model_reward_id TEXT REFERENCES inventory_models(id) ON DELETE SET NULL,
                 created_at TEXT NOT NULL
             );
 
@@ -678,6 +712,7 @@ class Database:
         self._migrate()
         self.seed_cosmetics()
         self.seed_cosmetic_effects()
+        self.seed_inventory_models()
         self.seed_tags()
         self.conn.commit()
 
@@ -746,6 +781,7 @@ class Database:
         add_col("characters", char_cols, "custom_tag_text", "TEXT NOT NULL DEFAULT ''")
         add_col("characters", char_cols, "custom_tag_style", "TEXT NOT NULL DEFAULT 'tag_none'")
         add_col("characters", char_cols, "temp_hp", "INTEGER NOT NULL DEFAULT 0")
+        add_col("characters", char_cols, "selected_inventory_model_id", "TEXT NOT NULL DEFAULT ''")
 
         # Миграция травм для уже разыгранных кампаний.
         # Старая база могла быть создана до полной версии системы травм или
@@ -822,6 +858,35 @@ class Database:
                 unlocked_at TEXT NOT NULL,
                 PRIMARY KEY (telegram_user_id, effect_id)
             );
+            CREATE TABLE IF NOT EXISTS inventory_models (
+                id TEXT PRIMARY KEY,
+                campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                asset_path TEXT NOT NULL,
+                thumb_path TEXT NOT NULL DEFAULT '',
+                rarity TEXT NOT NULL DEFAULT 'common',
+                category TEXT NOT NULL DEFAULT 'base',
+                width_px INTEGER NOT NULL DEFAULT 240,
+                height_px INTEGER NOT NULL DEFAULT 414,
+                offset_y INTEGER NOT NULL DEFAULT 0,
+                glow_css TEXT NOT NULL DEFAULT '',
+                sort_order INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS user_inventory_model_unlocks (
+                telegram_user_id INTEGER NOT NULL,
+                model_id TEXT NOT NULL REFERENCES inventory_models(id) ON DELETE CASCADE,
+                source TEXT NOT NULL DEFAULT '',
+                source_id INTEGER,
+                unlocked_at TEXT NOT NULL,
+                PRIMARY KEY (telegram_user_id, model_id)
+            );
+            CREATE TABLE IF NOT EXISTS user_inventory_model_seen (
+                telegram_user_id INTEGER NOT NULL,
+                model_id TEXT NOT NULL REFERENCES inventory_models(id) ON DELETE CASCADE,
+                seen_at TEXT NOT NULL,
+                PRIMARY KEY (telegram_user_id, model_id)
+            );
             CREATE TABLE IF NOT EXISTS achievements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -833,6 +898,7 @@ class Database:
                 tag TEXT NOT NULL DEFAULT '',
                 cosmetic_reward_id TEXT REFERENCES cosmetics(id) ON DELETE SET NULL,
                 cosmetic_effect_reward_id TEXT REFERENCES cosmetic_effects(id) ON DELETE SET NULL,
+                inventory_model_reward_id TEXT REFERENCES inventory_models(id) ON DELETE SET NULL,
                 created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS achievement_grants (
@@ -1113,6 +1179,22 @@ class Database:
             self.conn.execute("ALTER TABLE achievements ADD COLUMN tag_reward_id TEXT REFERENCES cosmetic_tags(id) ON DELETE SET NULL")
         if "currency_reward" not in achievement_cols:
             self.conn.execute("ALTER TABLE achievements ADD COLUMN currency_reward INTEGER NOT NULL DEFAULT 0")
+        if "inventory_model_reward_id" not in achievement_cols:
+            self.conn.execute("ALTER TABLE achievements ADD COLUMN inventory_model_reward_id TEXT REFERENCES inventory_models(id) ON DELETE SET NULL")
+
+        model_cols = cols("inventory_models")
+        if "campaign_id" not in model_cols:
+            self.conn.execute("ALTER TABLE inventory_models ADD COLUMN campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL")
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_inventory_model_seen (
+                telegram_user_id INTEGER NOT NULL,
+                model_id TEXT NOT NULL REFERENCES inventory_models(id) ON DELETE CASCADE,
+                seen_at TEXT NOT NULL,
+                PRIMARY KEY (telegram_user_id, model_id)
+            )
+            """
+        )
 
         grant_cols = cols("achievement_grants")
         if "opened_at" not in grant_cols:
@@ -1437,7 +1519,7 @@ class Database:
     def update_character_fields(self, character_id: int, **fields: Any) -> dict[str, Any]:
         allowed = {
             "name", "telegram_user_id", "ac", "max_hp_base", "max_hp_penalty", "current_hp", "temp_hp", "pain",
-            "armor_max_base", "armor_max_penalty", "armor_current", "color", "avatar_path", "custom_frame", "custom_effect", "custom_tag", "custom_tag_text", "custom_tag_style", "statuses_json", "notes"
+            "armor_max_base", "armor_max_penalty", "armor_current", "color", "avatar_path", "custom_frame", "custom_effect", "custom_tag", "custom_tag_text", "custom_tag_style", "selected_inventory_model_id", "statuses_json", "notes"
         }
         data = {k: v for k, v in fields.items() if k in allowed}
         if "color" in data:
@@ -1489,6 +1571,8 @@ class Database:
         row["custom_tag"] = str(row.get("custom_tag", "") or "")
         row["custom_tag_text"] = str(row.get("custom_tag_text", "") or "")
         row["custom_tag_style"] = str(row.get("custom_tag_style", "tag_none") or "tag_none")
+        row["selected_inventory_model_id"] = str(row.get("selected_inventory_model_id", "") or "")
+        row["inventory_model"] = self.get_inventory_model(row["selected_inventory_model_id"]) or self.default_inventory_model()
         tg_id = row.get("telegram_user_id")
         row["unique_custom_unlocked"] = bool(tg_id and self.list_unlocked_cosmetic_ids(int(tg_id)))
         row["unlocked_cosmetic_ids"] = self.list_unlocked_cosmetic_ids(int(tg_id)) if tg_id else []
@@ -2043,6 +2127,181 @@ class Database:
         )
         self.conn.commit()
 
+    def seed_inventory_models(self) -> None:
+        models = [
+            {
+                "id": "fantasy_default",
+                "name": "Арканная фигура",
+                "description": "Базовая минималистичная фэнтези-модель.",
+                "asset_path": "/inventory_body_cutout_fantsy.png",
+                "thumb_path": "/inventory_body_cutout_fantsy.png",
+                "rarity": "common",
+                "category": "base",
+                "width_px": 240,
+                "height_px": 414,
+                "offset_y": -20,
+                "glow_css": "drop-shadow(0 12px 24px rgba(18,10,3,.32)) drop-shadow(0 0 18px rgba(232,201,130,.18))",
+                "sort_order": 10,
+            },
+            {
+                "id": "fantasy_sword",
+                "name": "Воин с мечом",
+                "description": "Базовая модель в броне с мечом.",
+                "asset_path": "/inventory_body_cutout_fantsy_sword.png",
+                "thumb_path": "/inventory_body_cutout_fantsy_sword.png",
+                "rarity": "common",
+                "category": "base",
+                "width_px": 240,
+                "height_px": 414,
+                "offset_y": -20,
+                "glow_css": "drop-shadow(0 12px 24px rgba(18,10,3,.34)) drop-shadow(0 0 20px rgba(217,182,106,.20))",
+                "sort_order": 20,
+            },
+            {
+                "id": "fantasy_rogue",
+                "name": "Плут в капюшоне",
+                "description": "Базовая модель плута с кинжалами.",
+                "asset_path": "/inventory_body_cutout_fantsy_rogue.png",
+                "thumb_path": "/inventory_body_cutout_fantsy_rogue.png",
+                "rarity": "common",
+                "category": "base",
+                "width_px": 240,
+                "height_px": 414,
+                "offset_y": -20,
+                "glow_css": "drop-shadow(0 12px 24px rgba(18,10,3,.34)) drop-shadow(0 0 18px rgba(143,181,134,.22))",
+                "sort_order": 30,
+            },
+        ]
+        for item in models:
+            self.conn.execute(
+                """
+                INSERT INTO inventory_models(id, campaign_id, name, description, asset_path, thumb_path, rarity, category, width_px, height_px, offset_y, glow_css, sort_order)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name=excluded.name,
+                    description=excluded.description,
+                    asset_path=excluded.asset_path,
+                    thumb_path=excluded.thumb_path,
+                    rarity=excluded.rarity,
+                    category=excluded.category,
+                    width_px=excluded.width_px,
+                    height_px=excluded.height_px,
+                    offset_y=excluded.offset_y,
+                    glow_css=excluded.glow_css,
+                    sort_order=excluded.sort_order
+                """,
+                (
+                    item["id"], item["name"], item["description"], item["asset_path"], item["thumb_path"],
+                    item["rarity"], item["category"], int(item["width_px"]), int(item["height_px"]),
+                    int(item["offset_y"]), item["glow_css"], int(item["sort_order"]),
+                ),
+            )
+        self.conn.commit()
+
+    def list_inventory_models(self) -> list[dict[str, Any]]:
+        return self._many(
+            """
+            SELECT im.*, c.name AS campaign_name
+            FROM inventory_models im
+            LEFT JOIN campaigns c ON c.id=im.campaign_id
+            ORDER BY COALESCE(im.campaign_id, 0), im.sort_order, im.name
+            """
+        )
+
+    def get_inventory_model(self, model_id: str) -> dict[str, Any] | None:
+        if not model_id:
+            return None
+        return self._one(
+            """
+            SELECT im.*, c.name AS campaign_name
+            FROM inventory_models im
+            LEFT JOIN campaigns c ON c.id=im.campaign_id
+            WHERE im.id=?
+            """,
+            (str(model_id),),
+        )
+
+    def default_inventory_model(self) -> dict[str, Any] | None:
+        return self.get_inventory_model("fantasy_default") or (self.list_inventory_models()[0] if self.list_inventory_models() else None)
+
+    def list_unlocked_inventory_model_ids(self, telegram_user_id: int) -> list[str]:
+        base = [
+            str(r["id"])
+            for r in self._many("SELECT id FROM inventory_models WHERE rarity='common' OR category='base' ORDER BY sort_order, name")
+        ]
+        rows = self._many("SELECT model_id FROM user_inventory_model_unlocks WHERE telegram_user_id=?", (int(telegram_user_id),))
+        return list(dict.fromkeys(base + [str(r["model_id"]) for r in rows]))
+
+    def has_inventory_model_unlocked(self, telegram_user_id: int, model_id: str) -> bool:
+        model = self.get_inventory_model(model_id)
+        if not model:
+            return False
+        if str(model.get("rarity") or "common") == "common" or str(model.get("category") or "base") == "base":
+            return True
+        row = self._one(
+            "SELECT 1 AS ok FROM user_inventory_model_unlocks WHERE telegram_user_id=? AND model_id=?",
+            (int(telegram_user_id), str(model_id)),
+        )
+        return bool(row)
+
+    def unlock_inventory_model(self, telegram_user_id: int, model_id: str, *, source: str = '', source_id: int | None = None) -> None:
+        if not model_id or not self.get_inventory_model(model_id):
+            return
+        self.conn.execute(
+            """
+            INSERT INTO user_inventory_model_unlocks(telegram_user_id, model_id, source, source_id, unlocked_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(telegram_user_id, model_id) DO NOTHING
+            """,
+            (int(telegram_user_id), str(model_id), source, source_id, utc_now()),
+        )
+        self.conn.commit()
+
+    def list_seen_inventory_model_ids(self, telegram_user_id: int) -> list[str]:
+        rows = self._many("SELECT model_id FROM user_inventory_model_seen WHERE telegram_user_id=?", (int(telegram_user_id),))
+        return [str(r["model_id"]) for r in rows]
+
+    def list_unseen_inventory_model_ids(self, telegram_user_id: int) -> list[str]:
+        rows = self._many(
+            """
+            SELECT u.model_id
+            FROM user_inventory_model_unlocks u
+            LEFT JOIN user_inventory_model_seen s
+                ON s.telegram_user_id=u.telegram_user_id AND s.model_id=u.model_id
+            WHERE u.telegram_user_id=? AND s.model_id IS NULL
+            ORDER BY u.unlocked_at DESC, u.model_id
+            """,
+            (int(telegram_user_id),),
+        )
+        return [str(r["model_id"]) for r in rows]
+
+    def mark_inventory_models_seen(self, telegram_user_id: int, model_ids: list[str] | None = None) -> list[str]:
+        ids = [str(x) for x in (model_ids or self.list_unlocked_inventory_model_ids(int(telegram_user_id))) if str(x)]
+        for model_id in ids:
+            if not self.get_inventory_model(model_id):
+                continue
+            self.conn.execute(
+                """
+                INSERT INTO user_inventory_model_seen(telegram_user_id, model_id, seen_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(telegram_user_id, model_id) DO UPDATE SET seen_at=excluded.seen_at
+                """,
+                (int(telegram_user_id), model_id, utc_now()),
+            )
+        self.conn.commit()
+        return self.list_unseen_inventory_model_ids(int(telegram_user_id))
+
+    def set_character_inventory_model(self, character_id: int, model_id: str) -> dict[str, Any]:
+        model_id = str(model_id or "").strip()
+        if not self.get_inventory_model(model_id):
+            raise ValueError("Модель инвентаря не найдена")
+        self.conn.execute("UPDATE characters SET selected_inventory_model_id=? WHERE id=?", (model_id, int(character_id)))
+        self.conn.commit()
+        ch = self.get_character(int(character_id))
+        if not ch:
+            raise ValueError("Персонаж не найден")
+        return ch
+
     def create_custom_cosmetic_frame(self, *, frame_id: str, name: str, description: str = '', rarity: str = 'unique', asset_path: str = '', thumb_path: str = '', frame_scale: float = 1.55, frame_offset_x: float = 0, frame_offset_y: float = 0, css_class: str = '', emoji: str = '🖼️') -> dict[str, Any]:
         frame_id = str(frame_id).strip()
         if not frame_id:
@@ -2073,7 +2332,7 @@ class Database:
             raise ValueError("Не удалось создать рамку")
         return row
 
-    def create_achievement(self, campaign_id: int, master_tg_id: int, *, icon: str, icon_thumb: str = '', title: str, description: str, tag: str, cosmetic_reward_id: str | None = None, cosmetic_effect_reward_id: str | None = None, tag_reward_id: str | None = None, currency_reward: int = 0) -> dict[str, Any]:
+    def create_achievement(self, campaign_id: int, master_tg_id: int, *, icon: str, icon_thumb: str = '', title: str, description: str, tag: str, cosmetic_reward_id: str | None = None, cosmetic_effect_reward_id: str | None = None, tag_reward_id: str | None = None, inventory_model_reward_id: str | None = None, currency_reward: int = 0) -> dict[str, Any]:
         reward = str(cosmetic_reward_id or '').strip() or None
         effect_reward = str(cosmetic_effect_reward_id or '').strip() or None
         if reward and not self.get_cosmetic(reward):
@@ -2083,12 +2342,15 @@ class Database:
         tag_reward = str(tag_reward_id or '').strip() or None
         if tag_reward and not self.get_tag(tag_reward):
             raise ValueError("Неизвестный тэг-награда")
+        model_reward = str(inventory_model_reward_id or '').strip() or None
+        if model_reward and not self.get_inventory_model(model_reward):
+            raise ValueError("Неизвестная модель-награда")
         cur = self.conn.execute(
             """
-            INSERT INTO achievements(campaign_id, created_by_master_id, icon, icon_thumb, title, description, tag, cosmetic_reward_id, cosmetic_effect_reward_id, tag_reward_id, currency_reward, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO achievements(campaign_id, created_by_master_id, icon, icon_thumb, title, description, tag, cosmetic_reward_id, cosmetic_effect_reward_id, tag_reward_id, inventory_model_reward_id, currency_reward, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (int(campaign_id), int(master_tg_id), (icon or '🏆').strip()[:300], (icon_thumb or '').strip()[:300], title.strip(), description.strip(), tag.strip() or 'Без тэга', reward, effect_reward, tag_reward, max(0, int(currency_reward or 0)), utc_now()),
+            (int(campaign_id), int(master_tg_id), (icon or '🏆').strip()[:300], (icon_thumb or '').strip()[:300], title.strip(), description.strip(), tag.strip() or 'Без тэга', reward, effect_reward, tag_reward, model_reward, max(0, int(currency_reward or 0)), utc_now()),
         )
         self.conn.commit()
         return self.get_achievement(int(cur.lastrowid))  # type: ignore[return-value]
@@ -2097,12 +2359,16 @@ class Database:
         if not row:
             return None
         row = dict(row)
+        campaign = self.get_campaign(int(row.get("campaign_id") or 0)) if row.get("campaign_id") else None
+        row["campaign_name"] = campaign.get("name") if campaign else ""
         reward_id = row.get("cosmetic_reward_id")
         row["cosmetic_reward"] = self.get_cosmetic(str(reward_id)) if reward_id else None
         effect_reward_id = row.get("cosmetic_effect_reward_id")
         row["cosmetic_effect_reward"] = self.get_cosmetic_effect(str(effect_reward_id)) if effect_reward_id else None
         tag_reward_id = row.get("tag_reward_id")
         row["tag_reward"] = self.get_tag(str(tag_reward_id)) if tag_reward_id else None
+        model_reward_id = row.get("inventory_model_reward_id")
+        row["inventory_model_reward"] = self.get_inventory_model(str(model_reward_id)) if model_reward_id else None
         row["currency_reward"] = int(row.get("currency_reward") or 0)
         return row
 
@@ -2125,6 +2391,7 @@ class Database:
             self.conn.execute(f"DELETE FROM user_cosmetic_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
             self.conn.execute(f"DELETE FROM user_effect_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
             self.conn.execute(f"DELETE FROM user_tag_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
+            self.conn.execute(f"DELETE FROM user_inventory_model_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
         self.conn.execute("DELETE FROM achievement_grants WHERE achievement_id=?", (int(achievement_id),))
         self.conn.execute("DELETE FROM achievements WHERE id=?", (int(achievement_id),))
         self.conn.commit()
@@ -2176,6 +2443,9 @@ class Database:
             tag_reward = ach.get("tag_reward_id")
             if tag_reward:
                 self.unlock_tag(int(telegram_user_id), str(tag_reward), source='achievement', source_id=int(grant["id"]))
+            model_reward = ach.get("inventory_model_reward_id")
+            if model_reward:
+                self.unlock_inventory_model(int(telegram_user_id), str(model_reward), source='achievement', source_id=int(grant["id"]))
             currency_reward = int(ach.get("currency_reward") or 0)
             if currency_reward > 0:
                 # Чтобы повторное открытие не дублировало валюту: начисляем только когда opened_at был пустым.
@@ -2209,6 +2479,7 @@ class Database:
         self.conn.execute(f"DELETE FROM user_cosmetic_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
         self.conn.execute(f"DELETE FROM user_effect_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
         self.conn.execute(f"DELETE FROM user_tag_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
+        self.conn.execute(f"DELETE FROM user_inventory_model_unlocks WHERE source='achievement' AND source_id IN ({placeholders})", tuple(grant_ids))
         self.conn.execute(f"DELETE FROM achievement_grants WHERE id IN ({placeholders})", tuple(grant_ids))
         self.conn.commit()
         return True
@@ -2260,6 +2531,7 @@ class Database:
             "currency_balance": self.get_currency_balance(int(telegram_user_id)),
             "currency_transactions": self.list_currency_transactions(int(telegram_user_id), 20),
             "unlocked_tag_ids": self.list_unlocked_tag_ids(int(telegram_user_id)),
+            "unlocked_inventory_model_ids": self.list_unlocked_inventory_model_ids(int(telegram_user_id)),
         }
 
     # ---------- unique customization ----------
@@ -2525,11 +2797,24 @@ class Database:
         row = self._one("SELECT master_tg_id FROM campaigns ORDER BY id ASC LIMIT 1")
         return int(row["master_tg_id"]) if row else None
 
+    def special_spark_admin_ids(self) -> set[int]:
+        rows = self._many(
+            """
+            SELECT DISTINCT master_tg_id
+            FROM campaigns
+            WHERE rule_type='cyberpunk' OR lower(name) LIKE lower(?)
+            """,
+            ("%оскол%",),
+        )
+        return {int(r["master_tg_id"]) for r in rows if r.get("master_tg_id")}
+
     def is_spark_admin(self, telegram_user_id: int, configured_admin_id: int = 0) -> bool:
         telegram_user_id = int(telegram_user_id)
         configured_admin_id = int(configured_admin_id or 0)
-        if configured_admin_id:
-            return telegram_user_id == configured_admin_id
+        if configured_admin_id and telegram_user_id == configured_admin_id:
+            return True
+        if telegram_user_id in self.special_spark_admin_ids():
+            return True
         first_master = self.first_campaign_master_id()
         return bool(first_master and telegram_user_id == int(first_master))
 
@@ -2632,18 +2917,21 @@ class Database:
     def top_up_master_sparks(self, master_tg_id: int, amount: int, *, comment: str = '', created_by_tg_id: int | None = None) -> int:
         master_tg_id = int(master_tg_id)
         amount = int(amount)
-        if amount <= 0:
-            raise ValueError("Пополнение должно быть положительным")
+        if amount == 0:
+            raise ValueError("Количество искр не может быть нулевым")
         self.ensure_master_spark_wallet(master_tg_id)
         current = self.get_master_spark_balance(master_tg_id)
         new_balance = current + amount
+        if new_balance < 0:
+            raise ValueError(f"Нельзя снять больше искр, чем есть в запасе: не хватает {abs(new_balance)} ✦")
+        kind = "topup" if amount > 0 else "admin_revoke"
         self.conn.execute("UPDATE master_spark_wallets SET balance=?, updated_at=? WHERE master_tg_id=?", (new_balance, utc_now(), master_tg_id))
         self.conn.execute(
             """
             INSERT INTO master_spark_transactions(master_tg_id, amount, reserve_delta, reserve_after, kind, comment, source, created_by_tg_id, created_at)
-            VALUES (?, ?, ?, ?, 'topup', ?, 'admin_topup', ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, 'admin_topup', ?, ?)
             """,
-            (master_tg_id, amount, amount, new_balance, (comment or '')[:500], int(created_by_tg_id or master_tg_id), utc_now()),
+            (master_tg_id, amount, amount, new_balance, kind, (comment or '')[:500], int(created_by_tg_id or master_tg_id), utc_now()),
         )
         self.conn.commit()
         return new_balance
