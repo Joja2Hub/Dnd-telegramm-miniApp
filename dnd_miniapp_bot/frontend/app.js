@@ -4865,6 +4865,9 @@ async function cyberDebug(){ try { await api(`/api/campaigns/${state.currentCamp
 function isFantasyCampaign() {
   return state.campaignState?.campaign?.rule_type === 'fantasy';
 }
+function isCyberpunkCampaign() {
+  return state.campaignState?.campaign?.rule_type === 'cyberpunk';
+}
 function hasVisualInventory() {
   return ['cyberpunk', 'fantasy'].includes(state.campaignState?.campaign?.rule_type);
 }
@@ -4878,14 +4881,36 @@ function inventoryModels() {
 function inventoryModelById(id) {
   return inventoryModels().find(m => String(m.id) === String(id || '')) || null;
 }
-function defaultInventoryModel() {
-  return inventoryModelById('fantasy_default') || inventoryModels()[0] || null;
+function inventoryModelKind(model) {
+  const category = String(model?.category || '');
+  const id = String(model?.id || '');
+  return category.startsWith('cyberpunk') || id.startsWith('cyberpunk_') ? 'cyberpunk' : 'fantasy';
 }
-function selectedInventoryModel(ch) {
-  return inventoryModelById(ch?.selected_inventory_model_id || ch?.inventory_model?.id) || ch?.inventory_model || defaultInventoryModel();
+function currentInventoryModelKind() {
+  return isCyberpunkCampaign() ? 'cyberpunk' : 'fantasy';
+}
+function modelMatchesInventoryKind(model, kind=currentInventoryModelKind()) {
+  if (!model) return false;
+  return inventoryModelKind(model) === kind;
+}
+function inventoryModelsForKind(kind=currentInventoryModelKind()) {
+  return inventoryModels().filter(model => modelMatchesInventoryKind(model, kind));
+}
+function defaultInventoryModel(kind=currentInventoryModelKind()) {
+  if (kind === 'cyberpunk') return inventoryModelById('cyberpunk_female') || inventoryModelsForKind('cyberpunk')[0] || null;
+  return inventoryModelById('fantasy_default') || inventoryModelsForKind('fantasy')[0] || null;
+}
+function selectedInventoryModel(ch, kind=currentInventoryModelKind()) {
+  const selected = inventoryModelById(ch?.selected_inventory_model_id || ch?.inventory_model?.id);
+  if (modelMatchesInventoryKind(selected, kind)) return selected;
+  if (modelMatchesInventoryKind(ch?.inventory_model, kind)) return ch.inventory_model;
+  return defaultInventoryModel(kind);
 }
 function inventoryModelImgPath(model) {
-  return model?.thumb_path || model?.asset_path || '/inventory_body_cutout_fantsy.png';
+  return model?.thumb_path || model?.asset_path || '/assets/inventory-models/common/arcane_figure.png';
+}
+function inventoryModelAssetPath(model) {
+  return model?.asset_path || model?.thumb_path || '/assets/inventory-models/common/arcane_figure.png';
 }
 function unlockedInventoryModelSet() {
   return new Set((state.campaignState?.unlocked_inventory_model_ids || []).map(String));
@@ -4893,14 +4918,16 @@ function unlockedInventoryModelSet() {
 function unseenInventoryModelSet() {
   return new Set((state.campaignState?.unseen_inventory_model_ids || []).map(String));
 }
-function hasUnseenInventoryModels() {
-  return unseenInventoryModelSet().size > 0;
+function hasUnseenInventoryModels(kind=currentInventoryModelKind()) {
+  const unseen = unseenInventoryModelSet();
+  return inventoryModelsForKind(kind).some(model => unseen.has(String(model.id)));
 }
 function isInventoryModelUnlocked(model) {
   if (!model?.id) return false;
   return String(model.rarity || 'common') === 'common' || String(model.category || 'base') === 'base' || unlockedInventoryModelSet().has(String(model.id));
 }
 function campaignGroupLabel(item) {
+  if (inventoryModelKind(item) === 'cyberpunk') return 'Киберпанк';
   return item?.campaign_id ? (item.campaign_name || `Кампания #${item.campaign_id}`) : 'Общие модели';
 }
 function groupByCampaign(items, currentCampaignId=state.currentCampaignId, commonLabel='Общие') {
@@ -4931,6 +4958,31 @@ function inventoryModelFigureStyle(model) {
   const y = Number(model?.offset_y || 0);
   const glow = String(model?.glow_css || '').replace(/"/g, '&quot;');
   return `width:${w}px;height:${h}px;transform:translate(-50%, calc(-50% + ${y}px));--model-glow:${glow};`;
+}
+function inventoryModelTypeLabel(kind) {
+  return kind === 'cyberpunk' ? 'Киберпанк' : 'Фэнтези';
+}
+function groupCyberpunkModels(models) {
+  const cyberpunk = (models || []).filter(m => inventoryModelKind(m) === 'cyberpunk');
+  const base = cyberpunk.filter(m => String(m.category || '') === 'cyberpunk_base');
+  const unique = cyberpunk.filter(m => String(m.category || '') !== 'cyberpunk_base');
+  return [
+    base.length ? {key:'cyberpunk-base', campaign_id:0, title:'Стоковые киберпанк-модели', items:base} : null,
+    unique.length ? {key:'cyberpunk-unique', campaign_id:0, title:'Уникальные киберпанк-модели', items:unique} : null,
+  ].filter(Boolean);
+}
+function groupInventoryModelLibrary(models) {
+  const current = Number(state.currentCampaignId || 0);
+  const fantasyGroups = groupByCampaign(
+    (models || []).filter(m => inventoryModelKind(m) !== 'cyberpunk'),
+    current,
+    'Общие фэнтези-модели',
+  );
+  const groups = [...fantasyGroups];
+  const cyberGroups = groupCyberpunkModels(models);
+  if (cyberGroups.length && currentInventoryModelKind() === 'cyberpunk') groups.unshift(...cyberGroups);
+  else groups.push(...cyberGroups);
+  return groups;
 }
 
 const CYBER_INV_MODES = {
@@ -5045,11 +5097,7 @@ function cyberItemKind(it) {
   return 'cyber';
 }
 function cyberCanEquip(it, slot) {
-  if (!it || !slot) return false;
-  const kind = cyberItemKind(it);
-  if (slot.accepts.includes(kind)) return true;
-  if (kind === 'cyber' && it.item_type !== 'weapon' && !slot.accepts.includes('weapon')) return true;
-  return kind === 'cyber' && slot.accepts.includes('cyber');
+  return Boolean(it && slot);
 }
 function cyberEquippedSlotForItem(ch, itemId) {
   return cyberInventorySlotRows(ch).find(s => Number(s.item_id) === Number(itemId)) || null;
@@ -5109,12 +5157,13 @@ function renderCyberInventory() {
       <button class="${mode==='implants'?'active':''}" onclick="setCyberInventoryMode('implants')">Импланты</button>
       <button class="${mode==='gear'?'active':''}" onclick="setCyberInventoryMode('gear')">Броня / одежда</button>
     </section>`;
-  const model = fantasy ? selectedInventoryModel(ch) : null;
-  const figureSrc = fantasy ? inventoryModelImgPath(model) : '/inventory_body_cutout.png';
-  const figureHtml = fantasy
-    ? `<div class="cyber-inv-figure" style="${inventoryModelFigureStyle(model)}"><img src="${esc(figureSrc)}" alt=""></div>`
-    : `<div class="cyber-inv-figure"><img src="${esc(figureSrc)}" alt=""></div>`;
-  const modelButton = fantasy ? `<button type="button" class="cyber-inv-model-btn ${hasUnseenInventoryModels() ? 'has-unseen' : ''}" onclick="openInventoryModelGallery(${Number(ch.id)})">Модель${hasUnseenInventoryModels() ? '<span class="nav-dot"></span>' : ''}</button>` : '';
+  const modelKind = fantasy ? 'fantasy' : 'cyberpunk';
+  const model = selectedInventoryModel(ch, modelKind);
+  const figureSrc = inventoryModelAssetPath(model);
+  const figureHtml = `<div class="cyber-inv-figure" style="${inventoryModelFigureStyle(model)}"><img src="${esc(figureSrc)}" alt=""></div>`;
+  const hasModelChoices = inventoryModelsForKind(modelKind).length > 0;
+  const hasNewModels = hasUnseenInventoryModels(modelKind);
+  const modelButton = hasModelChoices ? `<button type="button" class="cyber-inv-model-btn ${hasNewModels ? 'has-unseen' : ''}" onclick="openInventoryModelGallery(${Number(ch.id)})">Модель${hasNewModels ? '<span class="nav-dot"></span>' : ''}</button>` : '';
   const topTools = (picker || modelButton) ? `<div class="cyber-inv-top-tools">${picker}${modelButton}</div>` : '';
   const weaponCreateButton = !fantasy && state.campaignState?.campaign?.weapons_enabled ? `<button onclick="openItemModal(${Number(ch.id)}, 'weapon')">🔫</button>` : '';
   const bagCaption = fantasy ? `${bagCount} карточек · предметы, броня и снаряжение` : `${bagCount} карточек · предметы и оружие`;
@@ -5127,7 +5176,6 @@ function renderCyberInventory() {
     <section class="cyber-inv-stage-card">
       <div class="cyber-inv-stage" id="cyberInvStage">
         ${figureHtml}
-        <svg class="cyber-inv-lines" id="cyberInvLines" aria-hidden="true"></svg>
         <div class="cyber-inv-slot-map">${slots}</div>
       </div>
     </section>
@@ -5142,7 +5190,8 @@ function renderCyberInventory() {
   </div>`;
 }
 function renderInventoryModelCard(model, ch) {
-  const selected = String(ch?.selected_inventory_model_id || ch?.inventory_model?.id || '') === String(model.id);
+  const selectedModel = selectedInventoryModel(ch, inventoryModelKind(model));
+  const selected = String(selectedModel?.id || '') === String(model.id);
   const unlocked = isInventoryModelUnlocked(model);
   const unseen = unseenInventoryModelSet().has(String(model.id));
   return `<button type="button" class="inventory-model-card ${selected?'selected':''} ${unlocked?'':'locked'}" ${unlocked?`onclick="selectInventoryModel(${Number(ch.id)}, '${esc(model.id)}')"`:'disabled'}>
@@ -5154,17 +5203,20 @@ function renderInventoryModelCard(model, ch) {
 function openInventoryModelGallery(characterId) {
   const ch = cyberInventoryCharacters().find(x => Number(x.id) === Number(characterId)) || activeCyberInventoryCharacter();
   if (!ch) return;
-  const models = inventoryModels().filter(isInventoryModelUnlocked);
-  const groups = groupByCampaign(models, Number(ch.campaign_id || state.currentCampaignId), 'Общие модели');
+  const kind = currentInventoryModelKind();
+  const models = inventoryModelsForKind(kind).filter(isInventoryModelUnlocked);
+  const groups = kind === 'cyberpunk'
+    ? groupCyberpunkModels(models)
+    : groupByCampaign(models, Number(ch.campaign_id || state.currentCampaignId), 'Общие модели');
   const cards = groups.length
     ? groups.map(g => `<section class="inventory-model-group"><div class="model-group-title">${esc(g.title)}</div><div class="inventory-model-grid">${g.items.map(m => renderInventoryModelCard(m, ch)).join('')}</div></section>`).join('')
     : '<div class="muted">Моделей пока нет.</div>';
   showModal(`<div class="modal-card inventory-model-modal"><button class="modal-close" onclick="closeModal(); renderCampaign();">×</button><div class="name">Модель инвентаря</div><div class="inventory-model-groups">${cards}</div></div>`);
-  markInventoryModelsSeen(characterId);
+  markInventoryModelsSeen(characterId, models.map(m => m.id));
 }
-async function markInventoryModelsSeen(characterId) {
+async function markInventoryModelsSeen(characterId, modelIds=[]) {
   try {
-    const out = await api('/api/inventory-models/seen', {method:'POST', body:{character_id:Number(characterId), model_ids:[]}});
+    const out = await api('/api/inventory-models/seen', {method:'POST', body:{character_id:Number(characterId), model_ids:modelIds}});
     state.campaignState.unseen_inventory_model_ids = out.unseen_inventory_model_ids || [];
     state.campaignState.unlocked_inventory_model_ids = out.unlocked_inventory_model_ids || state.campaignState.unlocked_inventory_model_ids;
   } catch(_) {}
@@ -5442,6 +5494,7 @@ async function cyberMoveBagItem(characterId, itemId, targetIndex) {
   } catch(e) { showToast(e.message, 'error'); }
 }
 function drawCyberInventoryLines() {
+  return;
   const stage = document.getElementById('cyberInvStage');
   const svg = document.getElementById('cyberInvLines');
   if (!stage || !svg) return;
@@ -6535,10 +6588,10 @@ async function broadcastLast(){ if(!state.lastGeneratorText) return alert('Сн�
 function renderInventoryModelLibrary() {
   const models = inventoryModels();
   if (!models.length) return '<div class="empty-state">Моделей пока нет.</div>';
-  const groups = groupByCampaign(models, Number(state.currentCampaignId || 0), 'Общие модели');
+  const groups = groupInventoryModelLibrary(models);
   return `<div class="campaign-group-list">${groups.map(g => `<section class="campaign-library-group"><div class="campaign-library-title">${esc(g.title)}</div><div class="inventory-model-library-grid small-model-library">${g.items.map(m => `<button type="button" class="inventory-model-library-card" onclick="openMasterInventoryModel('${esc(m.id)}')">
     <span class="inventory-model-library-preview"><img loading="lazy" src="${esc(inventoryModelImgPath(m))}" alt=""></span>
-    <div><b>${esc(m.name || 'Модель')}</b><small>${rarityEmoji(m.rarity || 'common')} ${esc(rarityRu(m.rarity || 'common'))}${String(m.category || '') === 'base' ? ' · доступна всем' : ''}</small><p>${esc(m.description || '')}</p></div>
+    <div><b>${esc(m.name || 'Модель')}</b><small>${esc(inventoryModelTypeLabel(inventoryModelKind(m)))}${String(m.category || '') === 'base' ? ' · доступна всем' : ''}</small><p>${esc(m.description || '')}</p></div>
   </button>`).join('')}</div></section>`).join('')}</div>`;
 }
 
@@ -6664,11 +6717,11 @@ function rewardTagCard(t) {
 }
 function rewardModelPreview(model) {
   if (!model) return '<div class="reward-empty">Без модели</div>';
-  return `<div class="reward-preview inline"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><b>${esc(model.name)}</b><small>${rarityEmoji(model.rarity || 'common')} ${esc(rarityRu(model.rarity || 'common'))} · ${esc(model.description || '')}</small></div></div>`;
+  return `<div class="reward-preview inline"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><b>${esc(model.name)}</b><small>${esc(model.description || '')}</small></div></div>`;
 }
 function rewardModelCard(model) {
   if (!model) return `<button class="shop-card reward-none" onclick="selectAchReward('model','')"><span class="frame-demo plain">○</span><b>Без модели</b><small>Достижение не выдаёт модель</small></button>`;
-  return `<button class="shop-card inventory-model-reward-card rarity-${esc(model.rarity || 'common')}" onclick="selectAchReward('model','${esc(model.id)}')"><span class="inventory-model-card-preview"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><b>${esc(model.name)}</b><small>${rarityEmoji(model.rarity || 'common')} ${esc(rarityRu(model.rarity || 'common'))}</small><p>${esc(model.description || '')}</p></button>`;
+  return `<button class="shop-card inventory-model-reward-card" onclick="selectAchReward('model','${esc(model.id)}')"><span class="inventory-model-card-preview"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><b>${esc(model.name)}</b><small>Модель персонажа</small><p>${esc(model.description || '')}</p></button>`;
 }
 function openRewardPicker(kind) {
   const isFrame = kind === 'frame';
@@ -6676,7 +6729,7 @@ function openRewardPicker(kind) {
   const isTag = kind === 'tag';
   const isModel = kind === 'model';
   const rewardEligible = x => String(x?.rarity || 'common') !== 'common';
-  const items = isModel ? inventoryModels() : sortByRarity(
+  const items = isModel ? inventoryModelsForKind(currentInventoryModelKind()) : sortByRarity(
     isFrame ? baseCosmetics().concat(uniqueCosmetics()).filter(rewardEligible)
     : isEffect ? baseEffects().filter(e=>e.id!=='effect_none').concat(uniqueEffects()).filter(rewardEligible)
     : tagTexts().filter(rewardEligible)

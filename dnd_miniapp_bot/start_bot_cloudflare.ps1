@@ -56,6 +56,15 @@ function Get-EnvValue($name) {
     return ($line -replace "^$name=", "").Trim()
 }
 
+function Get-ServerPort {
+    $portText = Get-EnvValue "PORT"
+    $port = 8000
+    if ($portText -and [int]::TryParse($portText, [ref]$port) -and $port -gt 0) {
+        return $port
+    }
+    return 8000
+}
+
 function Get-PhysicalOutboundNetwork {
     try {
         $configs = Get-NetIPConfiguration -ErrorAction Stop | Where-Object {
@@ -94,6 +103,31 @@ function Stop-CloudflaredInstance($process, $pidPath) {
             Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
         } catch {}
         Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Stop-PortListeners($port) {
+    Write-Host "Looking for old server processes on port $port..." -ForegroundColor Cyan
+    try {
+        $currentPid = $PID
+        $portPids = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty OwningProcess -Unique |
+            Where-Object { $_ -and $_ -ne $currentPid })
+        if (!$portPids -or $portPids.Count -eq 0) {
+            Write-Host "Port $port is free." -ForegroundColor Green
+            return
+        }
+        Write-Host "Stopping old server process on port ${port}: $($portPids -join ', ')" -ForegroundColor Yellow
+        foreach ($processId in $portPids) {
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+        }
+        Start-Sleep -Seconds 2
+        $stillBusy = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+        if ($stillBusy.Count -gt 0) {
+            Fail "Port $port is still busy. Close the old local/public server window and try again."
+        }
+    } catch {
+        Write-Host "Could not inspect/stop port ${port}: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -138,7 +172,7 @@ function Remove-CloudflareBypassRoutes($physicalNetwork, $routes) {
     }
 }
 
-function Start-CloudflaredTunnel($strategy, $physicalNetwork, $logPath, $pidPath) {
+function Start-CloudflaredTunnel($strategy, $physicalNetwork, $logPath, $pidPath, $port) {
     Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
     if (Test-Path $logPath) {
         Remove-Item $logPath -Force -ErrorAction SilentlyContinue
@@ -162,7 +196,7 @@ function Start-CloudflaredTunnel($strategy, $physicalNetwork, $logPath, $pidPath
     if ($strategy.UseEdgeBind -and $physicalNetwork) {
         $tunnelCommand += " --edge-bind-address $($physicalNetwork.Address)"
     }
-    $tunnelCommand += " --metrics 127.0.0.1:20241 --pidfile `"$pidPath`" --url http://localhost:8000"
+    $tunnelCommand += " --metrics 127.0.0.1:20241 --pidfile `"$pidPath`" --url http://localhost:$port"
     Write-Host $tunnelCommand -ForegroundColor DarkGray
 
     $cmdLine = "$tunnelCommand > `"$logPath`" 2>&1"
@@ -232,6 +266,7 @@ function Start-CloudflaredTunnel($strategy, $physicalNetwork, $logPath, $pidPath
 
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ProjectDir
+$ServerPort = Get-ServerPort
 
 $ServerLogPath = Join-Path $ProjectDir "server_runtime.log"
 $ShutdownFlagPath = Join-Path $ProjectDir "data\shutdown_requested.flag"
@@ -271,6 +306,8 @@ Get-Process cloudflared -ErrorAction SilentlyContinue | ForEach-Object {
     } catch {}
 }
 
+Stop-PortListeners $ServerPort
+
 $LogPath = Join-Path $ProjectDir "cloudflared_url.log"
 if (Test-Path $LogPath) {
     Remove-Item $LogPath -Force
@@ -299,7 +336,7 @@ $TunnelStrategies = @(
 
 $TunnelResult = $null
 foreach ($strategy in $TunnelStrategies) {
-    $TunnelResult = Start-CloudflaredTunnel $strategy $PhysicalNetwork $LogPath $CloudflaredPidPath
+    $TunnelResult = Start-CloudflaredTunnel $strategy $PhysicalNetwork $LogPath $CloudflaredPidPath $ServerPort
     if ($TunnelResult.Success) {
         break
     }
@@ -421,6 +458,7 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host "STARTING BOT SERVER NOW" -ForegroundColor Green
 Write-Host "Command: $PythonExe -u main.py" -ForegroundColor Green
 Write-Host "Mini App URL: $TunnelUrl" -ForegroundColor Green
+Write-Host "Local server port: $ServerPort" -ForegroundColor Green
 Write-Host "Server log: $ServerLogPath" -ForegroundColor Green
 Write-Host "Do not close this window while the bot is running." -ForegroundColor Yellow
 Write-Host "==========================================" -ForegroundColor Green

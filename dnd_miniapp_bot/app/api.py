@@ -25,6 +25,21 @@ from app.image_utils import optimize_upload
 MAPS_FEATURE_ENABLED = False
 
 
+def _inventory_model_kind(model: dict[str, Any] | None) -> str:
+    category = str((model or {}).get("category") or "")
+    model_id = str((model or {}).get("id") or "")
+    return "cyberpunk" if category.startswith("cyberpunk") or model_id.startswith("cyberpunk_") else "fantasy"
+
+
+def _campaign_inventory_model_kind(campaign: dict[str, Any] | None) -> str:
+    return "cyberpunk" if str((campaign or {}).get("rule_type") or "fantasy") == "cyberpunk" else "fantasy"
+
+
+def _require_inventory_model_for_campaign(model: dict[str, Any] | None, campaign: dict[str, Any]) -> None:
+    if model and _inventory_model_kind(model) != _campaign_inventory_model_kind(campaign):
+        raise HTTPException(400, "Модель не подходит к типу этой кампании")
+
+
 class CreateCampaignIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     rule_type: Literal["fantasy", "cyberpunk"] = "fantasy"
@@ -649,6 +664,14 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
     app.state.upload_locks = {}
     _optimize_existing_uploads(db, upload_root)
 
+    @app.middleware("http")
+    async def no_cache_miniapp_shell(request: Request, call_next: Any) -> Any:
+        response = await call_next(request)
+        if request.url.path in {"/", "/index.html", "/app.js", "/styles.css"}:
+            response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
     async def run_idempotent_upload(
         scope: str,
         user_id: int,
@@ -882,6 +905,10 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         ch = db.get_character(int(data.character_id))
         db.log(int(c["id"]), int(data.character_id), "join", f"Игрок подключился к {ch['name'] if ch else data.character_id}")
         return {"campaign": _campaign_summary(db, c, user.id), "character": ch, "message": "Персонаж привязан."}
+
+    @app.get("/api/inventory-model-layouts")
+    async def inventory_model_layouts() -> dict[str, Any]:
+        return {"models": db.list_inventory_models()}
 
     @app.get("/api/campaigns/{campaign_id}/state")
     async def campaign_state(
@@ -1642,8 +1669,11 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             if not cosmetic_tag or str(tag_reward) == "tag_none":
                 raise HTTPException(400, "Тэг-награда не найден")
         model_reward = (data.inventory_model_reward_id or '').strip() or None
-        if model_reward and not db.get_inventory_model(model_reward):
-            raise HTTPException(400, "Модель-награда не найдена")
+        if model_reward:
+            model = db.get_inventory_model(model_reward)
+            if not model:
+                raise HTTPException(400, "Модель-награда не найдена")
+            _require_inventory_model_for_campaign(model, c)
         try:
             ach = db.create_achievement(
                 campaign_id,
@@ -1927,7 +1957,12 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
     ) -> dict[str, Any]:
         ch = _character_or_404(db, character_id)
         campaign_id = int(ch["campaign_id"])
+        campaign = _campaign_or_404(db, campaign_id)
         actual_role = _require_access(db, campaign_id, user)
+        model = db.get_inventory_model(data.model_id)
+        if not model:
+            raise HTTPException(400, "Модель инвентаря не найдена")
+        _require_inventory_model_for_campaign(model, campaign)
         dev_character = _dev_impersonated_character(db, settings, campaign_id, user, x_dev_view_character_id)
         dev_ok = bool(dev_character and int(dev_character.get("id") or 0) == int(character_id))
         owns_character = int(ch.get("telegram_user_id") or 0) == int(user.id)
@@ -1941,7 +1976,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             updated = db.set_character_inventory_model(character_id, data.model_id)
         except ValueError as exc:
             raise HTTPException(400, str(exc))
-        model = updated.get("inventory_model") or db.get_inventory_model(data.model_id)
+        model = updated.get("inventory_model") or model
         db.log(campaign_id, character_id, "inventory", f"{updated.get('name')}: выбрана модель инвентаря {model.get('name') if model else data.model_id}", {"inventory_model_id": data.model_id})
         return {
             "character": updated,
@@ -1973,10 +2008,11 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
 
     @app.post("/api/campaigns/{campaign_id}/inventory-models/{model_id}/grant")
     async def grant_inventory_model(campaign_id: int, model_id: str, data: InventoryModelGrantIn, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
-        _require_master(db, campaign_id, user)
+        campaign = _require_master(db, campaign_id, user)
         model = db.get_inventory_model(model_id)
         if not model:
             raise HTTPException(404, "Модель не найдена")
+        _require_inventory_model_for_campaign(model, campaign)
         ch = _character_or_404(db, int(data.character_id))
         if int(ch.get("campaign_id") or 0) != int(campaign_id):
             raise HTTPException(400, "Персонаж из другой кампании")

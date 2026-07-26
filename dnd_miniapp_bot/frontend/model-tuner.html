@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory Model Tuner</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b0d12;--panel:#151923;--line:#303846;--text:#f3f6fb;--muted:#9aa5b5;--accent:#f3c96b;--bad:#ff5a68}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Arial,sans-serif}
+    main{display:grid;grid-template-columns:minmax(280px,420px) minmax(360px,1fr);gap:16px;max-width:1180px;margin:0 auto;padding:16px}
+    h1{font-size:20px;margin:0 0 4px}.muted{color:var(--muted);font-size:12px}.panel{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:12px}
+    .stack{display:grid;gap:10px}.toolbar{display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px}.toolbar select,.field input{width:100%;border:1px solid var(--line);border-radius:10px;background:#0e1118;color:var(--text);padding:9px}
+    .list{display:grid;gap:6px;max-height:calc(100vh - 290px);overflow:auto;padding-right:4px}.row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid transparent;border-radius:10px;background:#10141d;padding:7px;text-align:left;color:var(--text);cursor:pointer}
+    .row.active{border-color:var(--accent);background:#1a1a17}.row img{width:42px;height:54px;object-fit:contain}.row b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row small{display:block;color:var(--muted);font-size:11px}.pill{border:1px solid var(--line);border-radius:999px;padding:3px 7px;color:var(--muted);font-size:10px;text-transform:uppercase}
+    .preview-wrap{display:grid;gap:12px;align-content:start}.preview-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.preview-title b{display:block;font-size:18px}.preview-title small{color:var(--muted)}
+    .stage{position:relative;width:360px;height:438px;margin:0 auto;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 36%,rgba(48,246,255,.26),transparent 34%),#05070d}
+    .stage.fantasy{height:500px;background:radial-gradient(circle at 50% 36%,rgba(222,170,74,.36),transparent 34%),#17120c}
+    .figure{position:absolute;left:50%;top:58%;display:grid;place-items:center;transform:translate(-50%,calc(-50% + var(--offset-y,0px)));pointer-events:none}
+    .stage.fantasy .figure{top:42%}.figure img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 12px 22px rgba(0,0,0,.45))}
+    .slot{position:absolute;width:68px;height:60px;transform:translateX(-50%);border:2px solid var(--bad);border-radius:9px;background:rgba(255,90,104,.25);padding:4px;font-size:9px;color:#fff;z-index:5}
+    .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.field{display:grid;gap:5px}.field label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+    .range{display:grid;grid-template-columns:1fr 72px;gap:6px}.range input[type=range]{accent-color:var(--accent)}
+    button{border:1px solid var(--line);border-radius:10px;background:#10141d;color:var(--text);padding:9px 10px;font-weight:800;cursor:pointer}button.primary{border-color:var(--accent);background:#2a2415}
+    textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:12px;background:#090b10;color:#f8fafc;padding:10px;font:12px/1.45 Consolas,monospace}
+    @media(max-width:860px){main{grid-template-columns:1fr}.list{max-height:340px}.stage{transform-origin:top center;transform:scale(min(1,calc((100vw - 34px)/360)));margin-bottom:calc((1 - min(1,calc((100vw - 34px)/360))) * -500px)}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="panel stack">
+    <div>
+      <h1>Настройка моделей</h1>
+      <div class="muted">Меняй размеры, копируй текст снизу и присылай его в чат.</div>
+    </div>
+    <div class="toolbar">
+      <select id="kindFilter">
+        <option value="all">Все модели</option>
+        <option value="fantasy">Фэнтези</option>
+        <option value="cyberpunk">Киберпанк</option>
+      </select>
+      <select id="modelSelect"></select>
+    </div>
+    <div id="modelList" class="list"></div>
+  </section>
+
+  <section class="panel preview-wrap">
+    <div class="preview-head">
+      <div class="preview-title"><b id="modelName">Модель</b><small id="modelMeta"></small></div>
+      <button class="primary" id="copyBtn">Скопировать правки</button>
+    </div>
+    <div id="stage" class="stage">
+      <div id="figure" class="figure"><img id="figureImg" alt=""></div>
+      <div id="slots"></div>
+    </div>
+    <div class="controls">
+      <div class="field"><label>width_px</label><div class="range"><input id="widthRange" type="range" min="80" max="360"><input id="widthInput" type="number"></div></div>
+      <div class="field"><label>height_px</label><div class="range"><input id="heightRange" type="range" min="120" max="460"><input id="heightInput" type="number"></div></div>
+      <div class="field"><label>offset_y</label><div class="range"><input id="offsetRange" type="range" min="-80" max="80"><input id="offsetInput" type="number"></div></div>
+    </div>
+    <div class="muted">Подсказка: отрицательный `offset_y` поднимает модель, положительный опускает.</div>
+    <textarea id="exportBox" readonly></textarea>
+  </section>
+</main>
+
+<script>
+const cyberSlots = [
+  ['brain1',15,5],['brain2',50,5],['brain3',85,5],['eyes',15,25],['arms',85,25],['palms',85,40],['body',15,45],['skin',15,60],['org1',85,70],['org2',85,85],['legs',15,85]
+];
+const fantasySlots = [
+  ['armor',15,34],['wpn1',85,29],['wpn2',85,46],['dop1',10,87],['dop2',30,87],['dop3',50,87],['dop4',70,87],['dop5',90,87]
+];
+let models = [];
+let selectedId = '';
+const edits = new Map();
+const $ = id => document.getElementById(id);
+function esc(text) {
+  return String(text ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function kindOf(model) {
+  const category = String(model?.category || '');
+  const id = String(model?.id || '');
+  return category.startsWith('cyberpunk') || id.startsWith('cyberpunk_') ? 'cyberpunk' : 'fantasy';
+}
+function groupLabel(model) {
+  const kind = kindOf(model);
+  if (kind === 'cyberpunk') return String(model.category || '') === 'cyberpunk_base' ? 'Киберпанк: сток' : 'Киберпанк: уникальная';
+  return model.campaign_name ? `Фэнтези: ${model.campaign_name}` : 'Фэнтези: общая';
+}
+function current(model) {
+  return edits.get(model.id) || {width_px:Number(model.width_px), height_px:Number(model.height_px), offset_y:Number(model.offset_y)};
+}
+function setCurrent(model, patch) {
+  edits.set(model.id, {...current(model), ...patch});
+  renderModelSelect();
+  renderList();
+  renderSelected();
+  renderExport();
+}
+function filteredModels() {
+  const filter = $('kindFilter').value;
+  return models.filter(m => {
+    if (filter !== 'all' && kindOf(m) !== filter) return false;
+    return true;
+  });
+}
+function renderModelSelect() {
+  const select = $('modelSelect');
+  const filtered = filteredModels();
+  if (!filtered.some(m => m.id === selectedId)) selectedId = filtered[0]?.id || models[0]?.id || '';
+  select.innerHTML = '';
+  const groups = new Map();
+  filtered.forEach(model => {
+    const label = groupLabel(model);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(model);
+  });
+  groups.forEach((items, label) => {
+    const group = document.createElement('optgroup');
+    group.label = label;
+    items.forEach(model => {
+      const c = current(model);
+      const changed = c.width_px !== Number(model.width_px) || c.height_px !== Number(model.height_px) || c.offset_y !== Number(model.offset_y);
+      const option = document.createElement('option');
+      option.value = model.id;
+      option.textContent = `${changed ? '* ' : ''}${model.name || model.id} (${model.id})`;
+      group.appendChild(option);
+    });
+    select.appendChild(group);
+  });
+  select.value = selectedId;
+}
+function renderList() {
+  const filtered = filteredModels();
+  $('modelList').innerHTML = filtered.map(m => {
+    const c = current(m);
+    const changed = c.width_px !== Number(m.width_px) || c.height_px !== Number(m.height_px) || c.offset_y !== Number(m.offset_y);
+    return `<button class="row ${m.id === selectedId ? 'active' : ''}" onclick="selectModel('${m.id}')">
+      <img src="${esc(m.thumb_path || m.asset_path)}" alt="">
+      <span><b>${esc(m.name || m.id)}</b><small>${esc(m.id)}<br>${esc(groupLabel(m))}</small></span>
+      <span class="pill">${changed ? 'changed' : `${c.width_px}/${c.height_px}/${c.offset_y}`}</span>
+    </button>`;
+  }).join('');
+}
+function renderSlots(kind) {
+  const slots = kind === 'fantasy' ? fantasySlots : cyberSlots;
+  $('slots').innerHTML = slots.map(([label,x,y]) => `<div class="slot" style="left:${x}%;top:${y}%">${label}</div>`).join('');
+}
+function selectModel(id) {
+  selectedId = id;
+  renderModelSelect();
+  renderList();
+  renderSelected();
+}
+function bindPair(rangeId, inputId, key) {
+  const range = $(rangeId);
+  const input = $(inputId);
+  function commit(value) {
+    const model = models.find(m => m.id === selectedId);
+    if (!model) return;
+    setCurrent(model, {[key]:Number(value) || 0});
+  }
+  range.addEventListener('input', () => { input.value = range.value; commit(range.value); });
+  input.addEventListener('input', () => { range.value = input.value; commit(input.value); });
+}
+function renderSelected() {
+  const model = models.find(m => m.id === selectedId) || models[0];
+  if (!model) return;
+  selectedId = model.id;
+  const c = current(model);
+  $('modelName').textContent = model.name || model.id;
+  $('modelMeta').textContent = `${model.id} · ${groupLabel(model)}`;
+  $('stage').className = `stage ${kindOf(model) === 'fantasy' ? 'fantasy' : ''}`;
+  $('figure').style.width = `${c.width_px}px`;
+  $('figure').style.height = `${c.height_px}px`;
+  $('figure').style.setProperty('--offset-y', `${c.offset_y}px`);
+  $('figureImg').src = model.asset_path;
+  renderSlots(kindOf(model));
+  $('widthRange').value = $('widthInput').value = c.width_px;
+  $('heightRange').value = $('heightInput').value = c.height_px;
+  $('offsetRange').value = $('offsetInput').value = c.offset_y;
+}
+function renderExport() {
+  const rows = [...edits.entries()].map(([id,c]) => {
+    const original = models.find(m => m.id === id);
+    if (!original) return null;
+    if (c.width_px === Number(original.width_px) && c.height_px === Number(original.height_px) && c.offset_y === Number(original.offset_y)) return null;
+    return `${id}: width_px=${c.width_px}, height_px=${c.height_px}, offset_y=${c.offset_y}`;
+  }).filter(Boolean);
+  $('exportBox').value = rows.length ? rows.join('\n') : 'Пока правок нет.';
+}
+async function init() {
+  bindPair('widthRange','widthInput','width_px');
+  bindPair('heightRange','heightInput','height_px');
+  bindPair('offsetRange','offsetInput','offset_y');
+  $('modelSelect').addEventListener('change', () => selectModel($('modelSelect').value));
+  $('kindFilter').addEventListener('change', () => {
+    renderModelSelect();
+    renderList();
+    renderSelected();
+  });
+  $('copyBtn').addEventListener('click', async () => {
+    await navigator.clipboard.writeText($('exportBox').value);
+    $('copyBtn').textContent = 'Скопировано';
+    setTimeout(() => $('copyBtn').textContent = 'Скопировать правки', 1200);
+  });
+  try {
+    const data = await fetch('/api/inventory-model-layouts', {cache:'no-store'}).then(r => r.json());
+    models = data.models || [];
+    selectedId = models[0]?.id || '';
+    renderModelSelect();
+    renderList();
+    renderSelected();
+    renderExport();
+  } catch (error) {
+    $('modelList').innerHTML = `<div class="muted">Не удалось загрузить модели: ${error.message}</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
