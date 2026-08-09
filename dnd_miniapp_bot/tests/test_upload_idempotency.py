@@ -39,6 +39,9 @@ class UploadIdempotencyTests(unittest.TestCase):
                 self.assertEqual(first.status_code, 200, first.text)
                 self.assertEqual(second.status_code, 200, second.text)
                 self.assertEqual(first.json()["avatar_path"], second.json()["avatar_path"])
+                stored_character = db.get_character(int(character["id"]))
+                self.assertEqual(stored_character["avatar_path"], first.json()["avatar_path"])
+                self.assertEqual(stored_character["avatar_thumb_path"], first.json()["avatar_thumb_path"])
                 avatar_logs = db._one(
                     "SELECT COUNT(*) AS count FROM log_events WHERE campaign_id=? AND character_id=? AND kind='manual'",
                     (int(campaign["id"]), int(character["id"])),

@@ -299,7 +299,8 @@ class InventoryPatchIn(BaseModel):
     quantity: int | None = Field(default=None, ge=1, le=9999)
 
 class InventoryMoveIn(BaseModel):
-    direction: Literal["up", "down"]
+    direction: Literal["up", "down"] | None = None
+    target_index: int | None = Field(default=None, ge=0, le=10000)
 
 class CyberInventorySlotIn(BaseModel):
     mode: Literal["implants", "gear"] = "implants"
@@ -1914,7 +1915,12 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         if role != "master" and int(ch.get("telegram_user_id") or 0) != int(user.id):
             raise HTTPException(403, "Нет доступа")
         try:
-            inventory = db.move_inventory_item(item_id, data.direction)
+            if data.target_index is not None:
+                inventory = db.move_inventory_item_to_index(item_id, data.target_index)
+            elif data.direction is not None:
+                inventory = db.move_inventory_item(item_id, data.direction)
+            else:
+                raise ValueError("Не указано новое положение предмета")
         except ValueError as exc:
             raise HTTPException(400, str(exc))
         return {"inventory": inventory}

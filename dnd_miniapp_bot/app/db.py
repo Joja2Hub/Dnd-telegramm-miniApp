@@ -38,6 +38,9 @@ def normalize_color(value: Any) -> str:
     return "#72a7ff"
 
 
+STANDARD_INVENTORY_MODEL_CATEGORIES = ("base", "cyberpunk_base")
+
+
 
 COSMETIC_LIBRARY = [
     # Базовая кастомизация: доступна всем.
@@ -1519,7 +1522,7 @@ class Database:
     def update_character_fields(self, character_id: int, **fields: Any) -> dict[str, Any]:
         allowed = {
             "name", "telegram_user_id", "ac", "max_hp_base", "max_hp_penalty", "current_hp", "temp_hp", "pain",
-            "armor_max_base", "armor_max_penalty", "armor_current", "color", "avatar_path", "custom_frame", "custom_effect", "custom_tag", "custom_tag_text", "custom_tag_style", "selected_inventory_model_id", "statuses_json", "notes"
+            "armor_max_base", "armor_max_penalty", "armor_current", "color", "avatar_path", "avatar_thumb_path", "custom_frame", "custom_effect", "custom_tag", "custom_tag_text", "custom_tag_style", "selected_inventory_model_id", "statuses_json", "notes"
         }
         data = {k: v for k, v in fields.items() if k in allowed}
         if "color" in data:
@@ -2205,7 +2208,7 @@ class Database:
                 "description": "Тяжелый киберпанк-наемник в темной бронекуртке.",
                 "asset_path": "/assets/inventory-models/cyberpunk/vladimir.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/vladimir_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 170,
                 "height_px": 346,
@@ -2219,7 +2222,7 @@ class Database:
                 "description": "Альтернативный образ Владимира в киберпанк-костюме.",
                 "asset_path": "/assets/inventory-models/cyberpunk/vladimir_suit.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/vladimir_suit_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 193,
                 "height_px": 346,
@@ -2233,7 +2236,7 @@ class Database:
                 "description": "Юркая кочевница со снайперской винтовкой и боевым дроном.",
                 "asset_path": "/assets/inventory-models/cyberpunk/gerda.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/gerda_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 226,
                 "height_px": 418,
@@ -2247,7 +2250,7 @@ class Database:
                 "description": "Сине-белый футуристичный образ Герды.",
                 "asset_path": "/assets/inventory-models/cyberpunk/gerda_dress.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/gerda_dress_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 190,
                 "height_px": 342,
@@ -2261,7 +2264,7 @@ class Database:
                 "description": "Киберпанк-раннерша с синими волосами, визором и кибер-рукой.",
                 "asset_path": "/assets/inventory-models/cyberpunk/raven.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/raven_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 164,
                 "height_px": 342,
@@ -2275,7 +2278,7 @@ class Database:
                 "description": "Темно-синий звездный кибер-образ Рейвн.",
                 "asset_path": "/assets/inventory-models/cyberpunk/raven_dress.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/raven_dress_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 150,
                 "height_px": 347,
@@ -2289,7 +2292,7 @@ class Database:
                 "description": "Подросток-хакер с кибердеком в уличной одежде.",
                 "asset_path": "/assets/inventory-models/cyberpunk/hex.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/hex_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 209,
                 "height_px": 340,
@@ -2303,7 +2306,7 @@ class Database:
                 "description": "Уникальный образ Хекса с пистолетом и машиной.",
                 "asset_path": "/assets/inventory-models/cyberpunk/hex_pistol_car.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/hex_pistol_car_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 233,
                 "height_px": 286,
@@ -2317,7 +2320,7 @@ class Database:
                 "description": "Стритвейр-образ Хекса из коллекции Lansko.",
                 "asset_path": "/assets/inventory-models/cyberpunk/hex_lansko.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/hex_lansko_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 143,
                 "height_px": 362,
@@ -2331,7 +2334,7 @@ class Database:
                 "description": "Ассасин в черном боевом костюме с кибер-богомолами.",
                 "asset_path": "/assets/inventory-models/cyberpunk/eclipse.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/eclipse_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 180,
                 "height_px": 340,
@@ -2345,7 +2348,7 @@ class Database:
                 "description": "Глянцевый черный fashion-образ Эклипс с блондинистым каре.",
                 "asset_path": "/assets/inventory-models/cyberpunk/eclipse_look.png",
                 "thumb_path": "/assets/inventory-models/cyberpunk/eclipse_look_thumb.png",
-                "rarity": "common",
+                "rarity": "unique",
                 "category": "cyberpunk_character",
                 "width_px": 95,
                 "height_px": 318,
@@ -2594,7 +2597,9 @@ class Database:
     def list_unlocked_inventory_model_ids(self, telegram_user_id: int) -> list[str]:
         base = [
             str(r["id"])
-            for r in self._many("SELECT id FROM inventory_models WHERE rarity='common' OR category='base' ORDER BY sort_order, name")
+            for r in self._many(
+                "SELECT id FROM inventory_models WHERE category IN ('base', 'cyberpunk_base') ORDER BY sort_order, name"
+            )
         ]
         rows = self._many("SELECT model_id FROM user_inventory_model_unlocks WHERE telegram_user_id=?", (int(telegram_user_id),))
         return list(dict.fromkeys(base + [str(r["model_id"]) for r in rows]))
@@ -2603,7 +2608,7 @@ class Database:
         model = self.get_inventory_model(model_id)
         if not model:
             return False
-        if str(model.get("rarity") or "common") == "common" or str(model.get("category") or "base") == "base":
+        if str(model.get("category") or "") in STANDARD_INVENTORY_MODEL_CATEGORIES:
             return True
         row = self._one(
             "SELECT 1 AS ok FROM user_inventory_model_unlocks WHERE telegram_user_id=? AND model_id=?",
@@ -2623,6 +2628,75 @@ class Database:
             (int(telegram_user_id), str(model_id), source, source_id, utc_now()),
         )
         self.conn.commit()
+
+    def revoke_nonstandard_inventory_models(self) -> dict[str, int]:
+        selected = self._many(
+            """
+            SELECT ch.id, ch.selected_inventory_model_id, c.rule_type
+            FROM characters ch
+            LEFT JOIN campaigns c ON c.id=ch.campaign_id
+            LEFT JOIN inventory_models im ON im.id=ch.selected_inventory_model_id
+            WHERE ch.selected_inventory_model_id<>''
+              AND (im.id IS NULL OR im.category NOT IN ('base', 'cyberpunk_base'))
+            """
+        )
+        male_cyberpunk_prefixes = (
+            "cyberpunk_vladimir",
+            "cyberpunk_hex",
+        )
+        for row in selected:
+            current_id = str(row.get("selected_inventory_model_id") or "")
+            if str(row.get("rule_type") or "fantasy") == "cyberpunk":
+                fallback = "cyberpunk_male" if current_id.startswith(male_cyberpunk_prefixes) else "cyberpunk_female"
+            else:
+                fallback = "fantasy_default"
+            self.conn.execute(
+                "UPDATE characters SET selected_inventory_model_id=? WHERE id=?",
+                (fallback, int(row["id"])),
+            )
+
+        unlock_count = int(
+            (self._one(
+                """
+                SELECT COUNT(*) AS count
+                FROM user_inventory_model_unlocks u
+                JOIN inventory_models im ON im.id=u.model_id
+                WHERE im.category NOT IN ('base', 'cyberpunk_base')
+                """
+            ) or {}).get("count") or 0
+        )
+        seen_count = int(
+            (self._one(
+                """
+                SELECT COUNT(*) AS count
+                FROM user_inventory_model_seen s
+                JOIN inventory_models im ON im.id=s.model_id
+                WHERE im.category NOT IN ('base', 'cyberpunk_base')
+                """
+            ) or {}).get("count") or 0
+        )
+        self.conn.execute(
+            """
+            DELETE FROM user_inventory_model_seen
+            WHERE model_id IN (
+                SELECT id FROM inventory_models WHERE category NOT IN ('base', 'cyberpunk_base')
+            )
+            """
+        )
+        self.conn.execute(
+            """
+            DELETE FROM user_inventory_model_unlocks
+            WHERE model_id IN (
+                SELECT id FROM inventory_models WHERE category NOT IN ('base', 'cyberpunk_base')
+            )
+            """
+        )
+        self.conn.commit()
+        return {
+            "removed_unlocks": unlock_count,
+            "removed_seen": seen_count,
+            "reset_characters": len(selected),
+        }
 
     def list_seen_inventory_model_ids(self, telegram_user_id: int) -> list[str]:
         rows = self._many("SELECT model_id FROM user_inventory_model_seen WHERE telegram_user_id=?", (int(telegram_user_id),))
@@ -3514,6 +3588,32 @@ class Database:
         now = utc_now()
         self.conn.execute("UPDATE inventory_items SET sort_order=?, updated_at=? WHERE id=?", (int(other.get('sort_order') or 0), now, int(current['id'])))
         self.conn.execute("UPDATE inventory_items SET sort_order=?, updated_at=? WHERE id=?", (int(current.get('sort_order') or 0), now, int(other['id'])))
+        self.conn.commit()
+        return self.list_inventory(character_id)
+
+    def move_inventory_item_to_index(self, item_id: int, target_index: int) -> list[dict[str, Any]]:
+        item = self.get_inventory_item(item_id)
+        if not item:
+            raise ValueError('Предмет не найден')
+        character_id = int(item['character_id'])
+        rows = self._many(
+            "SELECT id FROM inventory_items WHERE character_id=? ORDER BY sort_order DESC, id DESC",
+            (character_id,),
+        )
+        current_index = next((i for i, row in enumerate(rows) if int(row['id']) == int(item_id)), -1)
+        if current_index < 0 or len(rows) < 2:
+            return self.list_inventory(character_id)
+        bounded_index = max(0, min(int(target_index), len(rows) - 1))
+        if current_index == bounded_index:
+            return self.list_inventory(character_id)
+        moved = rows.pop(current_index)
+        rows.insert(bounded_index, moved)
+        now = utc_now()
+        total = len(rows)
+        self.conn.executemany(
+            "UPDATE inventory_items SET sort_order=?, updated_at=? WHERE id=?",
+            [(total - index, now, int(row['id'])) for index, row in enumerate(rows)],
+        )
         self.conn.commit()
         return self.list_inventory(character_id)
 

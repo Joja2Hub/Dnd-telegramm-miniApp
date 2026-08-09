@@ -51,7 +51,37 @@ def local_ipv4_addresses() -> list[str]:
     return sorted(addresses)
 
 
+def windows_physical_ipv4() -> str | None:
+    if os.name != "nt":
+        return None
+    command = (
+        "$item = Get-NetIPConfiguration -ErrorAction SilentlyContinue | "
+        "Where-Object { $_.NetAdapter.Status -eq 'Up' -and "
+        "$_.NetAdapter.HardwareInterface -eq $true -and $_.IPv4DefaultGateway -and $_.IPv4Address } | "
+        "Sort-Object { $_.NetIPv4Interface.InterfaceMetric } | Select-Object -First 1; "
+        "if ($item) { ($item.IPv4Address | Select-Object -First 1 -ExpandProperty IPAddress) }"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=6,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    ip = result.stdout.strip().splitlines()[0].strip() if result.stdout.strip() else ""
+    return ip if ip and not ip.startswith("127.") else None
+
+
 def preferred_local_ipv4() -> str | None:
+    physical_ip = windows_physical_ipv4()
+    if physical_ip:
+        return physical_ip
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
             probe.connect(("8.8.8.8", 80))
@@ -112,7 +142,7 @@ def stop_port_listeners(port: int) -> None:
         time.sleep(0.25)
 
 
-def build_local_app(db: Database, settings: Settings) -> FastAPI:
+def build_local_app(db: Database, settings: Settings, *, player_url: str | None = None) -> FastAPI:
     app = FastAPI(title="DND Local Host")
     local_state_path = LOCAL_ROOT / "local_host_state.json"
 
@@ -228,6 +258,10 @@ def build_local_app(db: Database, settings: Settings) -> FastAPI:
         active_id = int(read_local_state().get("active_campaign_id") or 0)
         return {"campaigns": campaigns, "active_campaign_id": active_id or None}
 
+    @app.get("/local-api/info")
+    async def local_info() -> dict:
+        return {"player_url": player_url or f"http://localhost:{settings.port}/local/", "port": settings.port}
+
     @app.get("/local-api/users")
     async def local_users() -> dict:
         return {"users": list_local_users()}
@@ -295,9 +329,9 @@ def main() -> None:
             print("")
             return
         raise
-    app = build_local_app(db, settings)
     player_ip = preferred_local_ipv4()
     player_url = f"http://{player_ip}:{port}/local/" if player_ip else f"http://localhost:{port}/local/"
+    app = build_local_app(db, settings, player_url=player_url)
 
     print("")
     print("DND local site is running.")

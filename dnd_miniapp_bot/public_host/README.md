@@ -7,6 +7,7 @@ What it does:
 - starts a Cloudflare Tunnel to the local FastAPI server;
 - writes the new public HTTPS address into `.env` as `BASE_URL`;
 - starts `main.py`, so the Telegram bot and Mini App use that public address;
+- disables `DEV_MODE`, so the public URL accepts only signed Telegram Mini App users;
 - stops old `cloudflared` processes and the old server on the configured port before launch.
 
 Requirements:

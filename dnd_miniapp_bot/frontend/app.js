@@ -48,6 +48,12 @@ function applyLocalLaunchParams() {
 }
 applyLocalLaunchParams();
 
+const LOCAL_BROWSER_MODE = location.pathname.startsWith('/local-app') || !!localStorage.getItem('local_host_mode');
+document.documentElement.classList.toggle('local-browser-mode', LOCAL_BROWSER_MODE);
+document.body.classList.toggle('local-browser-mode', LOCAL_BROWSER_MODE);
+document.documentElement.classList.toggle('telegram-browser-mode', !LOCAL_BROWSER_MODE);
+document.body.classList.toggle('telegram-browser-mode', !LOCAL_BROWSER_MODE);
+
 const state = {
   me: null,
   currentCampaignId: Number(localStorage.getItem('campaign_id') || 0),
@@ -3308,15 +3314,26 @@ function authHeaders() {
 }
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    method: opts.method || 'GET',
-    headers: authHeaders(),
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  let data = null;
-  try { data = await res.json(); } catch (_) { data = {}; }
-  if (!res.ok) throw new Error(data.detail || data.message || `Ошибка ${res.status}`);
-  return data;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.max(3000, Number(opts.timeout || 15000)));
+  try {
+    const res = await fetch(path, {
+      method: opts.method || 'GET',
+      headers: authHeaders(),
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: controller.signal,
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) { data = {}; }
+    if (!res.ok) throw new Error(data.detail || data.message || `Ошибка ${res.status}`);
+    return data;
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Сервер слишком долго не отвечает. Проверь подключение и перезапусти локальный сайт.');
+    if (error instanceof TypeError) throw new Error('Не удалось связаться с сервером. Проверь Wi-Fi, VPN и адрес сайта.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function authUploadHeaders() {
@@ -3708,6 +3725,9 @@ function showJoinCharacterModal(campaign, characters) {
 function navLabel(id, role='player') {
   return ({characters: role === 'master' ? 'Персонажи' : 'Персонаж', party:'Отряд', maps:'Карты', combat:'Бой', requests:'Заявки', generators:'Генераторы', achievements:'Достижения', journal:'Журнал', settings:'Настройки', netrunner:'Сеть', netrunner_master:'Сеть', cyber_inventory:'Инвентарь'})[id] || id;
 }
+function navShortLabel(id, role='player') {
+  return ({characters: role === 'master' ? 'Герои' : 'Герой', party:'Отряд', maps:'Карты', combat:'Бой', requests:'Заявки', generators:'События', achievements:'Награды', journal:'Журнал', settings:'Еще', netrunner:'Сеть', netrunner_master:'Сеть', cyber_inventory:'Инв.'})[id] || id;
+}
 function navIcon(id) {
   const icons = {
     characters:'🧙',
@@ -3726,6 +3746,26 @@ function navIcon(id) {
   return `<span class="nav-emoji" aria-hidden="true">${icons[id] || '•'}</span>`;
 }
 
+function campaignContextHtml(campaign, role) {
+  const roleLabel = role === 'master' ? 'Мастер' : 'Игрок';
+  return `<header class="campaign-context-bar">
+    <div class="campaign-context-copy"><b>${esc(campaign?.emoji || '🎲')} ${esc(campaign?.name || 'Кампания')}</b><small>${esc(navLabel(state.tab, role))} · ${roleLabel}</small></div>
+    <span class="campaign-context-status" title="Сервер подключен"><i></i> online</span>
+  </header>`;
+}
+
+function renderCampaignExitSettingsCard() {
+  const action = LOCAL_BROWSER_MODE ? "location.href='/local/'" : 'switchCampaign(0)';
+  const title = LOCAL_BROWSER_MODE ? 'Сменить персонажа' : 'Сменить кампанию';
+  const note = LOCAL_BROWSER_MODE
+    ? 'Вернуться на экран выбора персонажа этого локального сервера.'
+    : 'Вернуться к списку доступных кампаний.';
+  return `<section class="card settings-exit-card">
+    <div><b>${title}</b><small>${note}</small></div>
+    <button type="button" class="secondary settings-exit-action" onclick="${action}">Вернуться</button>
+  </section>`;
+}
+
 
 function renderCampaign() {
   rememberUiScroll();
@@ -3738,7 +3778,7 @@ function renderCampaign() {
   if (!tabs.includes(state.tab)) state.tab = state.tab === 'generators' ? 'settings' : 'characters';
   const unreadAchievements = (state.campaignState?.achievement_grants || []).some(g => !g.opened_at);
   const unreadModels = hasUnseenInventoryModels();
-  const tabHtml = `<nav class="tabs bottom-nav">${tabs.map(id => `<button class="${state.tab===id?'active':''}" title="${esc(navLabel(id, role))}" aria-label="${esc(navLabel(id, role))}" onclick="setTab('${id}')">${navIcon(id)}${id==='achievements' && unreadAchievements ? '<span class="nav-dot"></span>' : ''}${id==='cyber_inventory' && unreadModels ? '<span class="nav-dot"></span>' : ''}</button>`).join('')}</nav>`;
+  const tabHtml = `<nav class="tabs bottom-nav" style="--nav-count:${tabs.length}" aria-label="Разделы кампании">${tabs.map(id => `<button class="${state.tab===id?'active':''}" title="${esc(navLabel(id, role))}" aria-label="${esc(navLabel(id, role))}" aria-current="${state.tab===id?'page':'false'}" onclick="setTab('${id}')">${navIcon(id)}<span class="nav-label">${esc(navShortLabel(id, role))}</span>${id==='achievements' && unreadAchievements ? '<span class="nav-dot"></span>' : ''}${id==='cyber_inventory' && unreadModels ? '<span class="nav-dot"></span>' : ''}</button>`).join('')}</nav>`;
   let body = '';
   if (state.tab === 'characters') body = role === 'master' ? renderMasterCharacters() : renderPlayerCharacter();
   if (state.tab === 'combat') body = role === 'master' ? renderMasterCombat() : renderPlayerCombat();
@@ -3752,10 +3792,10 @@ function renderCampaign() {
   if (state.tab === 'generators') body = renderGenerators();
   if (state.tab === 'achievements') body = role === 'master' ? renderMasterAchievements() : renderPlayerAchievements();
   if (state.tab === 'journal') body = role === 'master' ? renderJournal() : '<div class="card muted">Журнал доступен только мастеру.</div>';
-  app(`<main class="campaign-screen">${body}</main>${tabHtml}`);
+  app(`<main class="campaign-screen">${campaignContextHtml(c, role)}<div class="campaign-view">${body}</div></main>${tabHtml}`);
   restoreUiScroll();
   if (state.tab === 'netrunner' || state.tab === 'netrunner_master') setTimeout(drawCyberNetworkLines, 0);
-  if (state.tab === 'cyber_inventory') setTimeout(() => { drawCyberInventoryLines(); bindCyberInventoryDrag(); }, 0);
+  if (state.tab === 'cyber_inventory') setTimeout(bindCyberInventoryDrag, 0);
   if (state.tab === 'achievements') setTimeout(renderCustomTagStyleGrid, 0);
 }
 function setTab(t) { rememberUiScroll(); if (t === 'maps' && !MAPS_FEATURE_ENABLED) t = 'characters'; state.tab=t; renderCampaign(); }
@@ -4679,7 +4719,7 @@ function renderGeneratorSettingsCard() {
 }
 
 function renderMasterSettings() {
-  return `<div class="stack">${renderSparkManagementCard()}${renderCyberMasterSettings()}${renderCampaignSettingsCard()}${renderGeneratorSettingsCard()}</div>`;
+  return `<div class="stack settings-page">${renderSparkManagementCard()}${renderCyberMasterSettings()}${renderCampaignSettingsCard()}${renderGeneratorSettingsCard()}${renderCampaignExitSettingsCard()}</div>`;
 }
 
 function cyber() { return state.campaignState?.cyber || null; }
@@ -4924,7 +4964,8 @@ function hasUnseenInventoryModels(kind=currentInventoryModelKind()) {
 }
 function isInventoryModelUnlocked(model) {
   if (!model?.id) return false;
-  return String(model.rarity || 'common') === 'common' || String(model.category || 'base') === 'base' || unlockedInventoryModelSet().has(String(model.id));
+  const category = String(model.category || '');
+  return ['base', 'cyberpunk_base'].includes(category) || unlockedInventoryModelSet().has(String(model.id));
 }
 function campaignGroupLabel(item) {
   if (inventoryModelKind(item) === 'cyberpunk') return 'Киберпанк';
@@ -5479,17 +5520,12 @@ async function cyberUnequipItem(characterId, mode, slotId) {
   } catch(e) { showToast(e.message, 'error'); }
 }
 async function cyberMoveBagItem(characterId, itemId, targetIndex) {
-  let inventory = [...(currentInventory({id: characterId}) || [])];
-  let currentIndex = inventory.findIndex(x => Number(x.id) === Number(itemId));
+  const inventory = [...(currentInventory({id: characterId}) || [])];
+  const currentIndex = inventory.findIndex(x => Number(x.id) === Number(itemId));
   if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) return;
-  const direction = targetIndex < currentIndex ? 'up' : 'down';
-  const steps = Math.abs(targetIndex - currentIndex);
   try {
-    for (let i=0; i<steps; i++) {
-      const out = await api(`/api/inventory/items/${itemId}/move`, {method:'POST', body:{direction}});
-      inventory = out.inventory || inventory;
-    }
-    replaceInventoryForCharacter(characterId, inventory);
+    const out = await api(`/api/inventory/items/${itemId}/move`, {method:'POST', body:{target_index:Number(targetIndex)}});
+    replaceInventoryForCharacter(characterId, out.inventory || inventory);
     renderCampaign();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -5536,55 +5572,72 @@ function startCyberInventoryPointer(event) {
   if (state.cyberInventoryPickedItemId) return;
   event.preventDefault();
   const start = {x:event.clientX, y:event.clientY};
-  const drag = {itemId, characterId, pointerId:event.pointerId, dragging:false, ghost:null, slot:null, bagIndex:null};
+  const ch = findChar(characterId) || activeCyberInventoryCharacter();
+  const item = cyberItemById(ch, itemId);
+  const drag = {itemId, characterId, pointerId:event.pointerId, dragging:false, ghost:null, slot:null, bagIndex:null, activeTarget:null, targets:[], frame:0, latest:null, ended:false};
   node.setPointerCapture?.(event.pointerId);
+  const setActiveTarget = target => {
+    if (drag.activeTarget?.node === target?.node) return;
+    drag.activeTarget?.node.classList.remove('drop-target');
+    drag.activeTarget = target || null;
+    drag.activeTarget?.node.classList.add('drop-target');
+    drag.slot = target?.kind === 'slot' ? target.value : null;
+    drag.bagIndex = target?.kind === 'bag' ? target.value : null;
+  };
+  const beginDrag = () => {
+    drag.dragging = true;
+    drag.ghost = document.createElement('div');
+    drag.ghost.className = 'cyber-inv-drag-ghost';
+    drag.ghost.textContent = cyberItemIcon(item);
+    document.body.appendChild(drag.ghost);
+    document.body.classList.add('inventory-dragging');
+    drag.targets = [...document.querySelectorAll('.cyber-inv-slot, .cyber-inv-bag-cell')].map(targetNode => {
+      const rect = targetNode.getBoundingClientRect();
+      if (targetNode.matches('.cyber-inv-slot')) {
+        const mode = targetNode.dataset.cyberInvMode;
+        const slotId = targetNode.dataset.cyberInvSlot;
+        return {node:targetNode, rect, kind:'slot', value:{mode, slotId}, allowed:cyberCanEquip(item, cyberSlotById(mode, slotId))};
+      }
+      return {node:targetNode, rect, kind:'bag', value:Number(targetNode.dataset.cyberBagIndex), allowed:true};
+    });
+  };
+  const paint = () => {
+    drag.frame = 0;
+    const point = drag.latest;
+    if (!point || !drag.dragging || drag.ended) return;
+    drag.ghost.style.setProperty('--drag-x', `${point.x}px`);
+    drag.ghost.style.setProperty('--drag-y', `${point.y}px`);
+    const target = drag.targets.find(({rect, allowed}) => allowed && point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom) || null;
+    setActiveTarget(target);
+  };
   const move = ev => {
-    if (ev.pointerId !== drag.pointerId) return;
+    if (drag.ended || ev.pointerId !== drag.pointerId) return;
     const dist = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
     if (dist > 9 && !drag.dragging) {
-      drag.dragging = true;
-      drag.ghost = document.createElement('div');
-      drag.ghost.className = 'cyber-inv-drag-ghost';
-      drag.ghost.textContent = cyberItemIcon(cyberItemById({id:characterId}, itemId));
-      document.body.appendChild(drag.ghost);
+      beginDrag();
     }
     if (!drag.dragging) return;
     ev.preventDefault();
-    drag.ghost.style.left = ev.clientX + 'px';
-    drag.ghost.style.top = ev.clientY + 'px';
-    document.querySelectorAll('.cyber-inv-slot.drop-target,.cyber-inv-bag-cell.drop-target').forEach(el => el.classList.remove('drop-target'));
-    const under = document.elementFromPoint(ev.clientX, ev.clientY);
-    const slotNode = under?.closest?.('.cyber-inv-slot');
-    const ch = findChar(characterId) || activeCyberInventoryCharacter();
-    const item = cyberItemById(ch, itemId);
-    drag.slot = null;
-    drag.bagIndex = null;
-    if (slotNode) {
-      const mode = slotNode.dataset.cyberInvMode;
-      const slotId = slotNode.dataset.cyberInvSlot;
-      const slot = cyberSlotById(mode, slotId);
-      if (cyberCanEquip(item, slot)) {
-        slotNode.classList.add('drop-target');
-        drag.slot = {mode, slotId};
-        return;
-      }
-    }
-    const cell = under?.closest?.('.cyber-inv-bag-cell');
-    if (cell) {
-      cell.classList.add('drop-target');
-      drag.bagIndex = Number(cell.dataset.cyberBagIndex);
-    }
+    drag.latest = {x:ev.clientX, y:ev.clientY};
+    if (!drag.frame) drag.frame = requestAnimationFrame(paint);
   };
   const end = ev => {
+    if (drag.ended || (ev.pointerId != null && ev.pointerId !== drag.pointerId)) return;
+    const cancelled = ev.type === 'pointercancel';
+    drag.ended = true;
     document.removeEventListener('pointermove', move);
-    document.querySelectorAll('.cyber-inv-slot.drop-target,.cyber-inv-bag-cell.drop-target').forEach(el => el.classList.remove('drop-target'));
+    document.removeEventListener('pointerup', end);
+    document.removeEventListener('pointercancel', end);
+    if (drag.frame) cancelAnimationFrame(drag.frame);
+    node.releasePointerCapture?.(drag.pointerId);
+    setActiveTarget(null);
     drag.ghost?.remove();
+    document.body.classList.remove('inventory-dragging');
+    if (cancelled) return;
     if (!drag.dragging) {
       state.cyberInventorySelectedSlot = null;
       if (state.cyberInventoryPickedItemId) return;
-      const ch = findChar(characterId) || activeCyberInventoryCharacter();
-      const it = cyberItemById(ch, itemId);
-      if (it?.item_type === 'weapon' && !isFantasyCampaign()) setCyberInventoryWeapon(itemId);
+      if (item?.item_type === 'weapon' && !isFantasyCampaign()) setCyberInventoryWeapon(itemId);
       else openCyberInventoryItemModal(characterId, itemId);
       return;
     }
@@ -5592,8 +5645,8 @@ function startCyberInventoryPointer(event) {
     if (Number.isInteger(drag.bagIndex)) return cyberMoveBagItem(characterId, itemId, drag.bagIndex);
   };
   document.addEventListener('pointermove', move);
-  document.addEventListener('pointerup', end, {once:true});
-  document.addEventListener('pointercancel', end, {once:true});
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
 }
 
 function renderPlayerSettings() {
@@ -5619,6 +5672,7 @@ function renderPlayerSettings() {
     </div>
     <div class="card stack customization-card"><div class="shop-standalone-head"><div><div class="name">🎨 Кастомизация</div><p class="muted">Нажми на любую рамку или эффект, чтобы открыть предпросмотр. Купленную косметику можно применить из окна предпросмотра.</p></div><span class="currency-pill">✦ ${currencyBalance()}</span></div>${customBlock}</div>
     ${renderCampaignSettingsCard()}
+    ${renderCampaignExitSettingsCard()}
   </div>`;
 }
 

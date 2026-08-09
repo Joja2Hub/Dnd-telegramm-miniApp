@@ -3,6 +3,7 @@ const state = {
   active: null,
   characters: [],
   users: [],
+  serverInfo: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -59,11 +60,13 @@ function renderActive() {
   const box = $('activeBox');
   if (!state.active) {
     box.className = 'active-box error';
-    box.innerHTML = 'Активная кампания не выбрана. Выбери кампанию выше и нажми "Сделать активной".';
+    box.innerHTML = '<b>Кампания пока не выбрана</b><span>Откройте инструменты мастера ниже и выберите игру.</span>';
     return;
   }
   box.className = 'active-box';
-  box.innerHTML = `<b>${esc(state.active.emoji || '🎲')} ${esc(state.active.name)}</b><br><span class="muted">Игрокам на Wi-Fi нужно открыть этот же адрес и выбрать персонажа.</span>`;
+  const type = state.active.rule_type === 'cyberpunk' ? 'Cyberpunk' : 'Fantasy';
+  const playerUrl = state.serverInfo?.player_url || '';
+  box.innerHTML = `<span class="active-campaign-mark">${esc(state.active.emoji || '🎲')}</span><span class="active-campaign-copy"><b>${esc(state.active.name)}</b><small>${type} · ${state.characters.length} перс.</small></span>${playerUrl ? `<button class="copy-link-btn" type="button" onclick="copyPlayerUrl()" title="Скопировать ссылку игрокам">🔗</button>` : ''}`;
 }
 
 function rememberedMasterTgId() {
@@ -102,9 +105,11 @@ function masterLoginFormHtml() {
 }
 
 function renderLogin() {
-  const box = $('loginBox');
+  const characterBox = $('characterBox');
+  const hostBox = $('hostLoginBox');
   if (!state.active) {
-    box.innerHTML = `${masterLoginFormHtml()}<div class="muted">Для входа игроками сначала выбери активную кампанию.</div>`;
+    characterBox.innerHTML = '<div class="empty-state">После выбора кампании здесь появятся персонажи.</div>';
+    hostBox.innerHTML = `${masterLoginFormHtml()}<button class="secondary reset-login" type="button" onclick="clearLocalLogin()">Сбросить сохраненный вход</button>`;
     return;
   }
 
@@ -119,18 +124,10 @@ function renderLogin() {
           <span class="badge">Игрок</span>
         </button>
       `).join('')}</div>`
-    : '<div class="muted">В активной кампании пока нет персонажей.</div>';
+    : '<div class="empty-state">В активной кампании пока нет персонажей.</div>';
 
-  box.innerHTML = `
-    <div class="host-actions">
-      ${masterLoginFormHtml()}
-      <button class="secondary" type="button" onclick="clearLocalLogin()">Сбросить локальный вход</button>
-    </div>
-    <div>
-      <h2>Персонажи для игроков</h2>
-      ${characters}
-    </div>
-  `;
+  characterBox.innerHTML = characters;
+  hostBox.innerHTML = `<div class="host-actions">${masterLoginFormHtml()}<button class="secondary reset-login" type="button" onclick="clearLocalLogin()">Сбросить сохраненный вход</button></div>`;
 }
 
 function render() {
@@ -141,16 +138,30 @@ function render() {
 
 async function load() {
   try {
-    const campaignsData = await api('/local-api/campaigns');
+    const [campaignsData, usersData, activeData, infoData] = await Promise.all([
+      api('/local-api/campaigns'),
+      api('/local-api/users'),
+      api('/local-api/active-campaign'),
+      api('/local-api/info'),
+    ]);
     state.campaigns = campaignsData.campaigns || [];
-    const usersData = await api('/local-api/users');
     state.users = usersData.users || [];
-    const activeData = await api('/local-api/active-campaign');
     state.active = activeData.campaign || null;
     state.characters = activeData.characters || [];
+    state.serverInfo = infoData || null;
     render();
   } catch (error) {
-    $('loginBox').innerHTML = `<div class="active-box error">${esc(error.message)}</div>`;
+    $('characterBox').innerHTML = `<div class="active-box error">${esc(error.message)}</div>`;
+  }
+}
+
+async function copyPlayerUrl() {
+  const url = state.serverInfo?.player_url || location.href;
+  try {
+    await navigator.clipboard.writeText(url);
+    alert(`Ссылка скопирована:\n${url}`);
+  } catch (_) {
+    prompt('Ссылка для игроков:', url);
   }
 }
 

@@ -18,7 +18,7 @@ class Settings:
     host: str = field(default_factory=lambda: os.getenv("HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: int(os.getenv("PORT", "8000")))
     dev_mode: bool = field(
-        default_factory=lambda: os.getenv("DEV_MODE", "1").strip().lower() in {"1", "true", "yes", "on"}
+        default_factory=lambda: os.getenv("DEV_MODE", "0").strip().lower() in {"1", "true", "yes", "on"}
     )
     main_master_tg_id: int = field(default_factory=lambda: int(os.getenv("MAIN_MASTER_TG_ID", "0") or 0))
 

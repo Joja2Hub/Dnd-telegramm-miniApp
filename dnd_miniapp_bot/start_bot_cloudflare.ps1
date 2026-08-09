@@ -382,11 +382,24 @@ if ($envText -match "(?m)^BASE_URL=") {
     $envText += "BASE_URL=$TunnelUrl`r`n"
 }
 
+# A public tunnel must accept only signed Telegram initData. Local browser mode
+# has its own launcher and explicitly enables dev auth inside run_local.py.
+if ($envText -match "(?m)^DEV_MODE=") {
+    $envText = [regex]::Replace($envText, "(?m)^DEV_MODE=.*$", "DEV_MODE=0")
+} else {
+    if ($envText.Length -gt 0 -and !$envText.EndsWith("`n")) {
+        $envText += "`r`n"
+    }
+    $envText += "DEV_MODE=0`r`n"
+}
+
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($envPath, $envText, $utf8NoBom)
 
 Write-Host ".env updated: BASE_URL=$TunnelUrl" -ForegroundColor Green
+Write-Host ".env secured for public launch: DEV_MODE=0" -ForegroundColor Green
 $env:BASE_URL = $TunnelUrl
+$env:DEV_MODE = "0"
 
 $WrittenBaseUrl = Get-EnvValue "BASE_URL"
 if ($WrittenBaseUrl -ne $TunnelUrl) {
@@ -447,7 +460,12 @@ $PythonBaseUrl = (& $PythonExe -c "from app.config import get_settings; print(ge
 if ($PythonBaseUrl -ne $TunnelUrl) {
     Fail "Python BASE_URL verification failed. Cloudflare=$TunnelUrl, Python=$PythonBaseUrl"
 }
+$PythonDevMode = (& $PythonExe -c "from app.config import get_settings; print(get_settings().dev_mode)" 2>$null | Select-Object -Last 1).Trim()
+if ($PythonDevMode -ne "False") {
+    Fail "Public auth verification failed: DEV_MODE must be disabled."
+}
 Write-Host "URL chain verified: Cloudflare = .env = Python = $TunnelUrl" -ForegroundColor Green
+Write-Host "Public auth verified: Telegram signature required." -ForegroundColor Green
 
 if (Test-Path $ServerLogPath) {
     Remove-Item $ServerLogPath -Force
