@@ -4162,7 +4162,7 @@ function renderMasterCombat() {
   const combat = activeCombat();
   const oldTools = renderQuickDamageTools();
   if (!combat) {
-    return `<div class="stack">
+    return `<div class="stack combat-page">
       <div class="card combat-start-card">
         <div class="combat-hero-title">⚔️ Контроллер боя</div>
         <div class="muted">Создай сцену боя, собери инициативу игроков, добавь врагов и управляй ходами.</div>
@@ -4171,7 +4171,7 @@ function renderMasterCombat() {
       ${oldTools}
     </div>`;
   }
-  return `<div class="stack">
+  return `<div class="stack combat-page">
     ${renderCombatTrackerMaster(combat)}
     ${oldTools}
   </div>`;
@@ -4261,7 +4261,7 @@ function renderPlayerCombat() {
   const ch = playerChar();
   if (!combat) return '<div class="card muted">Сейчас активного боя нет.</div>';
   const own = (combat.combatants || []).find(x => x.kind === 'character' && Number(x.character_id) === Number(ch?.id));
-  return `<div class="stack">
+  return `<div class="stack combat-page">
     <details class="card stack combat-controller combat-section" ${sectionAttrs('player-combat-order')}><summary>⚔️ Бой · раунд ${esc(combat.round || 1)}</summary><div class="stack section-body">
       <div class="muted">${combat.status === 'setup' ? 'Сбор инициативы' : 'Порядок ходов'}</div>
       ${own ? renderPlayerInitiativeInput(ch, own, combat) : ''}

@@ -6935,3 +6935,92 @@ body.inventory-dragging { cursor: grabbing; user-select: none; -webkit-user-sele
   .settings-exit-card { align-items: stretch; flex-direction: column; }
   .settings-exit-action { width: 100%; }
 }
+
+/* v74: combat layout containment and initiative carousel recovery */
+.campaign-view > .combat-page,
+.combat-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-self: start;
+  contain: inline-size;
+}
+.combat-page > *,
+.combat-page .combat-controller,
+.combat-page .combat-tools-grid,
+.combat-page .combat-section,
+.combat-page .combat-section > .section-body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.combat-page .combat-controller {
+  overflow: hidden !important;
+}
+.combat-page .combat-tools-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.combat-page .combat-tools-grid > *,
+.combat-page .combat-head > *,
+.combat-page .combat-head .row,
+.combat-page .initiative-table-card,
+.combat-page .combatant-row,
+.combat-page .combatant-main,
+.combat-page .enemy-public-grid,
+.combat-page .enemy-public-card {
+  max-width: 100%;
+  min-width: 0;
+}
+.combat-page .initiative-carousel {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y !important;
+}
+.combat-page .enemy-public-grid {
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+
+@media (max-width: 760px) {
+  .combat-page .combat-tools-grid { grid-template-columns: minmax(0, 1fr); }
+  .combat-page .combat-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .combat-page .combat-head .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+  .combat-page .combat-head .row button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: 8px;
+    white-space: normal;
+    line-height: 1.2;
+  }
+  .combat-page .section-body > .row { width: 100%; max-width: 100%; }
+  .combat-page .section-body > .row > button { min-width: 0; max-width: 100%; flex: 1 1 140px; }
+  .combat-page .initiative-carousel .initiative-token:not(.round-marker) {
+    flex: 0 0 min(168px, 70vw) !important;
+    width: min(168px, 70vw) !important;
+    min-width: 0 !important;
+    max-width: min(168px, 70vw) !important;
+  }
+  .combat-page .initiative-carousel .initiative-token.round-marker {
+    flex: 0 0 112px !important;
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+  .combat-page .combatant-main { min-width: 0; }
+}
