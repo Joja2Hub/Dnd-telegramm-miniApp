@@ -8,6 +8,7 @@ import sys
 import json
 import time
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
@@ -28,6 +29,15 @@ from app.db import Database  # noqa: E402
 
 class LocalActiveCampaignIn(BaseModel):
     campaign_id: int = Field(ge=1)
+
+
+class LocalCreateCampaignIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    master_tg_id: int = Field(ge=1)
+    rule_type: Literal["fantasy", "cyberpunk"] = "fantasy"
+    injuries_enabled: bool = True
+    armor_enabled: bool = False
+    weapons_enabled: bool = False
 
 
 def local_ipv4_addresses() -> list[str]:
@@ -258,6 +268,22 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
         active_id = int(read_local_state().get("active_campaign_id") or 0)
         return {"campaigns": campaigns, "active_campaign_id": active_id or None}
 
+    @app.post("/local-api/campaigns")
+    async def create_local_campaign(data: LocalCreateCampaignIn) -> dict:
+        campaign = db.create_campaign(
+            data.name.strip(),
+            int(data.master_tg_id),
+            rule_type=data.rule_type,
+            injuries_enabled=data.injuries_enabled,
+            armor_enabled=data.armor_enabled,
+            weapons_enabled=data.weapons_enabled,
+        )
+        db.log(int(campaign["id"]), None, "campaign", f"Создана кампания {campaign['name']} через локальный сервер")
+        write_local_state({"active_campaign_id": int(campaign["id"])})
+        payload = local_campaign_payload(int(campaign["id"]))
+        payload["active_campaign_id"] = int(campaign["id"])
+        return payload
+
     @app.get("/local-api/info")
     async def local_info() -> dict:
         return {"player_url": player_url or f"http://localhost:{settings.port}/local/", "port": settings.port}
@@ -331,6 +357,13 @@ def main() -> None:
         raise
     player_ip = preferred_local_ipv4()
     player_url = f"http://{player_ip}:{port}/local/" if player_ip else f"http://localhost:{port}/local/"
+    try:
+        (LOCAL_ROOT / "SERVER_ADDRESS.txt").write_text(
+            f"Ссылка для игроков:\n{player_url}\n\nСсылка на этом компьютере:\nhttp://127.0.0.1:{port}/local/\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
     app = build_local_app(db, settings, player_url=player_url)
 
     print("")

@@ -15,39 +15,20 @@ echo If phones cannot open the site, run local_host\ALLOW_FIREWALL_PORT_8000_AS_
 echo.
 
 echo Restarting local site on port %LOCAL_PORT%...
-call :StopPortProcess %LOCAL_PORT%
-call :IsPortListening %LOCAL_PORT%
-if not errorlevel 1 (
-  echo.
-  echo Port %LOCAL_PORT% is still busy and could not be stopped from this window.
-  echo Run local_host\KILL_PORT_8000_AS_ADMIN.bat, accept the UAC prompt, then start this file again.
-  echo.
-  pause
-  popd
-  endlocal
-  exit /b 1
-)
-
-start "" cmd /c "ping 127.0.0.1 -n 4 >nul && start http://localhost:%LOCAL_PORT%/local/"
+echo The old server will be stopped automatically if it is still running.
+echo Waiting for the site to become ready before opening the browser...
+start "" /b powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; $url='http://127.0.0.1:%LOCAL_PORT%/local/'; $health='http://127.0.0.1:%LOCAL_PORT%/local-api/info'; for($i=0; $i -lt 120; $i++){ try { $response=Invoke-WebRequest -UseBasicParsing -Uri $health -TimeoutSec 2 -ErrorAction Stop; if($response.StatusCode -eq 200){ Start-Process ($url + '?fresh=' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()); exit 0 } } catch {}; Start-Sleep -Milliseconds 500 }; exit 1"
 "%PYTHON_EXE%" "%PROJECT_DIR%\local_host\run_local.py"
+
+set "SERVER_EXIT=%ERRORLEVEL%"
+if not "%SERVER_EXIT%"=="0" (
+  echo.
+  echo Local server stopped with error code %SERVER_EXIT%.
+  echo The error above is the reason the site did not start.
+  echo If port 8000 is busy, run local_host\KILL_PORT_8000_AS_ADMIN.bat and try again.
+  echo.
+)
 
 pause
 popd
-endlocal
-exit /b 0
-
-:StopPortProcess
-echo Looking for old server processes on port %1...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%1 .*LISTENING"') do (
-  if not "%%P"=="0" (
-    echo Killing process %%P on port %1...
-    taskkill /PID %%P /F /T >nul 2>nul
-  )
-)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$portPids = @(Get-NetTCPConnection -LocalPort %1 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique); if ($portPids.Count) { Write-Host ('Force stopping remaining process on port %1: ' + ($portPids -join ', ')); foreach ($processId in $portPids) { Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 1 }"
-timeout /t 2 /nobreak >nul
-exit /b 0
-
-:IsPortListening
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalPort %1 -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
-exit /b %errorlevel%
+endlocal & exit /b %SERVER_EXIT%

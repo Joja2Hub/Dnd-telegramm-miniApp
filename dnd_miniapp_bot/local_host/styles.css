@@ -99,6 +99,8 @@ label {
   padding: 22px 0 18px;
 }
 .hero > div { min-width:0; flex:1 1 auto; }
+.hero-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex:0 0 auto; }
+.quick-create-btn { min-height:44px; white-space:nowrap; }
 
 .eyebrow {
   margin: 0 0 8px;
@@ -176,7 +178,7 @@ h2 {
 
 .active-box:not(.error) {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
 }
@@ -185,7 +187,11 @@ h2 {
 .active-campaign-copy { min-width:0; display:grid; gap:2px; }
 .active-campaign-copy b, .active-campaign-copy small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .active-campaign-copy small { color:var(--muted); }
-.copy-link-btn { width:42px; min-width:42px; padding:0; color:var(--text); background:rgba(114,167,255,.12); border-color:rgba(114,167,255,.32); box-shadow:none; }
+.player-address { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; margin-top:2px; padding-top:10px; border-top:1px solid rgba(84,211,138,.16); }
+.player-address > span { min-width:0; display:grid; gap:3px; }
+.player-address small { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; }
+.player-address code { min-width:0; color:#dceaff; font-family:Consolas,monospace; font-size:13px; overflow-wrap:anywhere; }
+.copy-link-btn { min-height:40px; color:var(--text); background:rgba(114,167,255,.12); border-color:rgba(114,167,255,.32); box-shadow:none; }
 .character-box { margin-top:14px; }
 .empty-state { padding:16px; border:1px dashed var(--line); border-radius:8px; color:var(--muted); text-align:center; }
 
@@ -205,6 +211,35 @@ h2 {
 .host-tools-body { display:grid; gap:14px; padding:0 16px 16px; border-top:1px solid rgba(255,255,255,.07); }
 .host-campaign-block { padding-top:14px; }
 .reset-login { width:max-content; }
+
+.local-create-panel {
+  border: 1px solid rgba(114,167,255,.24);
+  background: rgba(114,167,255,.065);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.local-create-panel > summary {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.local-create-panel > summary::-webkit-details-marker { display:none; }
+.local-create-panel > summary::after { content:'⌄'; color:var(--accent); font-size:18px; }
+.local-create-panel[open] > summary::after { transform:rotate(180deg); }
+.local-create-panel > summary span { display:grid; gap:2px; }
+.local-create-panel > summary small { color:var(--muted); font-size:12px; font-weight:700; }
+.local-create-body { display:grid; gap:12px; padding:0 14px 14px; }
+.local-create-grid { display:grid; grid-template-columns:minmax(180px,1fr) minmax(150px,.7fr); gap:10px; }
+.local-create-master { grid-column:1 / -1; }
+.local-create-options { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.local-create-options label { display:flex; align-items:center; gap:7px; color:var(--muted); font-weight:750; }
+.local-create-options input { width:18px; height:18px; min-height:0; margin:0; }
+.create-campaign-btn { min-height:46px; background:linear-gradient(180deg,#3d79df,#2f63bb); }
 
 .host-actions {
   display: grid;
@@ -331,11 +366,16 @@ h2 {
 
 @media (max-width: 640px) {
   .shell { padding: 14px; }
-  .hero { min-height: 120px; align-items: flex-start; padding: 18px 0 14px; }
+  .hero { min-height: 120px; align-items: flex-start; flex-wrap:wrap; padding: 18px 0 14px; }
+  .hero-actions { width:100%; }
   h1 { font-size:32px; }
   .lead { font-size:14px; margin-bottom:0; }
   .campaign-row { grid-template-columns: 1fr; }
   .local-master-login { grid-template-columns: 1fr; }
+  .local-create-grid { grid-template-columns:1fr; }
+  .local-create-master { grid-column:auto; }
+  .player-address { grid-template-columns:1fr; }
+  .copy-link-btn { width:100%; }
   .section-head { display: block; }
   .character-grid { grid-template-columns:1fr; }
   .host-tools > summary { min-height:62px; }

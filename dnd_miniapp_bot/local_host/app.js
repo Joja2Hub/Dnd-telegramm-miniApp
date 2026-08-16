@@ -66,7 +66,7 @@ function renderActive() {
   box.className = 'active-box';
   const type = state.active.rule_type === 'cyberpunk' ? 'Cyberpunk' : 'Fantasy';
   const playerUrl = state.serverInfo?.player_url || '';
-  box.innerHTML = `<span class="active-campaign-mark">${esc(state.active.emoji || '🎲')}</span><span class="active-campaign-copy"><b>${esc(state.active.name)}</b><small>${type} · ${state.characters.length} перс.</small></span>${playerUrl ? `<button class="copy-link-btn" type="button" onclick="copyPlayerUrl()" title="Скопировать ссылку игрокам">🔗</button>` : ''}`;
+  box.innerHTML = `<span class="active-campaign-mark">${esc(state.active.emoji || '🎲')}</span><span class="active-campaign-copy"><b>${esc(state.active.name)}</b><small>${type} · ${state.characters.length} перс.</small></span>${playerUrl ? `<div class="player-address"><span><small>Ссылка игрокам</small><code>${esc(playerUrl)}</code></span><button class="copy-link-btn" type="button" onclick="copyPlayerUrl()">Копировать</button></div>` : ''}`;
 }
 
 function rememberedMasterTgId() {
@@ -104,9 +104,35 @@ function masterLoginFormHtml() {
   `;
 }
 
+function createCampaignFormHtml() {
+  const selected = rememberedMasterTgId();
+  const options = state.users.length
+    ? state.users.map(user => `<option value="${esc(user.telegram_user_id)}" ${String(user.telegram_user_id) === String(selected) ? 'selected' : ''}>${esc(userLabel(user))}</option>`).join('')
+    : `<option value="${esc(selected)}">${selected ? esc('TG ' + selected) : 'Сначала нужен пользователь в базе'}</option>`;
+  return `<details class="local-create-panel">
+    <summary><span><b>Создать новую игру</b><small>кампания сразу станет активной</small></span></summary>
+    <form class="local-create-body" onsubmit="createLocalCampaign(event)">
+      <div class="local-create-grid">
+        <label>Название<input id="localCampaignName" maxlength="80" placeholder="Например: Новая история" required></label>
+        <label>Система<select id="localCampaignRule"><option value="fantasy">Фэнтези</option><option value="cyberpunk">Киберпанк</option></select></label>
+        <label class="local-create-master">Главный мастер<select id="localCampaignMaster" ${selected ? '' : 'disabled'}>${options}</select></label>
+      </div>
+      <div class="local-create-options">
+        <label><input id="localCampaignInjuries" type="checkbox" checked> Травмы</label>
+        <label><input id="localCampaignArmor" type="checkbox"> Броня</label>
+        <label><input id="localCampaignWeapons" type="checkbox"> Оружие и магазины</label>
+      </div>
+      <button id="createLocalCampaignBtn" class="create-campaign-btn" type="submit" ${selected ? '' : 'disabled'}>Создать и открыть</button>
+      <div id="createLocalCampaignStatus" class="muted" role="status"></div>
+    </form>
+  </details>`;
+}
+
 function renderLogin() {
   const characterBox = $('characterBox');
+  const createBox = $('hostCreateBox');
   const hostBox = $('hostLoginBox');
+  createBox.innerHTML = createCampaignFormHtml();
   if (!state.active) {
     characterBox.innerHTML = '<div class="empty-state">После выбора кампании здесь появятся персонажи.</div>';
     hostBox.innerHTML = `${masterLoginFormHtml()}<button class="secondary reset-login" type="button" onclick="clearLocalLogin()">Сбросить сохраненный вход</button>`;
@@ -172,6 +198,43 @@ async function activateCampaign() {
   state.active = data.campaign || null;
   state.characters = data.characters || [];
   render();
+}
+
+async function createLocalCampaign(event) {
+  event.preventDefault();
+  const name = String($('localCampaignName')?.value || '').trim();
+  const masterTgId = Number($('localCampaignMaster')?.value || 0);
+  const button = $('createLocalCampaignBtn');
+  const status = $('createLocalCampaignStatus');
+  if (!name) return $('localCampaignName')?.focus();
+  if (!masterTgId) {
+    status.textContent = 'Выбери главного мастера.';
+    return;
+  }
+  button.disabled = true;
+  status.textContent = 'Создаю кампанию...';
+  try {
+    const data = await api('/local-api/campaigns', {method: 'POST', body: {
+      name,
+      master_tg_id: masterTgId,
+      rule_type: $('localCampaignRule')?.value || 'fantasy',
+      injuries_enabled: !!$('localCampaignInjuries')?.checked,
+      armor_enabled: !!$('localCampaignArmor')?.checked,
+      weapons_enabled: !!$('localCampaignWeapons')?.checked,
+    }});
+    const campaign = data.campaign;
+    if (!campaign?.id) throw new Error('Сервер не вернул созданную кампанию');
+    localStorage.setItem('local_master_tg_id', String(masterTgId));
+    localStorage.setItem('dev_tg_id', String(masterTgId));
+    localStorage.setItem('local_host_mode', 'host');
+    localStorage.setItem('campaign_id', String(campaign.id));
+    localStorage.removeItem('dev_view_character_id');
+    const params = new URLSearchParams({local_tg_id: String(masterTgId), campaign_id: String(campaign.id)});
+    window.location.href = `/local/launch.html?${params.toString()}`;
+  } catch (error) {
+    button.disabled = false;
+    status.textContent = error.message;
+  }
 }
 
 function enterAsChosenMaster() {
@@ -244,6 +307,16 @@ function clearLocalLogin() {
   alert('Локальный вход сброшен.');
 }
 
+function openCreateCampaignPanel() {
+  const hostTools = document.querySelector('.host-tools');
+  const createPanel = document.querySelector('.local-create-panel');
+  if (hostTools) hostTools.open = true;
+  if (createPanel) createPanel.open = true;
+  createPanel?.scrollIntoView({behavior: 'smooth', block: 'center'});
+  setTimeout(() => $('localCampaignName')?.focus(), 350);
+}
+
 $('refreshBtn').addEventListener('click', load);
+$('createGameShortcut').addEventListener('click', openCreateCampaignPanel);
 $('activateBtn').addEventListener('click', activateCampaign);
 load();

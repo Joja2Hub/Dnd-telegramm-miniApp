@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="dark">
   <title>DND Local Host</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23161d27'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='38'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/local/styles.css?v=local-20260808">
+  <link rel="stylesheet" href="/local/styles.css?v=local-20260815-player-address">
 </head>
 <body>
   <main class="shell">
@@ -17,7 +17,10 @@
         <h1>DND Mini App</h1>
         <p class="lead">Выберите персонажа и продолжайте игру с телефона.</p>
       </div>
-      <button id="refreshBtn" class="icon-btn" type="button" title="Обновить список" aria-label="Обновить список">↻</button>
+      <span class="hero-actions">
+        <button id="createGameShortcut" class="secondary quick-create-btn" type="button">＋ Новая игра</button>
+        <button id="refreshBtn" class="icon-btn" type="button" title="Обновить список" aria-label="Обновить список">↻</button>
+      </span>
     </section>
 
     <section class="panel player-panel">
@@ -41,11 +44,12 @@
             <button id="activateBtn" type="button">Сделать активной</button>
           </div>
         </div>
+        <div id="hostCreateBox"></div>
         <div id="hostLoginBox" class="login-box"></div>
       </div>
     </details>
   </main>
 
-  <script defer src="/local/app.js?v=local-20260808"></script>
+  <script defer src="/local/app.js?v=local-20260815-player-address"></script>
 </body>
 </html>
