@@ -485,6 +485,12 @@ class Database:
     def init_schema(self) -> None:
         self.conn.executescript(
             """
+            CREATE TABLE IF NOT EXISTS player_accounts (
+                telegram_user_id INTEGER PRIMARY KEY,
+                first_name TEXT NOT NULL DEFAULT '',
+                username TEXT NOT NULL DEFAULT ''
+            );
+
             CREATE TABLE IF NOT EXISTS campaigns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -710,6 +716,36 @@ class Database:
                 sort_order INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS combat_enemy_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+                created_by_master_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                hp INTEGER NOT NULL DEFAULT 1,
+                ac INTEGER NOT NULL DEFAULT 10,
+                color TEXT NOT NULL DEFAULT '#ef4444',
+                hidden_hp INTEGER NOT NULL DEFAULT 0,
+                public_note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS combat_scene_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+                created_by_master_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                enemies_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_combat_enemy_templates_campaign
+                ON combat_enemy_templates(campaign_id, id);
+            CREATE INDEX IF NOT EXISTS idx_combat_scene_templates_campaign
+                ON combat_scene_templates(campaign_id, id);
             """
         )
         self._migrate()
@@ -749,8 +785,11 @@ class Database:
                 stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
                 name = os.path.basename(self.path) or "database.sqlite3"
                 target = os.path.join(backup_dir, f"{name}.pre_v67_{stamp}.bak")
-                with sqlite3.connect(target) as dst:
+                dst = sqlite3.connect(target)
+                try:
                     self.conn.backup(dst)
+                finally:
+                    dst.close()
                 backup_done = True
             except Exception:
                 # Миграция не должна падать только из-за невозможности создать backup.
@@ -1206,6 +1245,36 @@ class Database:
         request_cols = cols("requests")
         if "payload_json" not in request_cols:
             self.conn.execute("ALTER TABLE requests ADD COLUMN payload_json TEXT NOT NULL DEFAULT '{}'")
+
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS combat_enemy_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+                created_by_master_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                hp INTEGER NOT NULL DEFAULT 1,
+                ac INTEGER NOT NULL DEFAULT 10,
+                color TEXT NOT NULL DEFAULT '#ef4444',
+                hidden_hp INTEGER NOT NULL DEFAULT 0,
+                public_note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS combat_scene_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+                created_by_master_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                enemies_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_combat_enemy_templates_campaign
+                ON combat_enemy_templates(campaign_id, id);
+            CREATE INDEX IF NOT EXISTS idx_combat_scene_templates_campaign
+                ON combat_scene_templates(campaign_id, id);
+        """)
 
     # ---------- generic ----------
     def _one(self, sql: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
@@ -1726,6 +1795,180 @@ class Database:
         self.conn.commit()
         return self.get_character(character_id)
 
+
+    # ---------- combat templates ----------
+    def _enemy_template_payload(self, value: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "name": str(value.get("name") or "Враг").strip()[:80] or "Враг",
+            "hp": max(1, min(100000, int(value.get("hp") or value.get("max_hp") or 1))),
+            "ac": max(1, min(1000, int(value.get("ac") or 10))),
+            "color": normalize_color(value.get("color") or "#ef4444"),
+            "hidden_hp": bool(value.get("hidden_hp")),
+            "public_note": str(value.get("public_note") or "").strip()[:1000],
+        }
+
+    def _hydrate_enemy_template(self, row: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not row:
+            return None
+        out = dict(row)
+        out["hidden_hp"] = bool(out.get("hidden_hp"))
+        out["color"] = normalize_color(out.get("color") or "#ef4444")
+        out["hp"] = max(1, int(out.get("hp") or 1))
+        out["ac"] = max(1, int(out.get("ac") or 10))
+        return out
+
+    def list_combat_enemy_templates(self, campaign_id: int) -> list[dict[str, Any]]:
+        rows = self._many(
+            "SELECT * FROM combat_enemy_templates WHERE campaign_id=? ORDER BY name COLLATE NOCASE, id",
+            (int(campaign_id),),
+        )
+        return [item for item in (self._hydrate_enemy_template(row) for row in rows) if item]
+
+    def get_combat_enemy_template(self, template_id: int) -> dict[str, Any] | None:
+        return self._hydrate_enemy_template(self._one("SELECT * FROM combat_enemy_templates WHERE id=?", (int(template_id),)))
+
+    def create_combat_enemy_template(self, campaign_id: int, master_tg_id: int, **fields: Any) -> dict[str, Any]:
+        item = self._enemy_template_payload(fields)
+        now = utc_now()
+        cur = self.conn.execute(
+            """
+            INSERT INTO combat_enemy_templates(
+                campaign_id, created_by_master_id, name, hp, ac, color, hidden_hp, public_note, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(campaign_id), int(master_tg_id), item["name"], item["hp"], item["ac"], item["color"],
+                int(item["hidden_hp"]), item["public_note"], now, now,
+            ),
+        )
+        self.conn.commit()
+        return self.get_combat_enemy_template(int(cur.lastrowid))  # type: ignore[return-value]
+
+    def update_combat_enemy_template(self, template_id: int, **fields: Any) -> dict[str, Any]:
+        old = self.get_combat_enemy_template(template_id)
+        if not old:
+            raise ValueError("Заготовка врага не найдена")
+        item = self._enemy_template_payload({**old, **fields})
+        self.conn.execute(
+            """
+            UPDATE combat_enemy_templates
+            SET name=?, hp=?, ac=?, color=?, hidden_hp=?, public_note=?, updated_at=?
+            WHERE id=?
+            """,
+            (item["name"], item["hp"], item["ac"], item["color"], int(item["hidden_hp"]), item["public_note"], utc_now(), int(template_id)),
+        )
+        self.conn.commit()
+        return self.get_combat_enemy_template(template_id)  # type: ignore[return-value]
+
+    def delete_combat_enemy_template(self, template_id: int) -> bool:
+        cur = self.conn.execute("DELETE FROM combat_enemy_templates WHERE id=?", (int(template_id),))
+        self.conn.commit()
+        return bool(cur.rowcount)
+
+    def _scene_enemy_snapshot(self, value: dict[str, Any]) -> dict[str, Any]:
+        item = self._enemy_template_payload(value)
+        source_id = value.get("source_enemy_template_id")
+        item["source_enemy_template_id"] = int(source_id) if source_id else None
+        return item
+
+    def _hydrate_combat_scene_template(self, row: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not row:
+            return None
+        out = dict(row)
+        try:
+            raw = json.loads(out.pop("enemies_json", "[]") or "[]")
+        except (TypeError, ValueError):
+            raw = []
+        enemies = [self._scene_enemy_snapshot(item) for item in raw if isinstance(item, dict)]
+        out["enemies"] = enemies
+        out["enemy_count"] = len(enemies)
+        return out
+
+    def list_combat_scene_templates(self, campaign_id: int) -> list[dict[str, Any]]:
+        rows = self._many(
+            "SELECT * FROM combat_scene_templates WHERE campaign_id=? ORDER BY name COLLATE NOCASE, id",
+            (int(campaign_id),),
+        )
+        return [item for item in (self._hydrate_combat_scene_template(row) for row in rows) if item]
+
+    def get_combat_scene_template(self, template_id: int) -> dict[str, Any] | None:
+        return self._hydrate_combat_scene_template(self._one("SELECT * FROM combat_scene_templates WHERE id=?", (int(template_id),)))
+
+    def create_combat_scene_template(
+        self,
+        campaign_id: int,
+        master_tg_id: int,
+        *,
+        name: str,
+        description: str = "",
+        enemies: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        snapshots = [self._scene_enemy_snapshot(item) for item in (enemies or [])]
+        now = utc_now()
+        cur = self.conn.execute(
+            """
+            INSERT INTO combat_scene_templates(
+                campaign_id, created_by_master_id, name, description, enemies_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(campaign_id), int(master_tg_id), str(name).strip()[:80] or "Сцена боя",
+                str(description).strip()[:1000], json.dumps(snapshots, ensure_ascii=False), now, now,
+            ),
+        )
+        self.conn.commit()
+        return self.get_combat_scene_template(int(cur.lastrowid))  # type: ignore[return-value]
+
+    def update_combat_scene_template(
+        self,
+        template_id: int,
+        *,
+        name: str,
+        description: str = "",
+        enemies: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        old = self.get_combat_scene_template(template_id)
+        if not old:
+            raise ValueError("Заготовка сцены не найдена")
+        snapshots = [self._scene_enemy_snapshot(item) for item in (enemies if enemies is not None else old.get("enemies") or [])]
+        self.conn.execute(
+            """
+            UPDATE combat_scene_templates
+            SET name=?, description=?, enemies_json=?, updated_at=?
+            WHERE id=?
+            """,
+            (
+                str(name).strip()[:80] or "Сцена боя", str(description).strip()[:1000],
+                json.dumps(snapshots, ensure_ascii=False), utc_now(), int(template_id),
+            ),
+        )
+        self.conn.commit()
+        return self.get_combat_scene_template(template_id)  # type: ignore[return-value]
+
+    def delete_combat_scene_template(self, template_id: int) -> bool:
+        cur = self.conn.execute("DELETE FROM combat_scene_templates WHERE id=?", (int(template_id),))
+        self.conn.commit()
+        return bool(cur.rowcount)
+
+    def combat_template_library(self, campaign_id: int) -> dict[str, Any]:
+        return {
+            "enemy_templates": self.list_combat_enemy_templates(campaign_id),
+            "scene_templates": self.list_combat_scene_templates(campaign_id),
+        }
+
+    def create_combat_from_scene(self, campaign_id: int, scene_template_id: int) -> dict[str, Any]:
+        if self.get_active_combat(campaign_id):
+            raise ValueError("В кампании уже есть активный бой")
+        scene = self.get_combat_scene_template(scene_template_id)
+        if not scene or int(scene.get("campaign_id") or 0) != int(campaign_id):
+            raise ValueError("Заготовка сцены не найдена в этой кампании")
+        combat = self.create_combat(campaign_id)
+        for enemy in scene.get("enemies") or []:
+            self.add_enemy_combatant(
+                int(combat["id"]), enemy["name"], enemy["hp"], enemy["ac"], None,
+                enemy["color"], enemy["hidden_hp"], enemy["public_note"],
+            )
+        return self.get_combat(int(combat["id"]))  # type: ignore[return-value]
 
     # ---------- combat tracker ----------
     def get_active_combat(self, campaign_id: int) -> dict[str, Any] | None:
@@ -2863,6 +3106,43 @@ class Database:
         grant = self.get_grant_by_achievement_user(int(achievement_id), int(tg_id))
         return grant or {"id": grant_id, "achievement": ach, "telegram_user_id": int(tg_id)}
 
+    def grant_achievement_to_player(
+        self,
+        achievement_id: int,
+        telegram_user_id: int,
+        campaign_id: int,
+        master_tg_id: int,
+        master_comment: str = '',
+        character_id: int | None = None,
+    ) -> dict[str, Any]:
+        ach = self.get_achievement(achievement_id)
+        if not ach:
+            raise ValueError("Достижение не найдено")
+        tg_id = int(telegram_user_id)
+        if not any(int(player["telegram_user_id"]) == tg_id for player in self.list_achievement_players()):
+            raise ValueError("Аккаунт игрока не найден")
+        if character_id:
+            ch = self.get_character(int(character_id))
+            if not ch or int(ch.get("telegram_user_id") or 0) != tg_id:
+                raise ValueError("Персонаж не принадлежит этому игроку")
+        cur = self.conn.execute(
+            """
+            INSERT INTO achievement_grants(achievement_id, telegram_user_id, campaign_id, character_id, given_by_master_id, master_comment, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(achievement_id, telegram_user_id) DO UPDATE SET
+                campaign_id=excluded.campaign_id,
+                character_id=excluded.character_id,
+                given_by_master_id=excluded.given_by_master_id,
+                master_comment=excluded.master_comment,
+                created_at=excluded.created_at
+            """,
+            (int(achievement_id), tg_id, int(campaign_id), None, int(master_tg_id), master_comment.strip(), utc_now()),
+        )
+        grant_id = int(cur.lastrowid or 0)
+        self.conn.commit()
+        grant = self.get_grant_by_achievement_user(int(achievement_id), tg_id)
+        return grant or {"id": grant_id, "achievement": ach, "telegram_user_id": tg_id}
+
     def open_achievement_grant(self, grant_id: int, telegram_user_id: int) -> dict[str, Any]:
         grant = self._one("SELECT * FROM achievement_grants WHERE id=? AND telegram_user_id=?", (int(grant_id), int(telegram_user_id)))
         if not grant:
@@ -2925,6 +3205,43 @@ class Database:
         self.conn.commit()
         return True
 
+    def remember_player_account(self, telegram_user_id: int, first_name: str = '', username: str | None = None) -> None:
+        self.conn.execute(
+            """INSERT INTO player_accounts(telegram_user_id, first_name, username) VALUES (?, ?, ?)
+            ON CONFLICT(telegram_user_id) DO UPDATE SET
+                first_name=CASE WHEN player_accounts.first_name='' THEN excluded.first_name ELSE player_accounts.first_name END,
+                username=CASE WHEN player_accounts.username='' THEN excluded.username ELSE player_accounts.username END
+            WHERE player_accounts.first_name='' OR player_accounts.username=''""",
+            (int(telegram_user_id), first_name.strip()[:80], (username or '').strip().lstrip('@')[:64]),
+        )
+        self.conn.commit()
+
+    def list_achievement_players(self) -> list[dict[str, Any]]:
+        # Include legacy accounts and masters even before their next Mini App login.
+        players = self._many("""
+            WITH accounts AS (
+                SELECT telegram_user_id FROM player_accounts
+                UNION SELECT telegram_user_id FROM characters WHERE telegram_user_id IS NOT NULL
+                UNION SELECT master_tg_id FROM campaigns
+                UNION SELECT telegram_user_id FROM achievement_grants
+                UNION SELECT telegram_user_id FROM user_wallets
+            )
+            SELECT a.telegram_user_id, COALESCE(p.first_name, '') AS first_name,
+                COALESCE(p.username, '') AS username
+            FROM accounts a LEFT JOIN player_accounts p USING (telegram_user_id)
+            WHERE a.telegram_user_id > 0 ORDER BY a.telegram_user_id
+        """)
+        characters = self._many("SELECT telegram_user_id, name FROM characters WHERE telegram_user_id IS NOT NULL ORDER BY id")
+        names_by_player: dict[int, list[str]] = {}
+        for character in characters:
+            names = names_by_player.setdefault(int(character["telegram_user_id"]), [])
+            if character["name"] not in names:
+                names.append(character["name"])
+        for player in players:
+            player["display_name"] = player["first_name"] or (f"@{player['username']}" if player["username"] else f"Игрок TG {player['telegram_user_id']}")
+            player["character_names"] = names_by_player.get(int(player["telegram_user_id"]), [])
+        return players
+
     def list_spark_players(self, limit_history: int = 10) -> list[dict[str, Any]]:
         rows = self._many("""
             SELECT telegram_user_id, MAX(id) AS last_character_id
@@ -2937,9 +3254,6 @@ class Database:
         for r in rows:
             tg_id = int(r["telegram_user_id"])
             profile = self.get_user_profile(tg_id)
-            chars = profile.get("characters") or []
-            main_char = profile.get("main_character") or (chars[0] if chars else None)
-            profile["display_name"] = (main_char or {}).get("name") or f"Игрок TG {tg_id}"
             profile["currency_transactions"] = self.list_currency_transactions(tg_id, limit_history)
             profile["achievement_grants"] = self.list_player_achievement_grants(tg_id)
             out.append(profile)
@@ -2963,8 +3277,13 @@ class Database:
         grants = self.list_player_achievement_grants(int(telegram_user_id))
         campaigns = self.list_user_campaigns(int(telegram_user_id))
         main_char = characters[0] if characters else None
+        account = self._one("SELECT first_name, username FROM player_accounts WHERE telegram_user_id=?", (int(telegram_user_id),)) or {}
+        username = str(account.get("username") or "")
+        display_name = str(account.get("first_name") or "") or (f"@{username}" if username else (main_char or {}).get("name") or f"Игрок TG {telegram_user_id}")
         return {
             "telegram_user_id": int(telegram_user_id),
+            "display_name": display_name,
+            "username": username,
             "main_character": main_char,
             "characters": characters,
             "campaigns": campaigns,
@@ -3301,6 +3620,11 @@ class Database:
         return out
 
     def master_display_name(self, master_tg_id: int) -> str:
+        account = self._one("SELECT first_name, username FROM player_accounts WHERE telegram_user_id=?", (int(master_tg_id),)) or {}
+        if account.get("first_name") or account.get("username"):
+            name = str(account.get("first_name") or "")
+            username = str(account.get("username") or "")
+            return f"{name} · @{username}" if name and username else name or f"@{username}"
         row = self._one(
             """
             SELECT ch.name AS character_name, c.name AS campaign_name

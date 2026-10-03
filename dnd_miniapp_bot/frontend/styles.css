@@ -751,6 +751,125 @@ button.initiative-token {
 .enemy-damage-box .modal-actions button { width:100%; }
 .modal-card { overscroll-behavior: contain; }
 
+/* v75 combat enemy and scene templates */
+.combat-start-actions,
+.combat-template-actions {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-wrap:wrap;
+}
+.combat-start-actions button { flex:1 1 180px; }
+.combat-template-actions button { min-height:42px; }
+.combat-start-modal,
+.combat-template-library,
+.enemy-template-picker,
+.combat-scene-editor { width:min(780px, calc(100vw - 24px)); }
+.combat-start-choice {
+  width:100%;
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  gap:2px 12px;
+  align-items:center;
+  min-height:72px;
+  padding:12px 14px;
+  text-align:left;
+  border-radius:8px;
+  background:linear-gradient(180deg, rgba(84,211,138,.16), rgba(84,211,138,.06)), #101821;
+  border-color:rgba(84,211,138,.34);
+}
+.combat-start-choice > span {
+  grid-row:1 / 3;
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:rgba(84,211,138,.16);
+  font-size:25px;
+}
+.combat-start-choice b { font-size:15px; }
+.combat-start-choice small { color:var(--muted); font-weight:800; }
+.template-library-section {
+  padding-top:16px;
+  margin-top:16px;
+  border-top:1px solid var(--line);
+}
+.template-section-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:14px 0 10px;
+}
+.template-section-head > div { min-width:0; display:grid; gap:2px; }
+.template-section-head b { font-size:15px; }
+.template-section-head small { color:var(--muted); font-size:12px; font-weight:800; }
+.combat-template-list { display:grid; gap:8px; }
+.combat-template-row {
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  min-height:62px;
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.025);
+}
+.enemy-template-row { border-left:4px solid var(--char-color,#ef4444); }
+.template-row-icon { width:30px; text-align:center; font-size:20px; }
+.template-color {
+  width:14px;
+  height:38px;
+  border-radius:5px;
+  background:var(--char-color,#ef4444);
+  box-shadow:0 0 14px color-mix(in srgb, var(--char-color,#ef4444) 35%, transparent);
+}
+.template-row-main { min-width:0; display:grid; gap:3px; }
+.template-row-main b,
+.template-row-main small,
+.template-row-main > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.template-row-main small,
+.template-row-main > span { color:var(--muted); font-size:12px; font-weight:750; }
+.template-row-actions { display:flex; justify-content:flex-end; align-items:center; gap:6px; flex-wrap:wrap; }
+.icon-action { width:38px; min-width:38px; padding:0; font-size:19px; }
+.template-add-quantity,
+.scene-enemy-quantity { width:68px; min-width:68px; margin:0; text-align:center; }
+.scene-enemy-options { display:grid; gap:8px; max-height:44vh; overflow:auto; padding-right:3px; }
+.scene-enemy-choice {
+  display:grid;
+  grid-template-columns:auto 14px minmax(0,1fr) 68px;
+  align-items:center;
+  gap:10px;
+  min-height:62px;
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.025);
+}
+.scene-enemy-choice > span:nth-of-type(2) { min-width:0; display:grid; gap:2px; }
+.scene-enemy-choice b,
+.scene-enemy-choice small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.scene-enemy-choice small { color:var(--muted); font-size:12px; }
+.enemy-template-editor textarea,
+.combat-scene-editor textarea { resize:vertical; }
+
+@media (max-width: 620px) {
+  .combat-template-actions { display:grid; grid-template-columns:1fr 1fr; }
+  .combat-template-actions button { width:100%; }
+  .combat-template-row { grid-template-columns:auto minmax(0,1fr); }
+  .combat-template-row > .template-row-actions,
+  .combat-template-row > .template-add-quantity,
+  .combat-template-row > button { grid-column:1 / -1; width:100%; }
+  .template-row-actions { display:grid; grid-template-columns:1fr auto; width:100%; }
+  .template-row-actions .small:not(.icon-action) { width:100%; }
+  .scene-enemy-choice { grid-template-columns:auto 12px minmax(0,1fr); }
+  .scene-enemy-choice .scene-enemy-quantity { grid-column:1 / -1; width:100%; }
+  .template-section-head { align-items:flex-end; }
+}
+
 @media (max-width: 760px) {
   .initiative-token {
     flex-basis:170px;
@@ -6864,6 +6983,300 @@ details > summary::marker { color: var(--accent); }
 .journal-row, .log-row { overflow-wrap: anywhere; }
 .inventory-model-card, .inventory-model-library-card, .inventory-model-reward-card { border-radius: 8px !important; }
 
+/* Achievement admin polish: stable cards, cleaner sections and player-based grants */
+.achievements-screen .achievement-form {
+  gap: 12px !important;
+}
+.achievements-screen .achievement-form label,
+.achievement-modal label {
+  min-width: 0;
+}
+.achievement-icon-upload-row {
+  border-radius: 8px !important;
+  align-items: center;
+}
+.achievement-rewards-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+}
+.reward-picker-box {
+  border-radius: 8px !important;
+}
+.reward-picker-head {
+  align-items: center !important;
+}
+.reward-picker-head b {
+  min-width: 0;
+}
+.achievement-template-list {
+  display: grid;
+  gap: 8px;
+}
+.achievements-screen > .achievement-library > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding-right: 24px;
+}
+.achievement-library > summary b {
+  font-size: 16px;
+  overflow-wrap: normal;
+}
+.achievement-library > summary small {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.achievement-template-card {
+  appearance: none;
+  display: grid !important;
+  grid-template-columns: 58px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100%;
+  padding: 12px !important;
+  border: 1px solid rgba(185, 199, 219, .16);
+  background: rgba(12, 17, 25, .72);
+  color: var(--text);
+  text-align: left;
+}
+.achievement-template-card .ach-icon.big {
+  width: 54px !important;
+  height: 54px !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 50% !important;
+  background: none;
+  font-size: 28px !important;
+}
+.achievement-template-card .ach-icon.big img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  object-fit: contain !important;
+}
+.achievement-row-card .achievement-row-icon {
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  aspect-ratio: 1;
+}
+.achievement-row-card .achievement-row-icon img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+.achievement-template-card .ach-main {
+  display: grid !important;
+  gap: 5px !important;
+}
+.achievement-template-card .ach-main b,
+.achievement-template-card .ach-main small {
+  overflow-wrap: anywhere;
+}
+.achievement-reward-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.achievement-reward-pills:empty {
+  display: none;
+}
+.achievement-reward-pills .pill {
+  width: auto;
+  max-width: 100%;
+  min-height: 24px;
+  line-height: 1.2;
+}
+.campaign-library-title {
+  overflow-wrap: anywhere;
+}
+.achievement-modal {
+  width: min(680px, 100%);
+}
+.achievement-modal .achievement-full-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.achievement-modal .achievement-full-head .name {
+  overflow-wrap: anywhere;
+}
+.grant-mode {
+  border-radius: 8px !important;
+}
+.grant-mode summary {
+  list-style: none;
+}
+.grant-mode summary::-webkit-details-marker {
+  display: none;
+}
+.achievement-grant-targets {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-block: 1px solid var(--line);
+}
+.achievement-grant-target {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 4px;
+  min-width: 0;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(185, 199, 219, .1);
+}
+.achievement-grant-target[hidden] {
+  display: none;
+}
+.achievement-grant-target:has(input:checked) {
+  background: rgba(84, 211, 138, .08);
+}
+.achievement-grant-target input,
+.achievement-selection-row input {
+  width: 18px !important;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--ok);
+}
+.achievement-grant-target span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.achievement-grant-target b {
+  color: var(--text);
+  font-size: 14px;
+}
+.achievement-grant-target small {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: normal;
+}
+.achievement-grant-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 100%);
+  max-height: min(90dvh, 860px);
+  overflow: hidden;
+  padding: 20px;
+  border-radius: 8px !important;
+}
+.achievement-grant-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+.achievement-grant-modal .modal-close {
+  z-index: 2;
+}
+.achievement-grant-modal .achievement-full-head {
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 16px;
+  padding-right: 36px;
+  margin-bottom: 12px;
+}
+.achievement-grant-modal .ach-icon.huge {
+  width: 80px !important;
+  height: 80px !important;
+  min-width: 0 !important;
+  border-radius: 50% !important;
+}
+.achievement-grant-modal .ach-icon.huge img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+.achievement-grant-modal .achievement-full-head .name {
+  font-size: 20px;
+  line-height: 1.3;
+}
+.achievement-grant-body > p {
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.achievement-grant-modal .reward-preview {
+  min-height: 72px;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  min-width: 0;
+}
+.achievement-grant-modal .reward-preview > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.achievement-recipients {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.achievement-recipients h3 {
+  font-size: 16px;
+  margin: 0;
+}
+.achievement-recipients > label {
+  margin: 0 0 -4px;
+}
+.achievement-selection-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+}
+.achievement-selection-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.achievement-comment {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+}
+.achievement-grant-modal textarea {
+  min-height: 76px;
+}
+.achievement-grant-actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  flex-shrink: 0;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.achievement-grant-actions button {
+  min-width: 0;
+  border-radius: 8px;
+  white-space: normal;
+}
+.achievement-delete-action {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 16px;
+  text-align: right;
+}
+.achievement-delete-action button {
+  background: none;
+  box-shadow: none;
+  color: #ffa3a3;
+  width: auto;
+}
+
 @media (min-width: 720px) {
   .campaign-context-bar { padding-inline: 12px; }
   .bottom-nav .nav-label { font-size: 10px; }
@@ -6883,6 +7296,10 @@ details > summary::marker { color: var(--accent); }
   .bottom-nav .nav-label { font-size: 8px; line-height: 11px; }
   .row.modal-actions button { min-height: 44px; }
   .achievement-template-card, .achievement-row-card { grid-template-columns: 50px minmax(0, 1fr) !important; }
+  .achievement-template-card .ach-icon.big { width: 48px !important; height: 48px !important; }
+  .achievement-icon-upload-row { align-items: flex-start; }
+  .achievements-screen > .achievement-library > summary { grid-template-columns: minmax(0, 1fr); }
+  .achievement-grant-target small { white-space: normal; }
 }
 @media (max-width: 360px) {
   .app { padding-inline: 9px !important; }

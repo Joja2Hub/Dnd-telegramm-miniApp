@@ -15,6 +15,8 @@ def open_app_keyboard(settings: Settings) -> InlineKeyboardMarkup:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    context.application.bot_data["db"].remember_player_account(user.id, user.first_name, user.username)
     settings: Settings = context.application.bot_data["settings"]
     text = (
         "Привет! Это D&D Mini App для кампаний.\n\n"
@@ -26,6 +28,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def app_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    context.application.bot_data["db"].remember_player_account(user.id, user.first_name, user.username)
     settings: Settings = context.application.bot_data["settings"]
     await update.effective_message.reply_text("Открыть панель:", reply_markup=open_app_keyboard(settings))
 
@@ -34,6 +38,7 @@ async def join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db: Database = context.application.bot_data["db"]
     settings: Settings = context.application.bot_data["settings"]
     user = update.effective_user
+    db.remember_player_account(user.id, user.first_name, user.username)
     if not context.args:
         await update.effective_message.reply_text(
             "Введи код кампании так:\n/join ABC123\n\nИли открой Mini App.",

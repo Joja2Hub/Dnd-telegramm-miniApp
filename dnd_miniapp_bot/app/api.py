@@ -174,11 +174,13 @@ class AchievementCreateIn(BaseModel):
 
 
 class AchievementGrantIn(BaseModel):
-    character_id: int = Field(ge=1)
+    telegram_user_id: int | None = Field(default=None, ge=1)
+    character_id: int | None = Field(default=None, ge=1)
     master_comment: str = Field(default="", max_length=1000)
 
 
 class AchievementGrantManyIn(BaseModel):
+    telegram_user_ids: list[int] = Field(default_factory=list)
     character_ids: list[int] = Field(default_factory=list)
     master_comment: str = Field(default="", max_length=1000)
 
@@ -248,6 +250,35 @@ class EnemyIn(BaseModel):
     color: str = Field(default="#ef4444", max_length=20)
     hidden_hp: bool = False
     public_note: str = Field(default="", max_length=1000)
+
+
+class CombatEnemyTemplateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    hp: int = Field(ge=1, le=100000)
+    ac: int = Field(ge=1, le=1000)
+    color: str = Field(default="#ef4444", max_length=20)
+    hidden_hp: bool = False
+    public_note: str = Field(default="", max_length=1000)
+
+
+class CombatSceneEnemyIn(BaseModel):
+    enemy_template_id: int = Field(ge=1)
+    quantity: int = Field(default=1, ge=1, le=50)
+
+
+class CombatSceneTemplateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=1000)
+    enemies: list[CombatSceneEnemyIn] = Field(default_factory=list, max_length=100)
+
+
+class CombatSceneFromCurrentIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=1000)
+
+
+class CombatEnemyTemplateAddIn(BaseModel):
+    quantity: int = Field(default=1, ge=1, le=50)
 
 
 class CombatantPatchIn(BaseModel):
@@ -513,6 +544,33 @@ def _active_combat_or_404(db: Database, campaign_id: int) -> dict[str, Any]:
     return combat
 
 
+def _combat_scene_snapshots(
+    db: Database,
+    campaign_id: int,
+    entries: list[CombatSceneEnemyIn],
+) -> list[dict[str, Any]]:
+    snapshots: list[dict[str, Any]] = []
+    for entry in entries:
+        template = db.get_combat_enemy_template(int(entry.enemy_template_id))
+        if not template or int(template.get("campaign_id") or 0) != int(campaign_id):
+            raise HTTPException(400, "Заготовка врага не найдена в этой кампании")
+        quantity = int(entry.quantity)
+        for index in range(quantity):
+            item = {
+                "source_enemy_template_id": int(template["id"]),
+                "name": template["name"] if quantity == 1 else f"{template['name']} {index + 1}",
+                "hp": template["hp"],
+                "ac": template["ac"],
+                "color": template["color"],
+                "hidden_hp": template["hidden_hp"],
+                "public_note": template["public_note"],
+            }
+            snapshots.append(item)
+            if len(snapshots) > 100:
+                raise HTTPException(400, "В одной сцене может быть не больше 100 врагов")
+    return snapshots
+
+
 def _human_request(req: dict[str, Any]) -> str:
     t = req.get("request_type")
     payload = req.get("payload", {}) or {}
@@ -715,6 +773,8 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
 
     @app.get("/api/me")
     async def me(user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
+        if user.first_name != "DEV":
+            db.remember_player_account(user.id, user.first_name, user.username)
         masters = db.list_master_campaigns(user.id)
         players = db.campaigns_for_player(user.id)
         by_id: dict[int, dict[str, Any]] = {}
@@ -960,6 +1020,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "team_characters": team_characters,
             "requests": requests,
             "active_combat": active_combat,
+            "combat_templates": db.combat_template_library(campaign_id) if role == "master" else None,
             "events": events,
             "cosmetics": db.list_cosmetics(),
             "cosmetic_effects": db.list_cosmetic_effects(),
@@ -1107,12 +1168,173 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         return {"items": outputs, "result_text": "\n".join(o["message"] for o in outputs)}
 
 
+    @app.get("/api/campaigns/{campaign_id}/combat-templates")
+    async def combat_templates(campaign_id: int, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        return db.combat_template_library(campaign_id)
+
+    @app.post("/api/campaigns/{campaign_id}/combat-enemy-templates")
+    async def create_combat_enemy_template(
+        campaign_id: int,
+        data: CombatEnemyTemplateIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        template = db.create_combat_enemy_template(campaign_id, user.id, **data.model_dump())
+        db.log(campaign_id, None, "combat", f"Создана заготовка врага: {template['name']}", {"enemy_template_id": template["id"]})
+        return {"enemy_template": template, "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.put("/api/campaigns/{campaign_id}/combat-enemy-templates/{template_id}")
+    async def update_combat_enemy_template(
+        campaign_id: int,
+        template_id: int,
+        data: CombatEnemyTemplateIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        template = db.get_combat_enemy_template(template_id)
+        if not template or int(template.get("campaign_id") or 0) != int(campaign_id):
+            raise HTTPException(404, "Заготовка врага не найдена")
+        updated = db.update_combat_enemy_template(template_id, **data.model_dump())
+        return {"enemy_template": updated, "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.delete("/api/campaigns/{campaign_id}/combat-enemy-templates/{template_id}")
+    async def delete_combat_enemy_template(
+        campaign_id: int,
+        template_id: int,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        template = db.get_combat_enemy_template(template_id)
+        if not template or int(template.get("campaign_id") or 0) != int(campaign_id):
+            raise HTTPException(404, "Заготовка врага не найдена")
+        db.delete_combat_enemy_template(template_id)
+        return {"message": "Заготовка врага удалена", "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.post("/api/campaigns/{campaign_id}/combat-scene-templates")
+    async def create_combat_scene_template(
+        campaign_id: int,
+        data: CombatSceneTemplateIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        enemies = _combat_scene_snapshots(db, campaign_id, data.enemies)
+        if not enemies:
+            raise HTTPException(400, "Добавьте в сцену хотя бы одного врага")
+        scene = db.create_combat_scene_template(
+            campaign_id, user.id, name=data.name, description=data.description, enemies=enemies,
+        )
+        db.log(campaign_id, None, "combat", f"Создана заготовка сцены: {scene['name']}", {"scene_template_id": scene["id"]})
+        return {"scene_template": scene, "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.put("/api/campaigns/{campaign_id}/combat-scene-templates/{template_id}")
+    async def update_combat_scene_template(
+        campaign_id: int,
+        template_id: int,
+        data: CombatSceneTemplateIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        scene = db.get_combat_scene_template(template_id)
+        if not scene or int(scene.get("campaign_id") or 0) != int(campaign_id):
+            raise HTTPException(404, "Заготовка сцены не найдена")
+        enemies = _combat_scene_snapshots(db, campaign_id, data.enemies)
+        if not enemies:
+            raise HTTPException(400, "Добавьте в сцену хотя бы одного врага")
+        updated = db.update_combat_scene_template(
+            template_id, name=data.name, description=data.description, enemies=enemies,
+        )
+        return {"scene_template": updated, "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.delete("/api/campaigns/{campaign_id}/combat-scene-templates/{template_id}")
+    async def delete_combat_scene_template(
+        campaign_id: int,
+        template_id: int,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        scene = db.get_combat_scene_template(template_id)
+        if not scene or int(scene.get("campaign_id") or 0) != int(campaign_id):
+            raise HTTPException(404, "Заготовка сцены не найдена")
+        db.delete_combat_scene_template(template_id)
+        return {"message": "Заготовка сцены удалена", "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.post("/api/combats/{combat_id}/scene-template")
+    async def save_combat_as_scene_template(
+        combat_id: int,
+        data: CombatSceneFromCurrentIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        combat = db.get_combat(combat_id)
+        if not combat:
+            raise HTTPException(404, "Бой не найден")
+        campaign_id = int(combat["campaign_id"])
+        _require_master(db, campaign_id, user)
+        enemies = [
+            {
+                "name": item["name"], "hp": item.get("max_hp") or 1, "ac": item.get("ac") or 10,
+                "color": item.get("color") or "#ef4444", "hidden_hp": bool(item.get("hidden_hp")),
+                "public_note": item.get("public_note") or "",
+            }
+            for item in combat.get("combatants") or []
+            if item.get("kind") == "enemy" and item.get("alive")
+        ]
+        if not enemies:
+            raise HTTPException(400, "В текущем бою нет врагов для сохранения")
+        scene = db.create_combat_scene_template(
+            campaign_id, user.id, name=data.name, description=data.description, enemies=enemies,
+        )
+        return {"scene_template": scene, "combat_templates": db.combat_template_library(campaign_id)}
+
+    @app.post("/api/combats/{combat_id}/enemy-templates/{template_id}")
+    async def add_combat_enemy_from_template(
+        combat_id: int,
+        template_id: int,
+        data: CombatEnemyTemplateAddIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        combat = db.get_combat(combat_id)
+        if not combat:
+            raise HTTPException(404, "Бой не найден")
+        campaign_id = int(combat["campaign_id"])
+        _require_master(db, campaign_id, user)
+        template = db.get_combat_enemy_template(template_id)
+        if not template or int(template.get("campaign_id") or 0) != campaign_id:
+            raise HTTPException(404, "Заготовка врага не найдена")
+        for index in range(int(data.quantity)):
+            name = template["name"] if int(data.quantity) == 1 else f"{template['name']} {index + 1}"
+            db.add_enemy_combatant(
+                combat_id, name, template["hp"], template["ac"], None, template["color"],
+                template["hidden_hp"], template["public_note"],
+            )
+        db.log(campaign_id, None, "combat", f"Добавлена заготовка врага: {template['name']} ×{data.quantity}", {"combat_id": combat_id, "enemy_template_id": template_id})
+        return {"combat": db.get_combat(combat_id)}
+
+
     @app.post("/api/campaigns/{campaign_id}/combat/start")
     async def start_combat(campaign_id: int, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
         _require_master(db, campaign_id, user)
         combat = db.create_combat(campaign_id)
         db.log(campaign_id, None, "combat", "Начат сбор инициативы", {"combat_id": combat["id"]})
         return {"combat": combat}
+
+    @app.post("/api/campaigns/{campaign_id}/combat/start-from-scene/{scene_template_id}")
+    async def start_combat_from_scene(
+        campaign_id: int,
+        scene_template_id: int,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        try:
+            combat = db.create_combat_from_scene(campaign_id, scene_template_id)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        scene = db.get_combat_scene_template(scene_template_id)
+        db.log(
+            campaign_id, None, "combat", f"Начат сбор инициативы по сцене «{scene['name'] if scene else 'готовая сцена'}»",
+            {"combat_id": combat["id"], "scene_template_id": scene_template_id},
+        )
+        return {"combat": combat, "scene_template": scene}
 
     @app.post("/api/combats/{combat_id}/enemies")
     async def add_enemy(combat_id: int, data: EnemyIn, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
@@ -1707,25 +1929,39 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         db.log(campaign_id, None, "achievement", f"Удалено достижение: {ach.get('title')}", {"achievement_id": achievement_id, "deleted_achievement": ach})
         return {"message": "Достижение удалено", "achievements": db.list_achievements()}
 
+    @app.get("/api/campaigns/{campaign_id}/achievement-players")
+    async def achievement_players(campaign_id: int, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        return {"players": db.list_achievement_players()}
+
     @app.post("/api/campaigns/{campaign_id}/achievements/{achievement_id}/grant")
     async def grant_achievement(campaign_id: int, achievement_id: int, data: AchievementGrantIn, request: Request, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
         _require_master(db, campaign_id, user)
         ach = db.get_achievement(achievement_id)
         if not ach:
             raise HTTPException(404, "Достижение не найдено")
-        ch = _character_or_404(db, data.character_id)
-        if int(ch["campaign_id"]) != int(campaign_id):
-            raise HTTPException(400, "Персонаж из другой кампании")
-        if not ch.get("telegram_user_id"):
-            raise HTTPException(400, "Персонаж ещё не привязан к игроку")
+        character_id = int(data.character_id) if data.character_id else None
+        target_tg_id = int(data.telegram_user_id) if data.telegram_user_id else 0
+        if not target_tg_id and character_id:
+            ch = _character_or_404(db, character_id)
+            if int(ch["campaign_id"]) != int(campaign_id):
+                raise HTTPException(400, "Персонаж из другой кампании")
+            if not ch.get("telegram_user_id"):
+                raise HTTPException(400, "Персонаж ещё не привязан к игроку")
+            target_tg_id = int(ch["telegram_user_id"])
+        if not target_tg_id:
+            raise HTTPException(400, "Выбери игрока")
         try:
-            grant = db.grant_achievement(achievement_id, data.character_id, user.id, data.master_comment)
+            grant = db.grant_achievement_to_player(achievement_id, target_tg_id, campaign_id, user.id, data.master_comment, character_id)
         except Exception as e:
             raise HTTPException(400, f"Не удалось выдать достижение: {e}")
         text = f"🏆 Новое достижение!\n\n{ach.get('title')}\n\nОткрой раздел достижений в Mini App, чтобы раскрыть ачивку и получить награду."
-        await _notify(request, ch.get("telegram_user_id"), text)
-        db.log(campaign_id, int(ch["id"]), "achievement", f"{ch['name']}: получено достижение {ach['title']}", {"achievement": ach, "grant": grant, "character_after": db.get_character(int(ch["id"]))})
-        return {"grant": grant, "achievement_grants": db.list_player_achievement_grants(int(ch["telegram_user_id"]))}
+        await _notify(request, target_tg_id, text)
+        grant_character = grant.get("character") or (db.get_character(character_id) if character_id else None)
+        log_character_id = int(grant_character["id"]) if grant_character else None
+        player_label = grant_character.get("name") if grant_character else f"игрок TG {target_tg_id}"
+        db.log(campaign_id, log_character_id, "achievement", f"{player_label}: получено достижение {ach['title']}", {"achievement": ach, "grant": grant, "character_after": db.get_character(log_character_id) if log_character_id else None, "target_tg_id": target_tg_id})
+        return {"grant": grant, "achievement_grants": db.list_player_achievement_grants(target_tg_id)}
 
     @app.post("/api/campaigns/{campaign_id}/achievements/{achievement_id}/grant-many")
     async def grant_achievement_many(campaign_id: int, achievement_id: int, data: AchievementGrantManyIn, request: Request, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
@@ -1733,24 +1969,34 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         ach = db.get_achievement(achievement_id)
         if not ach:
             raise HTTPException(404, "Достижение не найдено")
-        ids = [int(x) for x in data.character_ids if int(x) > 0]
-        ids = list(dict.fromkeys(ids))
-        if not ids:
+        player_ids = [int(x) for x in data.telegram_user_ids if int(x) > 0]
+        character_ids = [int(x) for x in data.character_ids if int(x) > 0]
+        if not player_ids and character_ids:
+            for character_id in character_ids:
+                ch = _character_or_404(db, character_id)
+                if int(ch["campaign_id"]) != int(campaign_id):
+                    raise HTTPException(400, "В списке есть персонаж из другой кампании")
+                if not ch.get("telegram_user_id"):
+                    raise HTTPException(400, "В списке есть непривязанный персонаж")
+                player_ids.append(int(ch["telegram_user_id"]))
+        player_ids = list(dict.fromkeys(player_ids))
+        if not player_ids:
             raise HTTPException(400, "Выбери хотя бы одного игрока")
+        known_players = {int(player["telegram_user_id"]) for player in db.list_achievement_players()}
+        if any(player_id not in known_players for player_id in player_ids):
+            raise HTTPException(400, "Аккаунт игрока не найден")
         grants = []
         text = f"🏆 Новое достижение!\n\n{ach.get('title')}\n\nОткрой раздел достижений в Mini App, чтобы раскрыть ачивку и получить награду."
-        for character_id in ids:
-            ch = _character_or_404(db, character_id)
-            if int(ch["campaign_id"]) != int(campaign_id):
-                raise HTTPException(400, "В списке есть персонаж из другой кампании")
-            if not ch.get("telegram_user_id"):
-                raise HTTPException(400, "В списке есть непривязанный персонаж")
+        for target_tg_id in player_ids:
             try:
-                grant = db.grant_achievement(achievement_id, character_id, user.id, data.master_comment)
+                grant = db.grant_achievement_to_player(achievement_id, target_tg_id, campaign_id, user.id, data.master_comment)
             except Exception as e:
                 raise HTTPException(400, f"Не удалось выдать достижение: {e}")
-            await _notify(request, ch.get("telegram_user_id"), text)
-            db.log(campaign_id, int(ch["id"]), "achievement", f"{ch['name']}: получено достижение {ach['title']}", {"achievement": ach, "grant": grant, "character_after": db.get_character(int(ch["id"])), "mass_grant": True})
+            await _notify(request, target_tg_id, text)
+            grant_character = grant.get("character")
+            log_character_id = int(grant_character["id"]) if grant_character else None
+            player_label = grant_character.get("name") if grant_character else f"игрок TG {target_tg_id}"
+            db.log(campaign_id, log_character_id, "achievement", f"{player_label}: получено достижение {ach['title']}", {"achievement": ach, "grant": grant, "character_after": db.get_character(log_character_id) if log_character_id else None, "mass_grant": True, "target_tg_id": target_tg_id})
             grants.append(grant)
         return {"grants": grants, "message": f"Достижение выдано: {len(grants)}"}
 
@@ -1770,18 +2016,29 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         try:
             grant = db.open_achievement_grant(grant_id, viewer_tg_id)
         except Exception as e:
-            if not dev_character:
+            if not raw_grant:
                 raise HTTPException(404, str(e))
-            raw_for_character = db._one(
-                "SELECT * FROM achievement_grants WHERE id=? AND character_id=?",
-                (int(grant_id), int(dev_character["id"])),
-            )
-            if not raw_for_character or not raw_for_character.get("telegram_user_id"):
+
+            campaign = db.get_campaign(int(raw_grant.get("campaign_id") or 0)) if raw_grant.get("campaign_id") else None
+            grant_character = db.get_character(int(raw_grant.get("character_id") or 0)) if raw_grant.get("character_id") else None
+            owner_tg_id = int(raw_grant.get("telegram_user_id") or 0)
+            character_tg_id = int(grant_character.get("telegram_user_id") or 0) if grant_character and grant_character.get("telegram_user_id") else 0
+            is_campaign_master = bool(campaign and int(campaign.get("master_tg_id") or 0) == int(user.id))
+            owns_character = bool(character_tg_id and character_tg_id == int(user.id))
+            dev_matches_grant = bool(dev_character and int(dev_character.get("id") or 0) == int(raw_grant.get("character_id") or 0))
+            if not (is_campaign_master or owns_character or dev_matches_grant):
                 raise HTTPException(404, str(e))
-            viewer_tg_id = int(raw_for_character["telegram_user_id"])
-            try:
-                grant = db.open_achievement_grant(grant_id, viewer_tg_id)
-            except Exception as fallback_error:
+
+            fallback_ids = [x for x in (character_tg_id, owner_tg_id) if x]
+            fallback_error: Exception = e
+            for fallback_tg_id in dict.fromkeys(fallback_ids):
+                try:
+                    grant = db.open_achievement_grant(grant_id, fallback_tg_id)
+                    viewer_tg_id = fallback_tg_id
+                    break
+                except Exception as exc:
+                    fallback_error = exc
+            else:
                 raise HTTPException(404, str(fallback_error))
         return {
             "grant": grant,
@@ -2270,15 +2527,8 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         ach = db.get_achievement(int(data.achievement_id))
         if not ach:
             raise HTTPException(404, "Достижение не найдено")
-        characters = db.list_user_characters(int(player_tg_id))
-        if not characters:
-            raise HTTPException(400, "У игрока нет привязанных персонажей")
-        character_id = int(data.character_id or characters[0]["id"])
-        ch = db.get_character(character_id)
-        if not ch or int(ch.get("telegram_user_id") or 0) != int(player_tg_id):
-            raise HTTPException(400, "Выбранный персонаж не принадлежит этому игроку")
         try:
-            grant = db.grant_achievement(int(data.achievement_id), character_id, user.id, data.master_comment)
+            grant = db.grant_achievement_to_player(int(data.achievement_id), int(player_tg_id), int(ach["campaign_id"]), user.id, data.master_comment, data.character_id)
         except Exception as e:
             raise HTTPException(400, f"Не удалось выдать достижение: {e}")
         await _notify(request, int(player_tg_id), f"🏆 Новое достижение!\n\n{ach.get('title')}\n\nОткрой раздел достижений в Mini App, чтобы раскрыть ачивку и получить награду.")

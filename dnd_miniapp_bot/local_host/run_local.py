@@ -170,6 +170,7 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
 
     def list_local_users() -> list[dict]:
         users: dict[int, dict] = {}
+        accounts = {int(account["telegram_user_id"]): account for account in db.list_achievement_players()}
 
         def user_for(tg_id: int) -> dict:
             if tg_id not in users:
@@ -212,7 +213,12 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
 
         for item in users.values():
             names = item["master_campaign_names"] or item["character_names"]
-            if names:
+            account = accounts.get(item["telegram_user_id"], {})
+            account_name = str(account.get("first_name") or "")
+            username = str(account.get("username") or "")
+            if account_name or username:
+                item["display_name"] = f"{account_name} (@{username})" if account_name and username else account_name or f"@{username}"
+            elif names:
                 role = "Мастер" if "master" in item["roles"] else "Игрок"
                 item["display_name"] = f"{role}: {names[0]} · TG {item['telegram_user_id']}"
             item["character_names"] = list(dict.fromkeys(item["character_names"]))[:8]

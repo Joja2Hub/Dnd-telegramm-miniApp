@@ -4157,6 +4157,11 @@ function armorModeOptions() {
 function activeCombat() { return state.campaignState?.active_combat || null; }
 function combatItems() { return activeCombat()?.combatants || []; }
 function currentCombatantId() { return Number(activeCombat()?.current_combatant_id || activeCombat()?.current?.id || 0); }
+function combatTemplateLibrary() { return state.campaignState?.combat_templates || {enemy_templates:[], scene_templates:[]}; }
+function combatEnemyTemplates() { return combatTemplateLibrary().enemy_templates || []; }
+function combatSceneTemplates() { return combatTemplateLibrary().scene_templates || []; }
+function combatEnemyTemplateById(id) { return combatEnemyTemplates().find(item => Number(item.id) === Number(id)); }
+function combatSceneTemplateById(id) { return combatSceneTemplates().find(item => Number(item.id) === Number(id)); }
 
 function renderMasterCombat() {
   const combat = activeCombat();
@@ -4166,7 +4171,7 @@ function renderMasterCombat() {
       <div class="card combat-start-card">
         <div class="combat-hero-title">⚔️ Контроллер боя</div>
         <div class="muted">Создай сцену боя, собери инициативу игроков, добавь врагов и управляй ходами.</div>
-        <button class="ok" onclick="startCombatTracker()">Начать бой</button>
+        <div class="combat-start-actions"><button class="ok" onclick="startCombatTracker()">Начать бой</button><button class="secondary" onclick="openCombatTemplateLibrary()">Заготовки</button></div>
       </div>
       ${oldTools}
     </div>`;
@@ -4196,14 +4201,21 @@ function renderQuickDamageTools() {
 function renderCombatTrackerMaster(combat) {
   const statusText = combat.status === 'setup' ? 'сбор инициативы' : 'бой идёт';
   const current = combat.current;
+  const enemies = (combat.combatants || []).filter(item => item.kind === 'enemy');
+  const templates = combatEnemyTemplates();
   return `<details class="card stack combat-controller combat-section" ${sectionAttrs('combat-controller')}><summary>⚔️ Контроллер боя</summary><div class="stack section-body">
     <div class="combat-head">
       <div><div class="combat-hero-title">Раунд ${esc(combat.round || 1)}</div><div class="muted">Статус: ${esc(statusText)}${current ? ` · сейчас ходит: ${esc(current.name)}` : ''}</div></div>
       <div class="row"><button class="danger small" onclick="finishCombat(${combat.id})">Закончить бой</button>${combat.status === 'setup' ? `<button class="ok small" onclick="beginCombat(${combat.id})">Начать порядок ходов</button>` : `<button class="ok small" onclick="nextTurn(${combat.id})">Передать ход</button>`}</div>
     </div>
-    ${combat.status === 'setup' ? `<div class="setup-note">Игроки вводят инициативу в своей вкладке “Бой”. Мастер добавляет врагов ниже. Когда всё готово — нажми “Начать порядок ходов”.</div>` : ''}
+    ${combat.status === 'setup' ? `<div class="setup-note">Игроки вводят инициативу в своей вкладке “Бой”. Инициатива врагов из заготовок остаётся пустой: впиши её вручную перед началом порядка ходов.</div>` : ''}
     ${renderInitiativeCarousel(combat, true)}
-    <div class="row"><button class="secondary" onclick="openEnemyModal(${combat.id})">➕ Добавить врага</button></div>
+    <div class="combat-template-actions">
+      <button class="secondary" onclick="openEnemyModal(${combat.id})">＋ Новый враг</button>
+      <button class="secondary" onclick="openEnemyTemplatePicker(${combat.id})" ${templates.length?'':'disabled'}>Из заготовки</button>
+      ${combat.status === 'setup' && enemies.length ? `<button class="secondary" onclick="openSaveCurrentSceneModal(${combat.id})">Сохранить сцену</button>` : ''}
+      <button class="secondary icon-only-label" onclick="openCombatTemplateLibrary()">Заготовки</button>
+    </div>
     ${renderCombatantManagement(combat)}
   </div></details>`;
 }
@@ -4304,10 +4316,195 @@ async function doMassEnemyDamage() {
 }
 
 
-async function startCombatTracker() {
-  try { await api(`/api/campaigns/${state.currentCampaignId}/combat/start`, {method:'POST'}); state.tab='combat'; await render(); }
-  catch(e){ alert(e.message); }
+function sceneEnemySummary(scene, limit=4) {
+  const enemies = scene?.enemies || [];
+  if (!enemies.length) return 'Нет врагов';
+  const names = enemies.slice(0, limit).map(item => item.name);
+  return `${names.join(', ')}${enemies.length > limit ? ` и ещё ${enemies.length - limit}` : ''}`;
 }
+
+function openCombatStartModal() {
+  const scenes = combatSceneTemplates();
+  const sceneRows = scenes.length
+    ? scenes.map(scene => `<div class="combat-template-row scene-template-row">
+        <span class="template-row-icon">🎬</span><span class="template-row-main"><b>${esc(scene.name)}</b><small>${esc(scene.description || sceneEnemySummary(scene))}</small><span>${esc(scene.enemy_count || 0)} врагов · ${esc(sceneEnemySummary(scene))}</span></span>
+        <button class="ok small" onclick="startCombatFromScene(${Number(scene.id)})">Запустить</button>
+      </div>`).join('')
+    : '<div class="empty-state">Готовых сцен пока нет. Их можно собрать в библиотеке заготовок.</div>';
+  showModal(`<div class="modal-card combat-start-modal"><button class="modal-close" onclick="closeModal()">×</button>
+    <div class="name">Начать бой</div><p class="muted">Выбери пустую сцену или сразу разверни сохранённый состав врагов.</p>
+    <button class="combat-start-choice" onclick="startEmptyCombat()"><span>＋</span><b>Создать новый бой</b><small>Добавить врагов вручную после создания</small></button>
+    <div class="template-section-head"><div><b>Готовые сцены</b><small>${scenes.length} сохранено</small></div><button class="secondary small" onclick="openCombatTemplateLibrary()">Управление</button></div>
+    <div class="combat-template-list">${sceneRows}</div>
+  </div>`);
+}
+
+function startCombatTracker() { openCombatStartModal(); }
+
+async function startEmptyCombat() {
+  try {
+    await api(`/api/campaigns/${state.currentCampaignId}/combat/start`, {method:'POST'});
+    closeModal(); state.tab='combat'; await render();
+  } catch(e){ alert(e.message); }
+}
+
+async function startCombatFromScene(sceneId) {
+  try {
+    await api(`/api/campaigns/${state.currentCampaignId}/combat/start-from-scene/${sceneId}`, {method:'POST'});
+    closeModal(); state.tab='combat'; showToast('Сцена развёрнута. Осталось вписать инициативу.', 'info'); await render();
+  } catch(e){ alert(e.message); }
+}
+
+function applyCombatTemplateResponse(out) {
+  if (out?.combat_templates && state.campaignState) state.campaignState.combat_templates = out.combat_templates;
+}
+
+function openCombatTemplateLibrary() {
+  closeSubModal();
+  const enemies = combatEnemyTemplates();
+  const scenes = combatSceneTemplates();
+  const combat = activeCombat();
+  const enemyRows = enemies.length
+    ? enemies.map(item => `<div class="combat-template-row enemy-template-row" style="--char-color:${esc(item.color || '#ef4444')}">
+        <span class="template-color"></span><span class="template-row-main"><b>${esc(item.name)}</b><small>HP ${esc(item.hp)} · КД ${esc(item.ac)} · ${item.hidden_hp?'здоровье скрыто':'здоровье видно'}</small></span>
+        <span class="template-row-actions"><button class="secondary small" onclick="openEnemyTemplateEditor(${Number(item.id)})">Изменить</button><button class="danger small icon-action" title="Удалить" onclick="deleteCombatEnemyTemplate(${Number(item.id)})">×</button></span>
+      </div>`).join('')
+    : '<div class="empty-state">Сохранённых врагов пока нет.</div>';
+  const sceneRows = scenes.length
+    ? scenes.map(scene => `<div class="combat-template-row scene-template-row">
+        <span class="template-row-icon">🎬</span><span class="template-row-main"><b>${esc(scene.name)}</b><small>${esc(scene.description || sceneEnemySummary(scene))}</small><span>${esc(scene.enemy_count || 0)} врагов</span></span>
+        <span class="template-row-actions">${!combat?`<button class="ok small" onclick="startCombatFromScene(${Number(scene.id)})">Запустить</button>`:''}<button class="secondary small" onclick="openCombatSceneTemplateEditor(${Number(scene.id)})">Пересобрать</button><button class="danger small icon-action" title="Удалить" onclick="deleteCombatSceneTemplate(${Number(scene.id)})">×</button></span>
+      </div>`).join('')
+    : '<div class="empty-state">Сцен пока нет. Сначала создай хотя бы одну заготовку врага.</div>';
+  showModal(`<div class="modal-card combat-template-library"><button class="modal-close" onclick="closeModal()">×</button>
+    <div class="name">Заготовки боя</div><p class="muted">Библиотека относится только к текущей кампании и видна только её мастеру.</p>
+    <section class="template-library-section"><div class="template-section-head"><div><b>Враги</b><small>${enemies.length} сохранено</small></div><button class="ok small" onclick="openEnemyTemplateEditor()">＋ Враг</button></div><div class="combat-template-list">${enemyRows}</div></section>
+    <section class="template-library-section"><div class="template-section-head"><div><b>Сцены</b><small>${scenes.length} сохранено</small></div><button class="ok small" onclick="openCombatSceneTemplateEditor()" ${enemies.length?'':'disabled'}>＋ Сцена</button></div><div class="combat-template-list">${sceneRows}</div></section>
+  </div>`);
+}
+
+function openEnemyTemplateEditor(templateId=0, combatantId=0) {
+  const source = templateId ? combatEnemyTemplateById(templateId) : (combatantId ? combatantById(combatantId) : null);
+  const item = source || {name:'', hp:20, ac:13, color:'#ef4444', hidden_hp:false, public_note:''};
+  const title = templateId ? 'Изменить заготовку врага' : 'Новая заготовка врага';
+  showSubModal(`<div class="modal-card enemy-template-editor"><button class="modal-close" onclick="closeSubModal()">×</button><div class="name">${title}</div>
+    <label>Название</label><input id="enemyTemplateName" value="${esc(item.name || '')}" placeholder="Корпоративный солдат">
+    <div class="grid two"><div><label>HP</label><input id="enemyTemplateHp" type="number" min="1" value="${esc(item.hp || item.max_hp || 20)}"></div><div><label>КД</label><input id="enemyTemplateAc" type="number" min="1" value="${esc(item.ac || 13)}"></div></div>
+    <div class="modal-title-lite">Цвет</div>${colorPickerHtml('enemyTemplateColor', item.color || '#ef4444')}
+    <label class="checkline"><input id="enemyTemplateHidden" type="checkbox" ${item.hidden_hp?'checked':''}> Скрывать здоровье от игроков</label>
+    <label>Описание для игроков</label><textarea id="enemyTemplateNote" rows="3" placeholder="Что персонажи видят в бою">${esc(item.public_note || '')}</textarea>
+    <div class="row modal-actions"><button class="ok" onclick="saveCombatEnemyTemplate(${Number(templateId)})">Сохранить</button><button class="secondary" onclick="closeSubModal()">Отмена</button></div>
+  </div>`);
+}
+
+async function saveCombatEnemyTemplate(templateId=0) {
+  try {
+    const name = val('enemyTemplateName'); if (!name) throw new Error('Введите название врага');
+    const path = templateId
+      ? `/api/campaigns/${state.currentCampaignId}/combat-enemy-templates/${templateId}`
+      : `/api/campaigns/${state.currentCampaignId}/combat-enemy-templates`;
+    const out = await api(path, {method:templateId?'PUT':'POST', body:{name, hp:num('enemyTemplateHp',1), ac:num('enemyTemplateAc',10), color:normalizeHexColor(val('enemyTemplateColor') || '#ef4444'), hidden_hp:checked('enemyTemplateHidden'), public_note:val('enemyTemplateNote')}});
+    applyCombatTemplateResponse(out); closeSubModal(); openCombatTemplateLibrary(); showToast('Заготовка врага сохранена', 'info');
+  } catch(e){ alert(e.message); }
+}
+
+async function deleteCombatEnemyTemplate(templateId) {
+  const item = combatEnemyTemplateById(templateId);
+  if (!confirm(`Удалить заготовку «${item?.name || 'Враг'}»? Уже сохранённые сцены не изменятся.`)) return;
+  try {
+    const out = await api(`/api/campaigns/${state.currentCampaignId}/combat-enemy-templates/${templateId}`, {method:'DELETE'});
+    applyCombatTemplateResponse(out); openCombatTemplateLibrary();
+  } catch(e){ alert(e.message); }
+}
+
+function sceneSourceCounts(scene) {
+  const counts = {};
+  for (const item of (scene?.enemies || [])) {
+    const id = Number(item.source_enemy_template_id || 0);
+    if (id) counts[id] = (counts[id] || 0) + 1;
+  }
+  return counts;
+}
+
+function openCombatSceneTemplateEditor(sceneId=0) {
+  const scene = sceneId ? combatSceneTemplateById(sceneId) : null;
+  const enemies = combatEnemyTemplates();
+  if (!enemies.length) return showToast('Сначала создай заготовку врага', 'info');
+  const counts = sceneSourceCounts(scene);
+  const choices = enemies.map(item => {
+    const quantity = counts[Number(item.id)] || 1;
+    const selected = !!counts[Number(item.id)];
+    return `<label class="scene-enemy-choice" style="--char-color:${esc(item.color || '#ef4444')}"><input class="sceneEnemyTemplate" type="checkbox" value="${Number(item.id)}" ${selected?'checked':''} onchange="toggleSceneEnemyTemplate(${Number(item.id)},this.checked)"><span class="template-color"></span><span><b>${esc(item.name)}</b><small>HP ${esc(item.hp)} · КД ${esc(item.ac)}</small></span><input id="sceneEnemyQty_${Number(item.id)}" class="scene-enemy-quantity" type="number" min="1" max="50" value="${quantity}" ${selected?'':'disabled'} aria-label="Количество"></label>`;
+  }).join('');
+  const manualWarning = scene && (scene.enemies || []).some(item => !item.source_enemy_template_id)
+    ? '<div class="setup-note">Эта сцена была сохранена из текущего боя. При сохранении её состав заменится выбранными заготовками врагов.</div>' : '';
+  showSubModal(`<div class="modal-card combat-scene-editor"><button class="modal-close" onclick="closeSubModal()">×</button><div class="name">${scene?'Пересобрать сцену':'Новая сцена'}</div>
+    <label>Название</label><input id="sceneTemplateName" value="${esc(scene?.name || '')}" placeholder="Засада у склада">
+    <label>Описание</label><textarea id="sceneTemplateDescription" rows="2" placeholder="Короткая заметка мастеру">${esc(scene?.description || '')}</textarea>
+    ${manualWarning}<div class="modal-title-lite">Состав врагов</div><div class="scene-enemy-options">${choices}</div>
+    <div class="row modal-actions"><button class="ok" onclick="saveCombatSceneTemplate(${Number(sceneId)})">Сохранить сцену</button><button class="secondary" onclick="closeSubModal()">Отмена</button></div>
+  </div>`);
+}
+
+function toggleSceneEnemyTemplate(templateId, enabled) {
+  const input = document.getElementById(`sceneEnemyQty_${templateId}`);
+  if (input) input.disabled = !enabled;
+}
+
+function sceneEnemyEntriesFromForm() {
+  return [...document.querySelectorAll('.sceneEnemyTemplate:checked')].map(input => ({
+    enemy_template_id:Number(input.value),
+    quantity:Math.max(1, Math.min(50, Number(document.getElementById(`sceneEnemyQty_${input.value}`)?.value || 1))),
+  }));
+}
+
+async function saveCombatSceneTemplate(sceneId=0) {
+  try {
+    const name = val('sceneTemplateName'); if (!name) throw new Error('Введите название сцены');
+    const enemies = sceneEnemyEntriesFromForm(); if (!enemies.length) throw new Error('Выбери хотя бы одного врага');
+    const path = sceneId
+      ? `/api/campaigns/${state.currentCampaignId}/combat-scene-templates/${sceneId}`
+      : `/api/campaigns/${state.currentCampaignId}/combat-scene-templates`;
+    const out = await api(path, {method:sceneId?'PUT':'POST', body:{name, description:val('sceneTemplateDescription'), enemies}});
+    applyCombatTemplateResponse(out); closeSubModal(); openCombatTemplateLibrary(); showToast('Сцена сохранена', 'info');
+  } catch(e){ alert(e.message); }
+}
+
+async function deleteCombatSceneTemplate(sceneId) {
+  const scene = combatSceneTemplateById(sceneId);
+  if (!confirm(`Удалить сцену «${scene?.name || 'Сцена боя'}»?`)) return;
+  try {
+    const out = await api(`/api/campaigns/${state.currentCampaignId}/combat-scene-templates/${sceneId}`, {method:'DELETE'});
+    applyCombatTemplateResponse(out); openCombatTemplateLibrary();
+  } catch(e){ alert(e.message); }
+}
+
+function openEnemyTemplatePicker(combatId) {
+  const enemies = combatEnemyTemplates();
+  const rows = enemies.map(item => `<div class="combat-template-row enemy-template-row" style="--char-color:${esc(item.color || '#ef4444')}"><span class="template-color"></span><span class="template-row-main"><b>${esc(item.name)}</b><small>HP ${esc(item.hp)} · КД ${esc(item.ac)}</small></span><input id="enemyTemplateAddQty_${Number(item.id)}" class="template-add-quantity" type="number" min="1" max="50" value="1" aria-label="Количество"><button class="ok small" onclick="addEnemyFromTemplate(${Number(combatId)},${Number(item.id)})">Добавить</button></div>`).join('');
+  showModal(`<div class="modal-card enemy-template-picker"><button class="modal-close" onclick="closeModal()">×</button><div class="name">Добавить из заготовки</div><p class="muted">Инициатива добавленных врагов останется пустой.</p><div class="combat-template-list">${rows || '<div class="empty-state">Нет заготовок врагов.</div>'}</div></div>`);
+}
+
+async function addEnemyFromTemplate(combatId, templateId) {
+  try {
+    const quantity = Math.max(1, Math.min(50, num(`enemyTemplateAddQty_${templateId}`, 1)));
+    await api(`/api/combats/${combatId}/enemy-templates/${templateId}`, {method:'POST', body:{quantity}});
+    closeModal(); showToast('Враги добавлены. Заполни инициативу.', 'info'); await render();
+  } catch(e){ alert(e.message); }
+}
+
+function openSaveCurrentSceneModal(combatId) {
+  showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">Сохранить текущую сцену</div><p class="muted">Сохранятся параметры и состав живых врагов. Инициатива в заготовку не попадёт.</p><label>Название</label><input id="currentSceneName" placeholder="Засада у склада"><label>Описание</label><textarea id="currentSceneDescription" rows="3" placeholder="Заметка мастеру"></textarea><div class="row modal-actions"><button class="ok" onclick="saveCurrentCombatScene(${Number(combatId)})">Сохранить</button><button class="secondary" onclick="closeModal()">Отмена</button></div></div>`);
+}
+
+async function saveCurrentCombatScene(combatId) {
+  try {
+    const name = val('currentSceneName'); if (!name) throw new Error('Введите название сцены');
+    const out = await api(`/api/combats/${combatId}/scene-template`, {method:'POST', body:{name, description:val('currentSceneDescription')}});
+    applyCombatTemplateResponse(out); closeModal(); showToast('Текущая сцена сохранена', 'info'); await render();
+  } catch(e){ alert(e.message); }
+}
+
 async function beginCombat(id) { try { await api(`/api/combats/${id}/begin`, {method:'POST'}); await render(); } catch(e){ alert(e.message); } }
 async function nextTurn(id) { try { await api(`/api/combats/${id}/next`, {method:'POST'}); await render(); } catch(e){ alert(e.message); } }
 async function finishCombat(id) { if(!confirm('Завершить бой?')) return; try { await api(`/api/combats/${id}/finish`, {method:'POST'}); await render(); } catch(e){ alert(e.message); } }
@@ -4342,7 +4539,7 @@ function openEnemyDetailMaster(id) {
     <div class="enemy-detail-head">${avatarCircle(e, 'md')}<div><div class="name">${esc(e.name)}</div><div class="muted">Враг · инициатива ${esc(e.initiative ?? '—')}</div></div></div>
     <div class="row"> <span class="pill hp-low">HP ${esc(e.current_hp)}/${esc(e.max_hp)}</span><span class="pill stat ac">КД ${esc(e.ac)}</span><span class="pill ${e.hidden_hp?'warn':'ok'}">${e.hidden_hp?'HP скрыто':'HP видно'}</span></div>
     <div class="injury-section combat"><span>👁 Видят игроки</span><p>${esc(e.public_note || e.public_condition || 'Описание не задано.')}</p></div>
-    <div class="enemy-damage-box"><label>Нанести урон врагу</label><input id="enemyDamage" type="number" value="0"><div class="row modal-actions"><button class="danger" onclick="damageEnemy(${e.id})">Применить урон</button><button class="secondary" onclick="duplicateEnemy(${e.id})">Дублировать</button><button class="secondary" onclick="openEnemyEditModal(${e.id})">Изменить</button><button class="danger secondary" onclick="removeCombatant(${e.id})">Удалить</button></div></div>
+    <div class="enemy-damage-box"><label>Нанести урон врагу</label><input id="enemyDamage" type="number" value="0"><div class="row modal-actions"><button class="danger" onclick="damageEnemy(${e.id})">Применить урон</button><button class="secondary" onclick="duplicateEnemy(${e.id})">Дублировать</button><button class="secondary" onclick="openEnemyTemplateEditor(0,${e.id})">В заготовки</button><button class="secondary" onclick="openEnemyEditModal(${e.id})">Изменить</button><button class="danger secondary" onclick="removeCombatant(${e.id})">Удалить</button></div></div>
   </div>`);
 }
 function openEnemyEditModal(id) {
@@ -4473,7 +4670,7 @@ async function openUserProfile(telegramId, focusCharacterId=0) {
     const ach = grants.slice(0, 18).map(g => `<button class="achievement-row-card profile-ach-row" onclick="openProfileAchievement(${Number(g.id)}, ${Number(telegramId)})"><span class="achievement-row-icon">${achIconHtml(g.achievement?.icon || '🏆', '', g.achievement?.icon_thumb || '')}</span><span><b>${esc(g.achievement?.title || 'Достижение')}</b></span></button>`).join('') || '<div class="muted">Достижений пока нет.</div>';
     const charList = chars.map(ch => `<button type="button" class="profile-line profile-character-line ${Number(ch.id) === Number(main.id) ? 'selected' : ''}" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(telegramId)}, ${Number(ch.id)})">${avatarCircle(ch, 'xs')}<b>${esc(ch.name)}</b>${characterTagPill(ch)}<small>HP ${esc(ch.current_hp)}/${esc(ch.current_max_hp)}</small></button>`).join('') || '<div class="muted">Персонажей нет.</div>';
     const campList = camps.map(c => `<span class="tag-pill ${Number(main.campaign_id) === Number(c.id) ? 'selected' : ''}">${esc(c.emoji || '🎲')} ${esc(c.name)}</span>`).join('') || '<span class="muted">Кампаний нет.</span>';
-    showModal(`<div class="modal-card profile-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main, 'xxl')}<div><div class="name profile-name-line">${esc(main.name || 'Профиль игрока')} ${characterTagPill(main)}</div><div class="muted">Telegram ID: ${esc(profile.telegram_user_id)}</div></div></div><div class="profile-section"><div class="profile-section-title">🏆 Ачивки</div><div class="achievement-row-list">${ach}</div></div><div class="profile-section"><div class="profile-section-title">🧙 Персонажи</div><div class="stack">${charList}</div></div><div class="profile-section"><div class="profile-section-title">🗺️ Кампании</div><div class="chips">${campList}</div></div></div>`);
+    showModal(`<div class="modal-card profile-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main, 'xxl')}<div><div class="name profile-name-line">${esc(profile.display_name || main.name || 'Профиль игрока')}</div><div class="muted">${profile.username ? `@${esc(profile.username)} · ` : ''}TG ${esc(profile.telegram_user_id)}</div>${main.name ? `<div class="muted">${esc(main.name)} ${characterTagPill(main)}</div>` : ''}</div></div><div class="profile-section"><div class="profile-section-title">🏆 Ачивки</div><div class="achievement-row-list">${ach}</div></div><div class="profile-section"><div class="profile-section-title">🧙 Персонажи</div><div class="stack">${charList}</div></div><div class="profile-section"><div class="profile-section-title">🗺️ Кампании</div><div class="chips">${campList}</div></div></div>`);
   } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -4642,7 +4839,7 @@ function renderSparkAdminPlayers(sm) {
     const grantsHtml = grants.length ? grants.map(g => `<div class="admin-player-ach-row"><span>${achIconHtml(g.achievement?.icon || '🏆', '', g.achievement?.icon_thumb || '')}</span><div><b>${esc(g.achievement?.title || 'Достижение')}</b><small>${esc(g.created_at_msk || '')}</small></div><button class="small danger" onclick="adminRevokePlayerAchievement(${tg}, ${Number(g.achievement_id || g.achievement?.id || 0)})">Снять</button></div>`).join('') : '<div class="muted">Достижений пока нет.</div>';
     const charNames = chars.map(ch => `${ch.name}${ch.campaign_name ? ' · '+ch.campaign_name : ''}`).join(' / ');
     return `<details class="spark-player-card custom-collapse" ${sectionAttrs('spark-player-'+tg)}>
-      <summary><div><b>${esc(p.display_name || ('Игрок TG '+tg))}</b><small>TG ${esc(tg)}${charNames ? ' · '+esc(charNames) : ''}</small></div><span class="spark-balance-pill">✦ ${esc(p.currency_balance || 0)}</span></summary>
+      <summary><div><b>${esc(p.display_name || ('Игрок TG '+tg))}</b><small>${p.username ? '@'+esc(p.username)+' · ' : ''}TG ${esc(tg)}${charNames ? ' · '+esc(charNames) : ''}</small></div><span class="spark-balance-pill">✦ ${esc(p.currency_balance || 0)}</span></summary>
       <div class="custom-collapse-body stack">
         <div class="grid two"><label>Изменить искры<input id="adminPlayerSpark_${tg}" type="number" value="100"></label><label>Комментарий<input id="adminPlayerSparkComment_${tg}" placeholder="Корректировка главным мастером"></label></div>
         <button class="ok small" onclick="adminAdjustPlayerSparks(${tg})">Изменить баланс игрока</button>
@@ -6650,14 +6847,35 @@ function renderInventoryModelLibrary() {
 }
 
 function renderAchievementTemplateCard(a) {
-  return `<div class="achievement-template-card card" onclick="openMasterAchievement(${Number(a.id)})">
-    <div class="ach-icon big">${achIconHtml(a.icon || '🏆', '', '')}</div><div class="ach-main"><b>${esc(a.title)}</b><small>${esc(a.tag || 'Без тэга')}</small>${a.cosmetic_reward?`<span class="pill reward">${esc(a.cosmetic_reward.emoji || '✨')} рамка: ${esc(a.cosmetic_reward.name)}</span>`:''}${a.cosmetic_effect_reward?`<span class="pill reward effect">${esc(a.cosmetic_effect_reward.emoji || '✨')} эффект: ${esc(a.cosmetic_effect_reward.name)}</span>`:''}${a.tag_reward?`<span class="pill reward">🏷️ тэг: ${esc(a.tag_reward.name)}</span>`:''}${a.inventory_model_reward?`<span class="pill reward">🧍 модель: ${esc(a.inventory_model_reward.name)}</span>`:''}${a.currency_reward?`<span class="pill reward">✦ ${esc(a.currency_reward)} искр</span>`:''}</div>
-  </div>`;
+  return `<button type="button" class="achievement-template-card card" onclick="openMasterAchievement(${Number(a.id)})">
+    <span class="ach-icon big">${achIconHtml(a.icon || '🏆', '', '')}</span><span class="ach-main"><b>${esc(a.title)}</b><small>${esc(a.tag || 'Без раздела')}</small><span class="achievement-reward-pills">${a.cosmetic_reward?`<span class="pill reward">${esc(a.cosmetic_reward.emoji || '✨')} рамка: ${esc(a.cosmetic_reward.name)}</span>`:''}${a.cosmetic_effect_reward?`<span class="pill reward effect">${esc(a.cosmetic_effect_reward.emoji || '✨')} эффект: ${esc(a.cosmetic_effect_reward.name)}</span>`:''}${a.tag_reward?`<span class="pill reward">🏷️ тэг: ${esc(a.tag_reward.name)}</span>`:''}${a.inventory_model_reward?`<span class="pill reward">🧍 модель: ${esc(a.inventory_model_reward.name)}</span>`:''}${a.currency_reward?`<span class="pill reward">✦ ${esc(a.currency_reward)} искр</span>`:''}</span></span>
+  </button>`;
+}
+
+function achievementSectionLabel(a) {
+  return String(a?.tag || '').trim() || 'Без раздела';
+}
+
+function groupAchievementsBySection(templates) {
+  const currentSection = String(state.campaignState?.campaign?.name || '').trim().toLocaleLowerCase('ru');
+  const groups = new Map();
+  (templates || []).forEach(a => {
+    const title = achievementSectionLabel(a);
+    const key = title.toLocaleLowerCase('ru');
+    if (!groups.has(key)) groups.set(key, {key, title, items: []});
+    groups.get(key).items.push(a);
+  });
+  return [...groups.values()].sort((a, b) => {
+    const ar = a.key === currentSection ? 0 : 1;
+    const br = b.key === currentSection ? 0 : 1;
+    if (ar !== br) return ar - br;
+    return a.title.localeCompare(b.title, 'ru');
+  });
 }
 
 function renderAchievementLibraryGroups(templates) {
   if (!templates.length) return '<div class="empty-state">Достижений пока нет. Создай первое.</div>';
-  const groups = groupByCampaign(templates, Number(state.currentCampaignId || 0), 'Без кампании');
+  const groups = groupAchievementsBySection(templates);
   return `<div class="campaign-group-list">${groups.map(g => `<section class="campaign-library-group"><div class="campaign-library-title">${esc(g.title)}</div><div class="achievement-template-list">${g.items.map(renderAchievementTemplateCard).join('')}</div></section>`).join('')}</div>`;
 }
 
@@ -6693,7 +6911,7 @@ function renderMasterAchievements() {
   const templates = state.campaignState?.achievement_templates || [];
   const list = renderAchievementLibraryGroups(templates);
   return `<div class="stack achievements-screen">
-    <details class="card stack achievement-create" ${sectionAttrs('master-ach-create')}><summary><span>🏆</span><b>Создать достижение</b><small>PNG/JPG-иконка, описание, тэг и визуальная награда</small></summary>
+    <details class="card stack achievement-create" ${sectionAttrs('master-ach-create')}><summary><span>🏆</span><b>Создать достижение</b><small>Иконка, описание, игра/раздел и награды</small></summary>
       <div class="grid two achievement-form">
         <label class="wide">Иконка достижения<input id="achIconFile" type="file" accept="image/*" onchange="previewAchievementIcon()"></label>
         <input id="achIconPath" type="hidden" value=""><input id="achIconThumb" type="hidden" value="">
@@ -6701,7 +6919,7 @@ function renderMasterAchievements() {
           <div id="achIconPreview" class="ach-icon huge"><span>🏆</span></div>
           <div class="muted">Загрузи маленькую PNG/JPG/WEBP-иконку. Она будет показываться в списке достижений игрока.</div>
         </div>
-        <label>Тэг / раздел<input id="achTag" value="${esc(state.campaignState?.campaign?.name || 'Кампания')}" maxlength="80"></label>
+        <label>Игра / раздел<input id="achTag" value="${esc(state.campaignState?.campaign?.name || 'Кампания')}" maxlength="80"></label>
         <label class="wide">Название<input id="achTitle" placeholder="Например: Неистовая удача" maxlength="80"></label>
         <label class="wide">Описание<textarea id="achDescription" placeholder="За что выдаётся достижение" maxlength="2000"></textarea></label>
         <input id="achReward" type="hidden" value="">
@@ -6717,7 +6935,7 @@ function renderMasterAchievements() {
       <button class="ok" onclick="createAchievement()">Создать достижение</button><div id="achCreateOut"></div>
     </details>
     <details class="card stack" ${sectionAttrs('master-currency-grant')}><summary><span>✦</span><b>Выдать искры</b><small>Ручная награда валютой игроку.</small></summary>${renderCurrencyGrantForm()}</details>
-    <details class="card stack custom-collapse" ${sectionAttrs('achievement-library')}><summary><b>🎖 Библиотека достижений кампании</b><small>${templates.length} шаблонов</small></summary><div class="custom-collapse-body stack">${list}</div></details>
+    <details class="card stack custom-collapse achievement-library" ${sectionAttrs('achievement-library')}><summary><b>Библиотека достижений</b><small>Всего: ${templates.length}</small></summary><div class="custom-collapse-body stack">${list}</div></details>
     <details class="card stack custom-collapse" ${sectionAttrs('inventory-model-library')}><summary><b>🧍 Модели</b><small>${inventoryModels().length} моделей</small></summary><div class="custom-collapse-body stack">${renderInventoryModelLibrary()}</div></details>
   </div>`;
 }
@@ -6970,15 +7188,16 @@ async function uploadCustomFrame() {
   }
 }
 
-function openMasterAchievement(id) {
+function achievementGrantPlayers() {
+  return [...(state.achievementPlayers || [])].sort((a, b) =>
+    String(a.display_name).localeCompare(String(b.display_name), 'ru'));
+}
+
+async function openMasterAchievement(id) {
   const a = (state.campaignState?.achievement_templates || []).find(x => Number(x.id) === Number(id));
   if (!a) return;
-  const chars = allChars().filter(ch => ch.telegram_user_id);
-  const options = chars.map(ch => `<option value="${ch.id}">${esc(ch.name)}</option>`).join('');
-  const multiTargets = chars.length
-    ? chars.map(ch => `<label class="target-check achievement-grant-target" style="--char-color:${esc(ch.color || '#72a7ff')}"><input class="grantMultiChar" type="checkbox" value="${ch.id}">${avatarCircle(ch, 'xs')}<span>${esc(ch.name)}</span><small>TG ${esc(ch.telegram_user_id)}</small></label>`).join('')
-    : '<div class="muted">Нет привязанных игроков</div>';
-  showModal(`<div class="modal-card achievement-modal"><button class="modal-close" onclick="closeModal()">×</button>
+  showModal(`<div class="modal-card achievement-modal achievement-grant-modal" role="dialog" aria-modal="true" aria-label="${esc(a.title)}"><button class="modal-close" aria-label="Закрыть" onclick="closeModal()">×</button>
+    <div class="achievement-grant-body">
     <div class="achievement-full-head"><button class="ach-icon huge icon-open-btn" onclick="openImageModal('${esc(achIconFullPath(a))}', '${esc(a.title || 'Достижение')}')">${achIconHtml(a.icon || '🏆', '', '')}</button><div><div class="name">${esc(a.title)}</div></div></div>
     <p>${esc(a.description || 'Без описания')}</p>
     ${a.cosmetic_reward ? frameRewardPreviewHtml(a.cosmetic_reward) : ''}
@@ -6986,16 +7205,59 @@ function openMasterAchievement(id) {
     ${a.tag_reward?`<div class="reward-preview">${tagTextPreview(a.tag_reward, defaultTagShapeId())}<div><b>Текст тэга: ${esc(a.tag_reward.name)}</b><small>${esc(a.tag_reward.description || '')}</small></div></div>`:''}
     ${a.inventory_model_reward ? modelRewardPreviewHtml(a.inventory_model_reward) : ''}
     ${a.currency_reward?`<div class="reward-preview"><span class="currency-icon">✦</span><div><b>Искры: +${esc(a.currency_reward)}</b><small>Валюта аккаунта</small></div></div>`:''}
-    <div class="hr"></div>
-    <details class="grant-mode" open><summary>Выдать одному игроку</summary><label>Игрок</label><select id="grantChar">${options || '<option value="">Нет привязанных игроков</option>'}</select><button class="ok" onclick="grantAchievement(${Number(a.id)})">Выдать одному</button></details>
-    <details class="grant-mode"><summary>Выдать нескольким игрокам</summary><div class="mass-targets achievement-grant-targets">${multiTargets}</div><div class="row"><button class="secondary small" onclick="toggleGrantTargets(true)">Выбрать всех</button><button class="secondary small" onclick="toggleGrantTargets(false)">Снять выбор</button></div><button class="ok" onclick="grantAchievementMany(${Number(a.id)})">Выдать выбранным</button></details>
-    <label>Комментарий мастера</label><textarea id="grantComment" placeholder="Например: За безумный добивающий удар"></textarea>
-    <div class="row modal-actions"><button class="danger" onclick="deleteAchievement(${Number(a.id)})">Удалить достижение</button><button class="secondary" onclick="closeModal()">Закрыть</button></div><div id="grantOut"></div>
+    <section class="achievement-recipients">
+      <h3>Игроки всех кампаний</h3>
+      <label for="achievementPlayerSearch">Поиск игрока</label>
+      <input id="achievementPlayerSearch" type="search" placeholder="Имя, @username или Telegram ID" oninput="filterAchievementPlayers()" disabled>
+      <div id="achievementPlayerList" class="achievement-grant-targets" aria-live="polite"><div class="muted">Загрузка игроков...</div></div>
+      <div class="achievement-selection-row"><label><input id="grantSelectAll" type="checkbox" onchange="toggleGrantTargets(this.checked)">Выбрать всех найденных</label><small id="grantSelectedCount">Выбрано: 0</small></div>
+    </section>
+    <label class="achievement-comment">Комментарий мастера<textarea id="grantComment" placeholder="За что выдано достижение" maxlength="1000"></textarea></label>
+    <div id="grantOut" role="status"></div>
+    <div class="achievement-delete-action"><button class="secondary small" onclick="deleteAchievement(${Number(a.id)})">Удалить достижение</button></div>
+    </div>
+    <div class="achievement-grant-actions"><button class="secondary" onclick="closeModal()">Отмена</button><button id="grantAchievementSubmit" class="ok" onclick="grantAchievementMany(${Number(a.id)})" disabled>Выдать достижение</button></div>
   </div>`);
+  const list = document.getElementById('achievementPlayerList');
+  try {
+    const out = await api(`/api/campaigns/${state.currentCampaignId}/achievement-players`);
+    if (!list.isConnected) return;
+    state.achievementPlayers = out.players || [];
+    list.innerHTML = achievementGrantPlayers().map(p => {
+      const username = p.username ? `@${p.username} · ` : '';
+      const names = (p.character_names || []).join(', ');
+      return `<label class="achievement-grant-target"><input class="grantMultiPlayer" type="checkbox" value="${Number(p.telegram_user_id)}" onchange="updateAchievementSelection()"><span><b>${esc(p.display_name)}</b><small>${esc(username)}TG ${esc(p.telegram_user_id)}</small>${names ? `<small class="achievement-player-context">Персонажи: ${esc(names)}</small>` : ''}</span></label>`;
+    }).join('') || '<div class="muted">Игроки пока не найдены</div>';
+    document.getElementById('achievementPlayerSearch').disabled = false;
+    updateAchievementSelection();
+  } catch(e) {
+    if (list.isConnected) list.innerHTML = msg(e.message, 'error');
+  }
 }
 
 function toggleGrantTargets(on) {
-  document.querySelectorAll('.grantMultiChar').forEach(x => x.checked = !!on);
+  document.querySelectorAll('.achievement-grant-target:not([hidden]) .grantMultiPlayer').forEach(x => x.checked = !!on);
+  updateAchievementSelection();
+}
+
+function filterAchievementPlayers() {
+  const query = val('achievementPlayerSearch').toLocaleLowerCase('ru');
+  document.querySelectorAll('.achievement-grant-target').forEach(row => {
+    row.hidden = !row.textContent.toLocaleLowerCase('ru').includes(query);
+  });
+  updateAchievementSelection();
+}
+
+function updateAchievementSelection() {
+  const selected = document.querySelectorAll('.grantMultiPlayer:checked').length;
+  const visible = [...document.querySelectorAll('.achievement-grant-target:not([hidden]) .grantMultiPlayer')];
+  const checked = visible.filter(input => input.checked).length;
+  const all = document.getElementById('grantSelectAll');
+  all.checked = visible.length > 0 && checked === visible.length;
+  all.indeterminate = checked > 0 && checked < visible.length;
+  all.disabled = !visible.length;
+  document.getElementById('grantSelectedCount').textContent = `Выбрано: ${selected}`;
+  document.getElementById('grantAchievementSubmit').disabled = !selected;
 }
 
 async function deleteAchievement(id) {
@@ -7026,24 +7288,17 @@ async function createAchievement() {
   } catch(e) { showToast(e.message, 'error'); }
 }
 
-async function grantAchievement(id) {
-  try {
-    const character_id = Number(val('grantChar') || 0);
-    if (!character_id) throw new Error('Выбери игрока');
-    await api(`/api/campaigns/${state.currentCampaignId}/achievements/${id}/grant`, {method:'POST', body:{character_id, master_comment: val('grantComment')}});
-    state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
-    showToast('Достижение выдано', 'heal'); closeModal(); renderCampaign();
-  } catch(e) { const el=document.getElementById('grantOut'); if(el) el.innerHTML=msg(e.message,'error'); else alert(e.message); }
-}
-
 async function grantAchievementMany(id) {
+  const submit = document.getElementById('grantAchievementSubmit');
   try {
-    const character_ids = [...document.querySelectorAll('.grantMultiChar:checked')].map(x => Number(x.value));
-    if (!character_ids.length) throw new Error('Выбери хотя бы одного игрока');
-    const out = await api(`/api/campaigns/${state.currentCampaignId}/achievements/${id}/grant-many`, {method:'POST', body:{character_ids, master_comment: val('grantComment')}});
+    const telegram_user_ids = [...document.querySelectorAll('.grantMultiPlayer:checked')].map(x => Number(x.value));
+    if (!telegram_user_ids.length) throw new Error('Выбери хотя бы одного игрока');
+    if (submit) submit.disabled = true;
+    const out = await api(`/api/campaigns/${state.currentCampaignId}/achievements/${id}/grant-many`, {method:'POST', body:{telegram_user_ids, master_comment: val('grantComment')}});
     state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
     showToast(out.message || 'Достижения выданы', 'heal'); closeModal(); renderCampaign();
   } catch(e) { const el=document.getElementById('grantOut'); if(el) el.innerHTML=msg(e.message,'error'); else alert(e.message); }
+  finally { if (submit?.isConnected) updateAchievementSelection(); }
 }
 
 function renderPlayerAchievements() {

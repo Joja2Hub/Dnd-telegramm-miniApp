@@ -60,6 +60,8 @@ desktop.ini
 *.bak
 *.swp
 *.swo
+tmp/combat-template-*.png
+tmp/*combat_templates*.sqlite3
 
 # =========================
 # Local tunnel / process artifacts
