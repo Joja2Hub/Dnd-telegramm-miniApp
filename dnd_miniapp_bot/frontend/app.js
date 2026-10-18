@@ -123,22 +123,11 @@ function isImageIcon(value) { const v = String(value || ''); return v.startsWith
 function achIconHtml(icon, cls='', thumb='') { const src = thumb || icon; return isImageIcon(src) ? `<img loading="lazy" class="ach-img ${esc(cls)}" src="${esc(src)}" alt="">` : `<span>${esc(icon || '🏆')}</span>`; }
 function achIconFullPath(a) { return isImageIcon(a?.icon || a?.icon_thumb || '') ? (a?.icon || a?.icon_thumb || '') : ''; }
 function effectById(id) { return cosmeticEffects().find(c => String(c.id) === String(id)); }
-function cosmeticTags() { return state.campaignState?.cosmetic_tags || []; }
-function tagById(id) { return cosmeticTags().find(c => String(c.id) === String(id)); }
-function unlockedTagSet() { return new Set(state.campaignState?.unlocked_tag_ids || []); }
-function tagShapes() { return cosmeticTags().filter(c => ['base','tag_shape'].includes(String(c.category || '')) && c.id !== 'tag_none'); }
-function tagTexts() { return cosmeticTags().filter(c => String(c.category || '') === 'tag_text'); }
-function baseTags() { return tagShapes().filter(c => c.category === 'base'); }
-function uniqueTags() { return tagTexts().concat(tagShapes().filter(c => c.category !== 'base')); }
-function tagClassFor(id) { const t=tagById(id); return t?.css_class || (id ? String(id).replace(/^tag_shape_/, 'tag-shape-').replace(/_/g, '-') : ''); }
-function defaultTagShapeId() { return 'tag_shape_classic'; }
-function tagIsUnlocked(t) { return !t || String(t.id)==='tag_none' || String(t.category || '') === 'base' || unlockedTagSet().has(String(t.id)); }
 function currencyBalance() { return Number(state.campaignState?.currency_balance || 0); }
 function priceOf(item) { return item?.price == null ? ({common:60, rare:180, epic:500, legendary:1300, unique:null}[item?.rarity || 'common'] ?? 25) : item.price; }
 function priceLabel(item) { const p = priceOf(item); return p == null || String(item?.rarity)==='unique' ? 'только за ачивку' : `✦ ${p}`; }
 function cosmeticMetaLabel(item) { return `${rarityEmoji(displayRarity(item))} ${rarityRu(displayRarity(item))}`; }
 function effectMetaLabel(item) { return `${rarityEmoji(item?.rarity || 'common')} ${rarityRu(item?.rarity || 'common')}`; }
-function tagMetaLabel(item) { return `${rarityEmoji(item?.rarity || 'common')} ${rarityRu(item?.rarity || 'common')}`; }
 function availableFirst(items, isAvailable) { return [...items].sort((a,b) => (isAvailable(b)?1:0) - (isAvailable(a)?1:0) || (Number(a.sort_order||0)-Number(b.sort_order||0)) || String(a.name||'').localeCompare(String(b.name||''), 'ru')); }
 const RARITY_ORDER = {common:1, rare:2, epic:3, legendary:4, unique:5};
 function sortByRarity(items) { return [...items].sort((a,b) => (RARITY_ORDER[a?.rarity || displayRarity(a) || 'common'] || 99) - (RARITY_ORDER[b?.rarity || displayRarity(b) || 'common'] || 99) || (Number(a?.sort_order||0)-Number(b?.sort_order||0)) || String(a?.name||'').localeCompare(String(b?.name||''), 'ru')); }
@@ -148,21 +137,6 @@ function baseCosmetics() { return cosmetics().filter(c => c.category === 'base')
 function uniqueCosmetics() { return cosmetics().filter(c => c.category === 'unique'); }
 function baseEffects() { return cosmeticEffects().filter(c => c.category === 'base'); }
 function uniqueEffects() { return cosmeticEffects().filter(c => c.category === 'unique'); }
-
-const TAG_STYLE_OPTIONS = [
-  {id:'tag-custom-gold', name:'Золото', emoji:'✨', sample:'Фарт'},
-  {id:'tag-custom-cyber', name:'Кибер', emoji:'💻', sample:'NETRUN'},
-  {id:'tag-custom-shadow', name:'Тень', emoji:'🌑', sample:'Тень'},
-  {id:'tag-custom-blood', name:'Кровь', emoji:'🩸', sample:'Охота'},
-  {id:'tag-custom-arcane', name:'Аркана', emoji:'🔮', sample:'Магия'},
-  {id:'tag-custom-neon', name:'Неон', emoji:'🎤', sample:'Сцена'},
-  {id:'tag-custom-emerald', name:'Изумруд', emoji:'🍃', sample:'След'},
-  {id:'tag-custom-frost', name:'Иней', emoji:'❄️', sample:'Холод'},
-  {id:'tag-custom-royal', name:'Королевский', emoji:'👑', sample:'Лорд'},
-  {id:'tag-custom-glitch', name:'Глитч', emoji:'▣', sample:'ERROR'},
-  {id:'tag-custom-sunset', name:'Закат', emoji:'🌅', sample:'Закат'},
-  {id:'tag-custom-steel', name:'Сталь', emoji:'⚙️', sample:'Сталь'},
-];
 
 const HIDDEN_EFFECT_IDS = new Set();
 const MODERN_EFFECT_IDS = new Set(['silver_motes', 'soft_mist', 'dew_drift', 'shadow_dust', 'heavy_rain', 'snow_squall', 'black_rain', 'midnight_snow', 'soot_rain', 'moon_sigils', 'toxic_drizzle', 'star_chorus', 'coin_whirl', 'grave_whispers', 'storm_lash', 'oracle_glyphs', 'grave_candles', 'necrotic_ash', 'night_script', 'neon_rain', 'holo_glitch', 'quantum_pixels', 'meridian_orbit', 'thunder_throne', 'nightfall', 'oblivion_script', 'golden_glint', 'amethyst_dust', 'halo_of_dawn', 'umbra_crown', 'rune_ascent', 'brutalist_hud', 'corporate_veil', 'gear_orbit', 'silver_glint', 'gem_grotto', 'low_equator_orbit', 'red_equator_scan', 'matrix_rain', 'diamond_shimmer', 'matrix_rain_cyan', 'matrix_rain_violet', 'matrix_rain_gold', 'matrix_orbit', 'quantum_hex', 'hex_beacon', 'ring_glints', 'holo_iris', 'aether_loom', 'effect_none']);
@@ -3054,6 +3028,13 @@ class EffectEngine {
 const activeCanvasEffects = new Map();
 let activeCanvasEffectsRaf = 0;
 let activeCanvasResizeBound = false;
+const canvasEffectVisibility = new WeakMap();
+const canvasEffectVisibilityObserver = typeof IntersectionObserver === 'function'
+  ? new IntersectionObserver(entries => {
+      entries.forEach(entry => canvasEffectVisibility.set(entry.target, entry.isIntersecting));
+      scheduleCanvasEffectsFrame();
+    }, {rootMargin:'180px 0px'})
+  : null;
 
 function isCanvasManagedEffectId(id) { return CANVAS_EFFECT_IDS.has(String(id || '')); }
 function activationWrapperForEffectTarget(el) {
@@ -3064,7 +3045,8 @@ function desiredCanvasEffectState(el) {
   const wrapper = activationWrapperForEffectTarget(el);
   const inPreviewModal = !!(el.closest?.('.cosmetic-preview-modal') || wrapper?.closest?.('.cosmetic-preview-modal'));
   const forced = !!(el.classList?.contains('effect-force-active') || wrapper?.classList?.contains('effect-force-active'));
-  if (inPreviewModal || forced) return true;
+  if (inPreviewModal) return true;
+  if (forced) return canvasEffectVisibility.get(el) !== false;
   // Applied character effects are rendered by avatarCircle() as fx-avatar-shell
   // without the fx-preview-shell marker. These must stay alive everywhere: shop
   // header/settings preview, party, combat, public/profile windows, etc.
@@ -3103,6 +3085,10 @@ function ensureCanvasEffectHost(el) {
   }
   el.dataset.effectRender = 'canvas';
   el.classList.add('effect-canvas-host');
+  if (!canvasEffectVisibility.has(el)) {
+    canvasEffectVisibility.set(el, true);
+    canvasEffectVisibilityObserver?.observe(el);
+  }
   const wrapper = activationWrapperForEffectTarget(el);
   bindCanvasHostWake(wrapper);
   sizeCanvasEffectHost(rec);
@@ -3212,6 +3198,7 @@ function pruneCanvasEffects() {
     if (!el.isConnected) {
       try { rec.engine.setActive(false); } catch(_) {}
       try { rec.canvas.remove(); } catch(_) {}
+      canvasEffectVisibilityObserver?.unobserve(el);
       activeCanvasEffects.delete(el);
     }
   }
@@ -3796,7 +3783,6 @@ function renderCampaign() {
   restoreUiScroll();
   if (state.tab === 'netrunner' || state.tab === 'netrunner_master') setTimeout(drawCyberNetworkLines, 0);
   if (state.tab === 'cyber_inventory') setTimeout(bindCyberInventoryDrag, 0);
-  if (state.tab === 'achievements') setTimeout(renderCustomTagStyleGrid, 0);
 }
 function setTab(t) { rememberUiScroll(); if (t === 'maps' && !MAPS_FEATURE_ENABLED) t = 'characters'; state.tab=t; renderCampaign(); }
 
@@ -3850,21 +3836,8 @@ function injuryChip(ch, i, master=false) {
 }
 
 
-function characterTagPill(ch, cls='') {
-  const textTag = String(ch?.custom_tag_text || '');
-  const textId = String(ch?.custom_tag || '');
-  const textObj = tagById(textId);
-  const finalText = textTag || (textObj && String(textObj.category || '') !== 'tag_shape' ? String(textObj.name || '') : '');
-  if (!finalText) return '';
-  let styleId = String(ch?.custom_tag_style || defaultTagShapeId());
-  if (!styleId || styleId === 'tag_none') styleId = defaultTagShapeId();
-  const style = tagById(styleId) || tagById(defaultTagShapeId()) || {rarity:'common', emoji:'🏷️', css_class:'tag-shape-classic'};
-  const rarity = style.rarity || (textObj?.rarity) || 'common';
-  return `<span class="character-tag ${esc(cls)} rarity-${esc(rarity)} ${esc(style.css_class || tagClassFor(styleId))}">${style.emoji?`<span>${esc(style.emoji)}</span>`:''}<b>${esc(finalText)}</b></span>`;
-}
-
-function characterNameWithTag(ch) {
-  return `<span class="char-name-line"><span>${esc(ch?.name || 'Персонаж')}</span>${characterTagPill(ch)}</span>`;
+function characterNameHtml(ch) {
+  return `<span class="char-name-line"><span>${esc(ch?.name || 'Персонаж')}</span></span>`;
 }
 function avatarCircle(ch, size='md') {
   const color = ch?.color || '#72a7ff';
@@ -4190,11 +4163,16 @@ function renderQuickDamageTools() {
   const enemyTargets = enemies.length
     ? enemies.map(e=>`<label class="target-check enemy-target" style="--char-color:${esc(e.color || '#ef4444')}"><input class="massEnemyTarget" type="checkbox" value="${e.id}">${avatarCircle(e, 'xs')}<span>${esc(e.name)}</span><small>HP ${esc(e.current_hp)}/${esc(e.max_hp)} · ${esc(e.public_condition || '')}</small></label>`).join('')
     : '<div class="muted">В активном бою нет врагов.</div>';
+  const enemyHealTargets = enemies.length
+    ? enemies.map(e=>`<label class="target-check enemy-target" style="--char-color:${esc(e.color || '#ef4444')}"><input class="massEnemyHealTarget" type="checkbox" value="${e.id}">${avatarCircle(e, 'xs')}<span>${esc(e.name)}</span><small>HP ${esc(e.current_hp)}/${esc(e.max_hp)} · ${esc(e.public_condition || '')}</small></label>`).join('')
+    : '<div class="muted">В активном бою нет врагов.</div>';
   return `<div class="combat-tools-grid">
     <details class="card stack combat-section" ${sectionAttrs('combat-direct-damage')}><summary>🎯 Обычная атака по персонажу</summary><div class="stack section-body"><label>Цель</label>${combatTargetCards('directTarget')}<label>Урон</label><input id="directDamage" type="number" value="0"><div class="row"><button onclick="doDirect(false)">Применить урон</button>${c.armor_enabled ? '<button class="warn" onclick="doDirect(true)">Бронебойный</button>' : ''}</div><div id="combatOut2"></div></div></details>
     <details class="card stack combat-section debug-damage-section" ${sectionAttrs('combat-debug-damage')}><summary>🧪 Дебаг урона и травмы</summary><div class="stack section-body"><label>Цель</label>${combatTargetCards('debugTarget')}<div class="grid two"><div><label>Урон</label><input id="debugDamage" type="number" value="0"></div><div><label>Режим брони</label><select id="debugArmorMode">${armorModeOptions()}</select></div><div><label>Часть тела</label><select id="debugLocation">${injuryLocationOptions()}</select></div><div><label>Степень травмы</label><select id="debugSeverity">${injurySeverityOptions('medium')}</select></div></div><label class="checkline"><input id="debugForceInjury" type="checkbox" checked> Создать выбранную травму принудительно</label><button class="warn" onclick="doDebugDamage()">Применить дебаг-урон</button><div id="combatOutDebug"></div></div></details>
     <details class="card stack wide combat-section" ${sectionAttrs('combat-mass-damage')}><summary>💥 Массовый урон по персонажам</summary><div class="stack section-body"><label>Урон всем выбранным</label><input id="massDamage" type="number" value="0"><div class="mass-targets">${chars.map(ch=>`<label class="target-check" style="--char-color:${esc(ch.color || '#72a7ff')}"><input class="massTarget" type="checkbox" value="${ch.id}">${avatarCircle(ch, 'xs')}<span>${esc(ch.name)}</span><small>${hpText(ch)}${ch.armor_enabled ? ` · Броня ${ch.armor_current}/${ch.current_max_armor}` : ''}</small></label>`).join('')}</div>${c.armor_enabled ? '<label class="checkline"><input id="massPiercing" type="checkbox"> Бронебойный массовый урон</label>' : ''}<button onclick="doMass()">Применить массовый урон</button><div id="combatOut3"></div></div></details>
     <details class="card stack wide combat-section" ${sectionAttrs('combat-mass-enemy-damage')}><summary>👹 Массовый урон по врагам</summary><div class="stack section-body"><label>Урон всем выбранным врагам</label><input id="massEnemyDamage" type="number" value="0"><div class="mass-targets enemy-mass-targets">${enemyTargets}</div><button class="danger" onclick="doMassEnemyDamage()" ${enemies.length?'':'disabled'}>Применить урон по врагам</button><div id="combatOutEnemies"></div></div></details>
+    <details class="card stack wide combat-section" ${sectionAttrs('combat-mass-heal')}><summary>💚 Здоровье персонажам</summary><div class="stack section-body"><label>Восстановить HP всем выбранным</label><input id="massHeal" type="number" min="1" value="1"><div class="mass-targets">${chars.map(ch=>`<label class="target-check" style="--char-color:${esc(ch.color || '#72a7ff')}"><input class="massHealTarget" type="checkbox" value="${ch.id}">${avatarCircle(ch, 'xs')}<span>${esc(ch.name)}</span><small>${hpText(ch)}</small></label>`).join('')}</div><button class="ok" onclick="doMassHeal()">Восстановить здоровье</button><div id="combatOutHeal"></div></div></details>
+    <details class="card stack wide combat-section" ${sectionAttrs('combat-mass-enemy-heal')}><summary>💚 Здоровье врагам</summary><div class="stack section-body"><label>Восстановить HP всем выбранным врагам</label><input id="massEnemyHeal" type="number" min="1" value="1"><div class="mass-targets enemy-mass-targets">${enemyHealTargets}</div><button class="ok" onclick="doMassEnemyHeal()" ${enemies.length?'':'disabled'}>Восстановить здоровье</button><div id="combatOutEnemyHeal"></div></div></details>
   </div>`;
 }
 
@@ -4313,6 +4291,20 @@ async function doMassEnemyDamage() {
     const out=await api(`/api/campaigns/${state.currentCampaignId}/combatants/enemies/damage/mass`, {method:'POST', body:{target_ids:ids, damage:num('massEnemyDamage',0)}});
     alert(out.result_text); state.tab='combat'; await render();
   } catch(e){document.getElementById('combatOutEnemies').innerHTML=msg(e.message,'error');}
+}
+async function doMassHeal() {
+  try {
+    const ids=[...document.querySelectorAll('.massHealTarget:checked')].map(x=>Number(x.value));
+    const out=await api(`/api/campaigns/${state.currentCampaignId}/heal/mass`, {method:'POST', body:{target_ids:ids, amount:num('massHeal',1)}});
+    alert(out.result_text); state.tab='combat'; await render();
+  } catch(e){document.getElementById('combatOutHeal').innerHTML=msg(e.message,'error');}
+}
+async function doMassEnemyHeal() {
+  try {
+    const ids=[...document.querySelectorAll('.massEnemyHealTarget:checked')].map(x=>Number(x.value));
+    const out=await api(`/api/campaigns/${state.currentCampaignId}/combatants/enemies/heal/mass`, {method:'POST', body:{target_ids:ids, amount:num('massEnemyHeal',1)}});
+    alert(out.result_text); state.tab='combat'; await render();
+  } catch(e){document.getElementById('combatOutEnemyHeal').innerHTML=msg(e.message,'error');}
 }
 
 
@@ -4640,7 +4632,7 @@ function renderPlayerCharacter() {
   const statuses = (ch.statuses||[]).map(s=>`<div class="pill">${esc(s)}</div>`).join('') || '<div class="muted">нет</div>';
   const color = ch.color || '#72a7ff';
   return `<div class="card stack player-card" style="--char-color:${esc(color)}">
-    <div class="player-hero">${avatarCircle(ch, 'lg')}<div><div class="name">${characterNameWithTag(ch)}</div><div class="muted">Твоя карточка персонажа</div></div></div>
+    <div class="player-hero">${avatarCircle(ch, 'lg')}<div><div class="name">${characterNameHtml(ch)}</div><div class="muted">Твоя карточка персонажа</div></div></div>
     <div class="row">${hpPill(ch)} ${armorPill(ch)} <span class="pill stat ac"><strong>КД</strong> ${ch.ac}</span> ${painPill(ch)}</div>
     <div><b>Травмы:</b><div class="chips">${injuries}</div></div>
     <div><b>Статусы:</b>${statuses}</div>
@@ -4668,9 +4660,9 @@ async function openUserProfile(telegramId, focusCharacterId=0) {
     const grants = profile.achievement_grants || [];
     const camps = profile.campaigns || [];
     const ach = grants.slice(0, 18).map(g => `<button class="achievement-row-card profile-ach-row" onclick="openProfileAchievement(${Number(g.id)}, ${Number(telegramId)})"><span class="achievement-row-icon">${achIconHtml(g.achievement?.icon || '🏆', '', g.achievement?.icon_thumb || '')}</span><span><b>${esc(g.achievement?.title || 'Достижение')}</b></span></button>`).join('') || '<div class="muted">Достижений пока нет.</div>';
-    const charList = chars.map(ch => `<button type="button" class="profile-line profile-character-line ${Number(ch.id) === Number(main.id) ? 'selected' : ''}" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(telegramId)}, ${Number(ch.id)})">${avatarCircle(ch, 'xs')}<b>${esc(ch.name)}</b>${characterTagPill(ch)}<small>HP ${esc(ch.current_hp)}/${esc(ch.current_max_hp)}</small></button>`).join('') || '<div class="muted">Персонажей нет.</div>';
+    const charList = chars.map(ch => `<button type="button" class="profile-line profile-character-line ${Number(ch.id) === Number(main.id) ? 'selected' : ''}" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(telegramId)}, ${Number(ch.id)})">${avatarCircle(ch, 'xs')}<b>${esc(ch.name)}</b><small>HP ${esc(ch.current_hp)}/${esc(ch.current_max_hp)}</small></button>`).join('') || '<div class="muted">Персонажей нет.</div>';
     const campList = camps.map(c => `<span class="tag-pill ${Number(main.campaign_id) === Number(c.id) ? 'selected' : ''}">${esc(c.emoji || '🎲')} ${esc(c.name)}</span>`).join('') || '<span class="muted">Кампаний нет.</span>';
-    showModal(`<div class="modal-card profile-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main, 'xxl')}<div><div class="name profile-name-line">${esc(profile.display_name || main.name || 'Профиль игрока')}</div><div class="muted">${profile.username ? `@${esc(profile.username)} · ` : ''}TG ${esc(profile.telegram_user_id)}</div>${main.name ? `<div class="muted">${esc(main.name)} ${characterTagPill(main)}</div>` : ''}</div></div><div class="profile-section"><div class="profile-section-title">🏆 Ачивки</div><div class="achievement-row-list">${ach}</div></div><div class="profile-section"><div class="profile-section-title">🧙 Персонажи</div><div class="stack">${charList}</div></div><div class="profile-section"><div class="profile-section-title">🗺️ Кампании</div><div class="chips">${campList}</div></div></div>`);
+    showModal(`<div class="modal-card profile-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main, 'xxl')}<div><div class="name profile-name-line">${esc(profile.display_name || main.name || 'Профиль игрока')}</div><div class="muted">${profile.username ? `@${esc(profile.username)} · ` : ''}TG ${esc(profile.telegram_user_id)}</div>${main.name ? `<div class="muted">${esc(main.name)}</div>` : ''}</div></div><div class="profile-section"><div class="profile-section-title">🏆 Ачивки</div><div class="achievement-row-list">${ach}</div></div><div class="profile-section"><div class="profile-section-title">🧙 Персонажи</div><div class="stack">${charList}</div></div><div class="profile-section"><div class="profile-section-title">🗺️ Кампании</div><div class="chips">${campList}</div></div></div>`);
   } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -4699,7 +4691,7 @@ async function openProfileAchievement(grantId, telegramId) {
 function renderParty() {
   const team = state.campaignState?.team_characters || [];
   if (!team.length) return '<div class="card muted">В отряде пока никого нет.</div>';
-  return `<div class="card stack"><div class="name">🧭 Отряд</div><div class="muted">Нажми на персонажа, чтобы открыть профиль игрока.</div><div class="party-grid">${team.map(ch => `<button class="party-card party-card-button" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(ch.telegram_user_id || 0)}, ${Number(ch.id || 0)})">${avatarCircle(ch, 'md')}<div class="party-main"><b>${esc(ch.name)}</b>${characterTagPill(ch)}<span class="${hpClass(ch)}">${hpText(ch)}</span></div><span class="badge ${ch.injury_count ? 'danger':'ok'}">травмы: ${ch.injury_count || 'нет'}</span></button>`).join('')}</div></div>`;
+  return `<div class="card stack"><div class="name">🧭 Отряд</div><div class="muted">Нажми на персонажа, чтобы открыть профиль игрока.</div><div class="party-grid">${team.map(ch => `<button class="party-card party-card-button" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(ch.telegram_user_id || 0)}, ${Number(ch.id || 0)})">${avatarCircle(ch, 'md')}<div class="party-main"><b>${esc(ch.name)}</b><span class="${hpClass(ch)}">${hpText(ch)}</span></div><span class="badge ${ch.injury_count ? 'danger':'ok'}">травмы: ${ch.injury_count || 'нет'}</span></button>`).join('')}</div></div>`;
 }
 
 function isActualMasterOfCurrentCampaign() {
@@ -5888,27 +5880,16 @@ function rarityGroupHtml(title, items, renderCard) {
 function renderUniqueCustomizationBlock(ch) {
   const selected = String(ch.custom_frame || '');
   const selectedEffect = normalizedEffectId(ch.custom_effect || '');
-  const selectedText = String(ch.custom_tag || '');
-  const selectedShape = String(ch.custom_tag_style || defaultTagShapeId()) === 'tag_none' ? defaultTagShapeId() : String(ch.custom_tag_style || defaultTagShapeId());
   const unlocked = unlockedCosmeticSet();
   const unlockedEffects = unlockedEffectSet();
   const frameIsAvailable = c => displayRarity(c) === 'common' || unlocked.has(c.id);
   const effectIsAvailable = e => String(e.id) === 'effect_none' || String(e.rarity || 'common') === 'common' || unlockedEffects.has(e.id);
-  const textIsAvailable = t => tagIsUnlocked(t);
-  const shapeIsAvailable = t => tagIsUnlocked(t);
   const frames = availableFirst(baseCosmetics().concat(uniqueCosmetics()), frameIsAvailable);
   const effects = availableFirst(visibleEffects(), effectIsAvailable);
-  const shapes = availableFirst(tagShapes(), shapeIsAvailable);
-  const texts = availableFirst(tagTexts(), textIsAvailable);
   const noFrame = `<button type="button" class="frame-choice plain ${selected===''?'selected':''}" onclick="showCosmeticPreviewModal('frame', emptyCustomizationItem('frame'), false, ${ch.id})"><span class="frame-demo plain">○</span><b>Без рамки</b><small>только цвет персонажа</small></button>`;
   const noEffect = `<button type="button" class="frame-choice plain ${selectedEffect===''?'selected':''}" onclick="showCosmeticPreviewModal('effect', emptyCustomizationItem('effect'), false, ${ch.id})"><span class="frame-demo plain">○</span><b>Без эффекта</b><small>только выбранная рамка</small></button>`;
   const frameHtml = `<div class="frame-grid">${noFrame}</div>` + rarityGroupHtml('Рамки', frames, c => cosmeticChoiceCard(ch.id, c, frameIsAvailable(c), selected));
   const effectHtml = `<div class="frame-grid">${noEffect}</div>` + rarityGroupHtml('Эффекты', effects, e => effectChoiceCard(ch.id, e, effectIsAvailable(e), selectedEffect));
-  const currentText = ch.custom_tag_text || (tagById(selectedText)?.name || '');
-  const tagPreview = currentText ? `<div class="tag-current-preview"><span>Сейчас:</span>${characterTagPill(ch, 'preview')}</div>` : `<div class="tag-current-preview muted">Тэг сейчас выключен.</div>`;
-  const noTag = `<button type="button" class="frame-choice plain ${selectedText===''?'selected':''}" onclick="saveCustomTagText(${ch.id}, '')"><span class="tag-preview-demo">—</span><b>Без текста</b><small>тэг не отображается</small></button>`;
-  const shapeHtml = rarityGroupHtml('Формы', shapes, t => tagShapeChoiceCard(ch.id, t, shapeIsAvailable(t), selectedShape, currentText || 'Пример'));
-  const textHtml = `<div class="frame-grid">${noTag}</div>` + rarityGroupHtml('Тексты', texts, t => tagTextChoiceCard(ch.id, t, textIsAvailable(t), selectedText, selectedShape));
   return `<div class="customization-sections compact-customization">
     <details class="custom-section frames custom-collapse" ${sectionAttrs('player-custom-frames')}>
       <summary><div class="unique-custom-head"><span>🖼️</span><div><b>Рамки</b><small>Базовые и открытые уникальные рамки. Разделены по редкости.</small></div></div></summary>
@@ -5918,12 +5899,6 @@ function renderUniqueCustomizationBlock(ch) {
       <summary><div class="unique-custom-head"><span>✨</span><div><b>Эффекты рамок</b><small>Дополняют рамку и не заменяют её.</small></div></div></summary>
       <div class="custom-collapse-body">${effectHtml}</div>
     </details>
-    <div class="custom-section tags custom-collapse disabled-tags-section" aria-disabled="true">
-      <div class="disabled-tags-inner">
-        <div class="unique-custom-head"><span>🏷️</span><div><b>Тэги</b><small>Раздел временно закрыт.</small></div></div>
-        <div class="disabled-tags-message"><b>Добавится потом</b><span>Формы и тексты тэгов пока недоступны для выбора и покупки. Мы вернём этот раздел после доработки баланса и интерфейса.</span></div>
-      </div>
-    </div>
   </div>`;
 }
 
@@ -5942,7 +5917,7 @@ function cosmeticChoiceCard(charId, c, available, selected) {
 function effectChoiceCard(charId, e, available, selected) {
   const cls = effectClassFor(e.id);
   const isSelected = selected === e.id;
-  const demo = effectPreviewHtml(e, '', isSelected);
+  const demo = effectPreviewHtml(e, '', true, charId);
   if (!available) {
     return `<button type="button" class="frame-choice locked-choice effect-card rarity-${esc(e.rarity || 'common')} ${esc(cls)}" onclick="showLockedEffect('${esc(e.id)}', ${Number(charId)})">${demo}<span class="lock-badge">🔒</span><b>${esc(e.name)}</b><small>${effectMetaLabel(e)}</small></button>`;
   }
@@ -5951,70 +5926,19 @@ function effectChoiceCard(charId, e, available, selected) {
 
 
 
-function tagShapePreview(t, text='Пример') {
-  return `<span class="tag-preview-demo"><span class="character-tag rarity-${esc(t.rarity || 'common')} ${esc(t.css_class || tagClassFor(t.id))}">${t.emoji?`<span>${esc(t.emoji)}</span>`:''}<b>${esc(text || 'Пример')}</b></span></span>`;
-}
-function tagTextPreview(t, shapeId='') {
-  const shape = tagById(shapeId) || tagById(defaultTagShapeId()) || {rarity:'common', emoji:'🏷️', css_class:'tag-shape-classic'};
-  return `<span class="tag-preview-demo"><span class="character-tag rarity-${esc(shape.rarity || t.rarity || 'common')} ${esc(shape.css_class || tagClassFor(shape.id))}">${shape.emoji?`<span>${esc(shape.emoji)}</span>`:''}<b>${esc(t.name)}</b></span></span>`;
-}
-function tagShapeChoiceCard(charId, t, available, selected, sampleText='Пример') {
-  const isSelected = selected === t.id || (!selected && t.id === defaultTagShapeId());
-  const demo = tagShapePreview(t, sampleText);
-  if (!available) return `<button type="button" class="frame-choice locked-choice tag-card rarity-${esc(t.rarity || 'common')}" onclick="showLockedTag('${esc(t.id)}')">${demo}<span class="lock-badge">🔒</span><b>${esc(t.name)}</b><small>${tagMetaLabel(t)}</small></button>`;
-  return `<button type="button" class="frame-choice unlocked-choice tag-card rarity-${esc(t.rarity || 'common')} ${isSelected?'selected':''}" onclick="saveCustomTagShape(${charId}, '${esc(t.id)}')">${demo}<span class="owned-badge">✓</span><b>${esc(t.name)}</b><small>${tagMetaLabel(t)}</small></button>`;
-}
-function tagTextChoiceCard(charId, t, available, selected, shapeId='') {
-  const isSelected = selected === t.id;
-  const demo = tagTextPreview(t, shapeId);
-  if (!available) return `<button type="button" class="frame-choice locked-choice tag-card rarity-${esc(t.rarity || 'common')}" onclick="showLockedTag('${esc(t.id)}')">${demo}<span class="lock-badge">🔒</span><b>${esc(t.name)}</b><small>${tagMetaLabel(t)}</small></button>`;
-  return `<button type="button" class="frame-choice unlocked-choice tag-card rarity-${esc(t.rarity || 'common')} ${isSelected?'selected':''}" onclick="saveCustomTagText(${charId}, '${esc(t.id)}')">${demo}<span class="owned-badge">✓</span><b>${esc(t.name)}</b><small>${tagMetaLabel(t)}</small></button>`;
-}
-function showLockedTag(id) {
-  showToast('Раздел тэгов добавится позже', 'warn'); return;
-  const t = tagById(id);
-  const isShape = String(t?.category || '') === 'tag_shape' || String(t?.category || '') === 'base';
-  showModal(`<div class="modal-card compact unique-modal locked-custom-modal"><button class="modal-close" onclick="closeModal()">×</button>
-    <div class="name">🔒 ${esc(t?.name || 'Тэг закрыт')}</div>
-    <div class="locked-preview-card rarity-${esc(t?.rarity || 'legendary')}">${isShape ? tagShapePreview(t || {}, 'Пример') : tagTextPreview(t || {}, defaultTagShapeId())}<small>${tagMetaLabel(t)}</small><p class="muted">${esc(t?.description || '')}</p></div>
-    <div class="row modal-actions">${shopActionButton('tag', t)}<button class="secondary" onclick="closeModal()">Назад</button></div>
-  </div>`);
-}
-async function saveCustomTagShape(id, shapeId) {
-  showToast('Раздел тэгов пока недоступен', 'warn'); return;
-  try {
-    await api(`/api/characters/${id}/self`, {method:'PATCH', body:{custom_tag_style: shapeId || defaultTagShapeId()}});
-    state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
-    showToast('Форма тэга применена', 'heal');
-    renderCampaign();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-async function saveCustomTagText(id, tag) {
-  showToast('Раздел тэгов пока недоступен', 'warn'); return;
-  try {
-    await api(`/api/characters/${id}/self`, {method:'PATCH', body:{custom_tag: tag || ''}});
-    state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
-    showToast(tag ? 'Текст тэга применён' : 'Тэг отключён', 'heal');
-    renderCampaign();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-// обратная совместимость со старыми onclick
-async function saveCustomTag(id, tag) { return saveCustomTagText(id, tag); }
-
 function renderShopBlock(ch) {
   return `<div class="card stack shop-standalone-card">
-    <div class="shop-standalone-head"><div><div class="name">🛒 Магазин косметики</div><div class="muted">Покупка рамок и эффектов за искры. Раздел тэгов временно закрыт и вернётся позже.</div></div><span class="currency-pill">✦ ${currencyBalance()}</span></div>
+    <div class="shop-standalone-head"><div><div class="name">🛒 Магазин косметики</div><div class="muted">Покупка рамок и эффектов за искры.</div></div><span class="currency-pill">✦ ${currencyBalance()}</span></div>
     <div class="shop-tabs">
       <details class="custom-section nested-shop" ${sectionAttrs('shop-frames')}><summary><b>🖼️ Рамки</b></summary>${shopItemsHtml('frame', cosmetics().filter(x=>x.category !== 'base'))}</details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-effects')}><summary><b>✨ Эффекты</b></summary>${shopItemsHtml('effect', cosmeticEffects().filter(x=>x.id !== 'effect_none' && x.category !== 'base' && isModernEffectId(x.id)))}</details>
-      <div class="custom-section nested-shop disabled-tags-section shop-disabled-tags" aria-disabled="true"><div class="disabled-tags-inner"><div class="unique-custom-head"><span>🏷️</span><div><b>Тэги</b><small>Добавится потом</small></div></div><div class="disabled-tags-message"><b>Раздел тэгов закрыт</b><span>Формы и тексты тэгов временно недоступны для покупки.</span></div></div></div>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-history')}><summary><b>📜 История искр</b></summary>${currencyHistoryHtml()}</details>
     </div>
   </div>`;
 }
 
 function shopItemsHtml(kind, items) {
-  const unlocked = kind==='frame' ? unlockedCosmeticSet() : kind==='effect' ? unlockedEffectSet() : unlockedTagSet();
+  const unlocked = kind === 'frame' ? unlockedCosmeticSet() : unlockedEffectSet();
   return rarityGroupHtml('shop', items, item => shopItemCard(kind, item, unlocked.has(item.id) || displayRarity(item)==='common'));
 }
 function shopItemCard(kind, item, unlocked) {
@@ -6023,10 +5947,8 @@ function shopItemCard(kind, item, unlocked) {
   if (kind === 'frame') preview = item.asset_path ? `<span class="frame-demo image-frame-demo"><img loading="lazy" src="${esc(cosmeticImgPath(item))}" alt=""></span>` : `<span class="frame-demo ${esc(frameClassFor(item.id))}">${esc(item.emoji || '✨')}</span>`;
   if (kind === 'effect') {
     const ch = playerChar();
-    const isApplied = normalizedEffectId(ch?.custom_effect || '') === String(item.id || '');
-    preview = effectPreviewHtml(item, '', isApplied);
+    preview = effectPreviewHtml(item, '', true, ch?.id || null);
   }
-  if (kind === 'tag') preview = String(item.category || '') === 'tag_shape' ? tagShapePreview(item, 'Пример') : tagTextPreview(item, defaultTagShapeId());
   const action = unlocked ? '<span class="shop-status owned">куплено</span>' : isUnique ? '<span class="shop-status locked">только за ачивку</span>' : `<span class="shop-status price">${priceLabel(item)}</span>`;
   return `<div class="frame-choice shop-buy-card rarity-${esc(displayRarity(item))}" role="button" tabindex="0" onclick="openShopPreview('${kind}','${esc(item.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openShopPreview('${kind}','${esc(item.id)}')}">${preview}<b>${esc(item.name)}</b><small>${rarityEmoji(displayRarity(item))} ${esc(rarityRu(displayRarity(item)))}</small>${action}</div>`;
 }
@@ -6035,7 +5957,6 @@ async function buyShopItem(kind, id, charId=null) {
     const out = await api('/api/shop/purchase', {method:'POST', body:{item_type:kind, item_id:id}});
     state.campaignState.unlocked_cosmetic_ids = out.unlocked_cosmetic_ids || state.campaignState.unlocked_cosmetic_ids;
     state.campaignState.unlocked_effect_ids = out.unlocked_effect_ids || state.campaignState.unlocked_effect_ids;
-    state.campaignState.unlocked_tag_ids = out.unlocked_tag_ids || state.campaignState.unlocked_tag_ids;
     state.campaignState.currency_balance = out.currency_balance;
     state.campaignState.currency_transactions = out.currency_transactions || state.campaignState.currency_transactions;
     showToast(out.message || 'Покупка выполнена', 'heal');
@@ -6092,19 +6013,25 @@ function framePreviewHtml(c, extraClass='') {
     : `<span class="frame-demo ${esc(frameClassFor(c.id))} ${esc(extraClass)}">${esc(c.emoji || '✨')}</span>`;
 }
 
-function effectPreviewHtml(e, extraClass='', active=false) {
+function effectPreviewAvatar(charId=null) {
+  const ch = charId ? findChar(Number(charId)) : playerChar();
+  if (!ch) return `<span class="avatar md avatar-empty effect-avatar-sample" style="--char-color:#ff6b8a"><span class="avatar-initial">?</span></span>`;
+  return avatarCircle({...ch, custom_effect:''}, 'md');
+}
+
+function effectPreviewHtml(e, extraClass='', active=false, charId=null) {
   const id = String(e?.id || '');
   if (!id || id === 'effect_none') return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="frame-demo plain effect-none-demo">○</span></div>`;
   const cls = effectClassFor(id);
   const activeClass = active ? ' effect-force-active' : '';
-  return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="fx-avatar-shell md fx-preview-shell${activeClass} ${esc(cls)}" data-effect-id="${esc(id)}"><span class="avatar md avatar-empty effect-avatar-sample" style="--char-color:#ff6b8a"><span class="avatar-initial">○</span></span></span></div>`;
+  return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="fx-avatar-shell md fx-preview-shell${activeClass} ${esc(cls)}" data-effect-id="${esc(id)}">${effectPreviewAvatar(charId)}</span></div>`;
 }
 
 function showCosmeticPreviewModal(kind, item, locked=false, charId=null) {
   if (!item) return;
-  if (kind === 'tag') { showToast('Раздел тэгов добавится позже', 'warn'); return; }
+  if (kind === 'tag') return;
   const rarity = kind === 'frame' ? displayRarity(item) : (item.rarity || 'common');
-  const preview = kind === 'frame' ? framePreviewHtml(item, 'modal-frame-preview-active') : effectPreviewHtml(item, 'modal-effect-preview-active', true);
+  const preview = kind === 'frame' ? framePreviewHtml(item, 'modal-frame-preview-active') : effectPreviewHtml(item, 'modal-effect-preview-active', true, charId);
   const titleIcon = kind === 'frame' ? '🖼️' : '✨';
   const title = `${locked ? '🔒 ' : ''}${titleIcon} ${esc(item.name || item.id)}`;
   const desc = esc(item.description || (kind === 'frame' ? 'Рамка для аватарки персонажа.' : 'Эффект проигрывается в предпросмотре и будет масштабироваться под размер аватарки.'));
@@ -6120,7 +6047,6 @@ function openShopPreview(kind, id) {
   const ch = playerChar();
   if (kind === 'frame') return showCosmeticPreviewModal('frame', cosmeticById(id), false, ch?.id || null);
   if (kind === 'effect') return showCosmeticPreviewModal('effect', effectById(id), false, ch?.id || null);
-  showToast('Раздел тэгов добавится позже', 'warn');
 }
 
 function showLockedCosmetic(id, charId=null) {
@@ -6657,6 +6583,23 @@ async function sendInventoryRequest(path, body){
     state.pendingInventoryRequest = false;
   }
 }
+async function applyInventoryAction(path, body, fallbackMessage='Боеприпасы обновлены'){
+  if(state.pendingInventoryRequest) return showToast('Операция уже выполняется','info');
+  state.pendingInventoryRequest = true;
+  try{
+    const out = await api(path, {method:'POST', body});
+    const characterId = Number(out.item?.character_id || out.inventory?.[0]?.character_id || 0);
+    if(characterId && out.inventory) replaceInventoryForCharacter(characterId, out.inventory);
+    else state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
+    closeModal();
+    showToast(out.message || fallbackMessage, 'heal');
+    renderCampaign();
+  }catch(e){
+    showToast(e.message,'error');
+  }finally{
+    state.pendingInventoryRequest = false;
+  }
+}
 async function requestReload(itemId, magId){ return sendInventoryRequest(`/api/inventory/items/${itemId}/reload-request`, {magazine_id:magId}); }
 async function quickReloadWeapon(itemId){
   const it = itemById(itemId);
@@ -6673,7 +6616,6 @@ function openMagazineModal(itemId, magId){
   const free = Math.max(0, Number(m.ammo_max || 0) - Number(m.ammo_current || 0));
   showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${esc(m.name||'Магазин')}</div><p class="muted">магазин от ${esc(it?.name || 'оружия')}</p><p><b>${esc(m.ammo_current||0)}/${esc(m.ammo_max||0)}</b> ${ammoTypePill(m.ammo_type || 'пустой',m.description)}</p>${m.description?`<p class="muted">${esc(m.description)}</p>`:''}<div class="row modal-actions"><button class="ok" ${free<=0?'disabled':''} onclick="chooseMagazineAmmo(${itemId}, ${magId})">Зарядить</button><button class="secondary" onclick="requestReload(${itemId}, ${magId})">Поставить в оружие</button><button class="secondary" onclick="closeModal()">Назад</button></div></div>`);
 }
-async function requestRefill(itemId, magId){ return sendInventoryRequest(`/api/inventory/items/${itemId}/refill-request`, {magazine_id:magId}); }
 function chooseMagazineAmmo(itemId, magId){
   const it=itemById(itemId);
   const m=(it?.magazines||[]).find(x=>Number(x.id)===Number(magId));
@@ -6684,7 +6626,7 @@ function chooseMagazineAmmo(itemId, magId){
   const stocks=(it.shell_stocks||[]).filter(st => Number(st.quantity||0)>0 && (!currentType || currentType==='пустой' || String(st.ammo_type||'')===currentType));
   const rows=stocks.map(st=>{
     const max = Math.max(1, Math.min(free, Number(st.quantity||0)));
-    return `<div class="mag-select shell-load-option"><div class="shell-load-info"><span class="mag-ammo"><b>${esc(st.quantity)}</b> шт.</span>${ammoTypePill(st.ammo_type,st.description)}${st.description?`<small>${esc(st.description)}</small>`:''}</div><div class="shell-load-controls"><input id="magLoadCount_${st.id}" type="number" min="1" max="${max}" value="${max}"><button class="ok small" onclick="requestChargeMagazine(${itemId}, ${magId}, ${st.id}, ${free})">Зарядить</button></div></div>`;
+    return `<div class="mag-select shell-load-option"><div class="shell-load-info"><span class="mag-ammo"><b>${esc(st.quantity)}</b> шт.</span>${ammoTypePill(st.ammo_type,st.description)}${st.description?`<small>${esc(st.description)}</small>`:''}</div><div class="shell-load-controls"><input id="magLoadCount_${st.id}" type="number" min="1" max="${max}" value="${max}"><button class="ok small" onclick="chargeMagazine(${itemId}, ${magId}, ${st.id}, ${free})">Зарядить</button></div></div>`;
   }).join('') || '<div class="muted">Нет подходящих патронов. Создай патроны через ⚙ у оружия.</div>';
   showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">Зарядить магазин</div><p class="muted">${esc(m.name||'Магазин')} · свободно мест: ${free}</p><div class="stack">${rows}</div><button class="secondary" onclick="openMagazineModal(${itemId}, ${magId})">Назад</button></div>`);
 }
@@ -6701,10 +6643,10 @@ function chooseAmmoTargetMagazine(itemId, stockId){
   const rows=mags.map(m=>`<button class="mag-select" onclick="chooseMagazineAmmo(${itemId}, ${m.id})"><span class="mag-ammo"><b>${esc(m.ammo_current||0)}</b>/${esc(m.ammo_max||0)}</span>${ammoTypePill(m.ammo_type||'пустой', m.description||'')}<small>${esc(m.name||'Магазин')}</small></button>`).join('') || '<div class="muted">Нет пустого или совместимого магазина.</div>';
   showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">Куда зарядить ${esc(st.ammo_type||'патроны')}?</div><div class="stack">${rows}</div><button class="secondary" onclick="closeModal()">Отмена</button></div>`);
 }
-async function requestChargeMagazine(itemId, magId, stockId, free){
+async function chargeMagazine(itemId, magId, stockId, free){
   const count=Number(val(`magLoadCount_${stockId}`) || 0);
   if(!count) return showToast('Укажи количество','error');
-  return sendInventoryRequest(`/api/inventory/items/${itemId}/refill-request`, {magazine_id:magId, stock_id:stockId, amount:Math.min(count, Math.max(1, Number(free||1)))});
+  return applyInventoryAction(`/api/inventory/items/${itemId}/refill-request`, {magazine_id:magId, stock_id:stockId, amount:Math.min(count, Math.max(1, Number(free||1)))}, 'Магазин заряжен');
 }
 function openMagazineCreateModal(itemId){
   const it=itemById(itemId)||{};
@@ -6722,14 +6664,14 @@ function chooseLoadShells(itemId){
   const it=itemById(itemId);
   if(!it) return;
   const maxLoad=Math.max(0, Number(it.mag_capacity||2) - (it.loaded_shells||[]).length);
-  const stocks=(it.shell_stocks||[]).map(st=>`<div class="mag-select shell-load-option"><div class="shell-load-info"><span class="mag-ammo"><b>${esc(st.quantity)}</b> шт.</span>${ammoTypePill(st.ammo_type,st.description)}${st.description?`<small>${esc(st.description)}</small>`:''}</div><div class="shell-load-controls"><input id="loadCount_${st.id}" type="number" min="1" max="${Math.max(1, Math.min(maxLoad, Number(st.quantity||0)))}" value="${Math.max(1, Math.min(maxLoad || 1, Number(st.quantity||0) || 1))}"><button class="ok small" onclick="requestLoadShells(${itemId}, ${st.id}, ${maxLoad})">Зарядить</button></div></div>`).join('') || '<div class="muted">Сначала добавь стопку патронов через ⚙ настройки оружия.</div>';
+  const stocks=(it.shell_stocks||[]).map(st=>`<div class="mag-select shell-load-option"><div class="shell-load-info"><span class="mag-ammo"><b>${esc(st.quantity)}</b> шт.</span>${ammoTypePill(st.ammo_type,st.description)}${st.description?`<small>${esc(st.description)}</small>`:''}</div><div class="shell-load-controls"><input id="loadCount_${st.id}" type="number" min="1" max="${Math.max(1, Math.min(maxLoad, Number(st.quantity||0)))}" value="${Math.max(1, Math.min(maxLoad || 1, Number(st.quantity||0) || 1))}"><button class="ok small" onclick="loadShells(${itemId}, ${st.id}, ${maxLoad})">Зарядить</button></div></div>`).join('') || '<div class="muted">Сначала добавь стопку патронов через ⚙ настройки оружия.</div>';
   showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">Зарядить: ${esc(it.name)}</div><div class="muted">Свободно мест: ${maxLoad}.</div><div class="stack">${stocks}</div><button class="secondary" onclick="closeModal()">Отмена</button></div>`);
 }
-async function requestLoadShells(itemId, stockId, maxLoad){
+async function loadShells(itemId, stockId, maxLoad){
   if(maxLoad<=0) return showToast('Оружие уже заряжено полностью','info');
   const count=Number(val(`loadCount_${stockId}`) || 0);
   if(!count) return showToast('Укажи количество','error');
-  return sendInventoryRequest(`/api/inventory/items/${itemId}/load-shells-request`, {stock_id:stockId, count});
+  return applyInventoryAction(`/api/inventory/items/${itemId}/load-shells-request`, {stock_id:stockId, count}, 'Оружие заряжено');
 }
 function openShellStockModal(itemId, stockId){
   const it=itemById(itemId);
@@ -6737,7 +6679,7 @@ function openShellStockModal(itemId, stockId){
   const action = it?.reload_type === 'shell'
     ? `<button class="ok" onclick="chooseLoadShells(${itemId})">Зарядить оружие</button>`
     : `<button class="ok" onclick="chooseAmmoTargetMagazine(${itemId}, ${stockId})">Зарядить магазин</button>`;
-  showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${esc(st.ammo_type||'Патроны')}</div><p class="muted">патроны от ${esc(it?.name || 'оружия')}</p><p>В стопке: <b>${esc(st.quantity||0)}</b></p>${st.description?`<p class="muted">${esc(st.description)}</p>`:''}<div class="row modal-actions">${action}<button onclick="requestRefillShellStock(${itemId}, ${stockId})">Запросить пополнение</button><button class="danger" onclick="deleteShellStock(${itemId}, ${stockId})">Удалить стопку</button><button class="secondary" onclick="closeModal()">Назад</button></div></div>`);
+  showModal(`<div class="modal-card compact"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${esc(st.ammo_type||'Патроны')}</div><p class="muted">патроны от ${esc(it?.name || 'оружия')}</p><p>В стопке: <b>${esc(st.quantity||0)}</b></p>${st.description?`<p class="muted">${esc(st.description)}</p>`:''}<div class="row modal-actions">${action}<button onclick="refillShellStock(${itemId}, ${stockId})">Пополнить запас</button><button class="danger" onclick="deleteShellStock(${itemId}, ${stockId})">Удалить стопку</button><button class="secondary" onclick="closeModal()">Назад</button></div></div>`);
 }
 async function deleteShellStock(itemId, stockId){
   if(!confirm('Удалить эту стопку патронов?')) return;
@@ -6749,10 +6691,10 @@ async function deleteShellStock(itemId, stockId){
     closeModal(); showToast('Патроны удалены','info'); renderCampaign();
   }catch(e){ showToast(e.message,'error'); }
 }
-async function requestRefillShellStock(itemId, stockId){
+async function refillShellStock(itemId, stockId){
   const amount=Number(prompt('Сколько добавить?', 1) || 0);
   if(!amount) return;
-  return sendInventoryRequest(`/api/inventory/items/${itemId}/refill-shell-stock-request`, {stock_id:stockId, amount});
+  return applyInventoryAction(`/api/inventory/items/${itemId}/refill-shell-stock-request`, {stock_id:stockId, amount}, 'Запас патронов пополнен');
 }
 function openShellStockCreateModal(itemId){
   const it=itemById(itemId)||{};
@@ -6848,7 +6790,7 @@ function renderInventoryModelLibrary() {
 
 function renderAchievementTemplateCard(a) {
   return `<button type="button" class="achievement-template-card card" onclick="openMasterAchievement(${Number(a.id)})">
-    <span class="ach-icon big">${achIconHtml(a.icon || '🏆', '', '')}</span><span class="ach-main"><b>${esc(a.title)}</b><small>${esc(a.tag || 'Без раздела')}</small><span class="achievement-reward-pills">${a.cosmetic_reward?`<span class="pill reward">${esc(a.cosmetic_reward.emoji || '✨')} рамка: ${esc(a.cosmetic_reward.name)}</span>`:''}${a.cosmetic_effect_reward?`<span class="pill reward effect">${esc(a.cosmetic_effect_reward.emoji || '✨')} эффект: ${esc(a.cosmetic_effect_reward.name)}</span>`:''}${a.tag_reward?`<span class="pill reward">🏷️ тэг: ${esc(a.tag_reward.name)}</span>`:''}${a.inventory_model_reward?`<span class="pill reward">🧍 модель: ${esc(a.inventory_model_reward.name)}</span>`:''}${a.currency_reward?`<span class="pill reward">✦ ${esc(a.currency_reward)} искр</span>`:''}</span></span>
+    <span class="ach-icon big">${achIconHtml(a.icon || '🏆', '', '')}</span><span class="ach-main"><b>${esc(a.title)}</b><small>${esc(a.tag || 'Без раздела')}</small><span class="achievement-reward-pills">${a.cosmetic_reward?`<span class="pill reward">${esc(a.cosmetic_reward.emoji || '✨')} рамка: ${esc(a.cosmetic_reward.name)}</span>`:''}${a.cosmetic_effect_reward?`<span class="pill reward effect">${esc(a.cosmetic_effect_reward.emoji || '✨')} эффект: ${esc(a.cosmetic_effect_reward.name)}</span>`:''}${a.inventory_model_reward?`<span class="pill reward">🧍 модель: ${esc(a.inventory_model_reward.name)}</span>`:''}${a.currency_reward?`<span class="pill reward">✦ ${esc(a.currency_reward)} искр</span>`:''}</span></span>
   </button>`;
 }
 
@@ -6923,12 +6865,11 @@ function renderMasterAchievements() {
         <label class="wide">Название<input id="achTitle" placeholder="Например: Неистовая удача" maxlength="80"></label>
         <label class="wide">Описание<textarea id="achDescription" placeholder="За что выдаётся достижение" maxlength="2000"></textarea></label>
         <input id="achReward" type="hidden" value="">
-        <input id="achEffectReward" type="hidden" value=""><input id="achTagReward" type="hidden" value=""><input id="achModelReward" type="hidden" value="">
+        <input id="achEffectReward" type="hidden" value=""><input id="achModelReward" type="hidden" value="">
         <div class="wide achievement-rewards-grid">
           <div class="reward-picker-box"><div class="reward-picker-head"><b>Награда-рамка</b><button class="secondary small" onclick="openRewardPicker('frame')">Выбрать</button></div><div id="achRewardPreview" class="reward-empty">Без рамки</div><button class="small warn" onclick="openCustomFrameModal()">➕ Добавить кастомную рамку</button></div>
           <div class="reward-picker-box"><div class="reward-picker-head"><b>Награда-эффект</b><button class="secondary small" onclick="openRewardPicker('effect')">Выбрать</button></div><div id="achEffectRewardPreview" class="reward-empty">Без эффекта</div></div>
           <div class="reward-picker-box"><div class="reward-picker-head"><b>Награда-модель</b><button class="secondary small" onclick="openRewardPicker('model')">Выбрать</button></div><div id="achModelRewardPreview" class="reward-empty">Без модели</div></div>
-          <div class="reward-picker-box tag-reward-box"><div class="reward-picker-head"><b>Награда-текст тэга</b><button class="secondary small" onclick="chooseReadyTagReward()">Выбрать готовый текст</button></div><div id="achTagRewardPreview" class="reward-empty">Без текста тэга</div><details class="custom-tag-create-details"><summary><b>➕ Создать уникальный текст</b><small>Например: «Кровожадный» за достижение «Кровожадность». Игрок потом сможет поставить этот текст на любую открытую форму.</small></summary><div class="unique-tag-create"><label>Текст тэга<input id="achCustomTagName" placeholder="Например: Кровожадный" maxlength="40" oninput="updateCustomTagPreview(); clearReadyTagRewardIfCustom()"></label><input id="achCustomTagEmoji" type="hidden" value=""><input id="achCustomTagStyle" type="hidden" value="tag_shape_classic"><div id="customTagPreview" class="tag-preview-demo tag-style-preview"><span class="character-tag rarity-unique tag-shape-classic"><span>🏷️</span><b>Кровожадный</b></span></div><small class="muted">За достижение выдаётся только текст. Форму тэга игрок выбирает отдельно в магазине/кастомизации.</small></div></details></div>
           <label class="reward-picker-box"><b>Искры ✦</b><input id="achCurrencyReward" type="number" min="0" value="0" placeholder="Например: 100"><small class="muted">Начисляются игроку, когда он раскрывает ачивку.</small></label>
         </div>
       </div>
@@ -6979,14 +6920,6 @@ function rewardEffectCard(e) {
   const cls = effectClassFor(e.id);
   return `<button class="shop-card effect-card reward-effect-card rarity-${esc(e.rarity || 'common')} ${esc(cls)}" onclick="selectAchReward('effect','${esc(e.id)}')"><div class="effect-shop-preview">${effectPreviewHtml(e, 'reward-effect-preview')}</div><b>${esc(e.name)}</b><small>${rarityEmoji(e.rarity)} ${esc(rarityRu(e.rarity))}</small><p>${esc(e.description || '')}</p></button>`;
 }
-function rewardTagPreview(t) {
-  if (!t) return '<div class="reward-empty">Без текста тэга</div>';
-  return `<div class="reward-preview inline">${tagTextPreview(t, defaultTagShapeId())}<div><b>Текст: ${esc(t.name)}</b><small>${rarityEmoji(t.rarity)} ${esc(rarityRu(t.rarity))} · ${esc(t.description || '')}</small></div></div>`;
-}
-function rewardTagCard(t) {
-  if (!t) return `<button class="shop-card reward-none" onclick="selectAchReward('tag','')"><span class="tag-preview-demo">—</span><b>Без текста</b><small>Достижение не выдаёт текст тэга</small></button>`;
-  return `<button class="shop-card rarity-${esc(t.rarity || 'common')}" onclick="selectAchReward('tag','${esc(t.id)}')">${tagTextPreview(t, defaultTagShapeId())}<b>${esc(t.name)}</b><small>${rarityEmoji(t.rarity)} ${esc(rarityRu(t.rarity))}</small><p>${esc(t.description || '')}</p></button>`;
-}
 function rewardModelPreview(model) {
   if (!model) return '<div class="reward-empty">Без модели</div>';
   return `<div class="reward-preview inline"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><b>${esc(model.name)}</b><small>${esc(model.description || '')}</small></div></div>`;
@@ -6998,17 +6931,16 @@ function rewardModelCard(model) {
 function openRewardPicker(kind) {
   const isFrame = kind === 'frame';
   const isEffect = kind === 'effect';
-  const isTag = kind === 'tag';
   const isModel = kind === 'model';
+  if (!isFrame && !isEffect && !isModel) return;
   const rewardEligible = x => String(x?.rarity || 'common') !== 'common';
   const items = isModel ? inventoryModelsForKind(currentInventoryModelKind()) : sortByRarity(
     isFrame ? baseCosmetics().concat(uniqueCosmetics()).filter(rewardEligible)
-    : isEffect ? baseEffects().filter(e=>e.id!=='effect_none').concat(uniqueEffects()).filter(rewardEligible)
-    : tagTexts().filter(rewardEligible)
+    : baseEffects().filter(e=>e.id!=='effect_none').concat(uniqueEffects()).filter(rewardEligible)
   );
-  const emptyCard = isFrame ? rewardFrameCard(null) : isEffect ? rewardEffectCard(null) : isModel ? rewardModelCard(null) : rewardTagCard(null);
-  const cards = [emptyCard].concat(items.map(x => isFrame ? rewardFrameCard(x) : isEffect ? rewardEffectCard(x) : isModel ? rewardModelCard(x) : rewardTagCard(x))).join('');
-  showModal(`<div class="modal-card reward-shop-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${isFrame ? '🖼️ Выбор рамки-награды' : isEffect ? '✨ Выбор эффекта-награды' : isModel ? '🧍 Выбор модели-награды' : '🏷️ Выбор тэга-награды'}</div><p class="muted">${isModel ? 'Модель откроется игроку, когда он раскроет достижение.' : 'В награды показывается косметика и тексты тэгов выше обычного качества. Формы тэгов покупаются отдельно в магазине.'}</p><div class="reward-shop-grid ${isFrame ? 'frame-shop-grid' : isModel ? 'inventory-model-shop-grid' : 'effect-shop-grid'}">${cards}</div></div>`);
+  const emptyCard = isFrame ? rewardFrameCard(null) : isEffect ? rewardEffectCard(null) : rewardModelCard(null);
+  const cards = [emptyCard].concat(items.map(x => isFrame ? rewardFrameCard(x) : isEffect ? rewardEffectCard(x) : rewardModelCard(x))).join('');
+  showModal(`<div class="modal-card reward-shop-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="name">${isFrame ? '🖼️ Выбор рамки-награды' : isEffect ? '✨ Выбор эффекта-награды' : '🧍 Выбор модели-награды'}</div><p class="muted">${isModel ? 'Модель откроется игроку, когда он раскроет достижение.' : 'Выбери косметическую награду выше обычного качества.'}</p><div class="reward-shop-grid ${isFrame ? 'frame-shop-grid' : isModel ? 'inventory-model-shop-grid' : 'effect-shop-grid'}">${cards}</div></div>`);
 }
 function selectAchReward(kind, id) {
   if (kind === 'frame') {
@@ -7020,56 +6952,11 @@ function selectAchReward(kind, id) {
   } else if (kind === 'model') {
     const input = document.getElementById('achModelReward'); if (input) input.value = id;
     const box = document.getElementById('achModelRewardPreview'); if (box) box.innerHTML = rewardModelPreview(inventoryModelById(id));
-  } else {
-    const input = document.getElementById('achTagReward'); if (input) input.value = id;
-    const box = document.getElementById('achTagRewardPreview'); if (box) box.innerHTML = rewardTagPreview(tagById(id));
   }
   closeModal();
   showToast('Награда выбрана', 'info');
 }
 
-function chooseReadyTagReward() {
-  const name = document.getElementById('achCustomTagName');
-  const emoji = document.getElementById('achCustomTagEmoji');
-  if (name) name.value = '';
-  if (emoji) emoji.value = '';
-  updateCustomTagPreview();
-  openRewardPicker('tag');
-}
-function clearReadyTagRewardIfCustom() {
-  if (!val('achCustomTagName')) return;
-  const input = document.getElementById('achTagReward');
-  if (input) input.value = '';
-  const box = document.getElementById('achTagRewardPreview');
-  if (box) box.innerHTML = '<span class="reward-empty">Будет создан новый уникальный тэг</span>';
-}
-
-function renderCustomTagStyleGrid() {
-  const grid = document.getElementById('customTagStyleGrid');
-  if (!grid) return;
-  const current = val('achCustomTagStyle') || 'tag-custom-gold';
-  const name = val('achCustomTagName') || 'Пример';
-  const emoji = val('achCustomTagEmoji') || '✦';
-  grid.innerHTML = TAG_STYLE_OPTIONS.map(opt => `
-    <button type="button" class="tag-style-btn ${current===opt.id?'selected':''}" onclick="chooseCustomTagStyle('${esc(opt.id)}')">
-      <span class="character-tag rarity-unique ${esc(opt.id)}"><span>${esc(emoji || opt.emoji)}</span><b>${esc(name || opt.sample)}</b></span>
-      <small>${esc(opt.name)}</small>
-    </button>
-  `).join('');
-}
-function chooseCustomTagStyle(style) {
-  const input = document.getElementById('achCustomTagStyle');
-  if (input) input.value = style;
-  renderCustomTagStyleGrid();
-  updateCustomTagPreview();
-}
-function updateCustomTagPreview() {
-  const box = document.getElementById('customTagPreview');
-  if (!box) return;
-  const name = val('achCustomTagName') || 'Кровожадный';
-  const style = tagById(defaultTagShapeId()) || {rarity:'unique', emoji:'🏷️', css_class:'tag-shape-classic'};
-  box.innerHTML = `<span class="character-tag rarity-unique ${esc(style.css_class || tagClassFor(style.id))}">${style.emoji ? `<span>${esc(style.emoji)}</span>` : ''}<b>${esc(name)}</b></span>`;
-}
 function previewAchievementIcon() {
   const input = document.getElementById('achIconFile');
   const box = document.getElementById('achIconPreview');
@@ -7202,7 +7089,6 @@ async function openMasterAchievement(id) {
     <p>${esc(a.description || 'Без описания')}</p>
     ${a.cosmetic_reward ? frameRewardPreviewHtml(a.cosmetic_reward) : ''}
     ${a.cosmetic_effect_reward ? effectRewardPreviewHtml(a.cosmetic_effect_reward) : ''}
-    ${a.tag_reward?`<div class="reward-preview">${tagTextPreview(a.tag_reward, defaultTagShapeId())}<div><b>Текст тэга: ${esc(a.tag_reward.name)}</b><small>${esc(a.tag_reward.description || '')}</small></div></div>`:''}
     ${a.inventory_model_reward ? modelRewardPreviewHtml(a.inventory_model_reward) : ''}
     ${a.currency_reward?`<div class="reward-preview"><span class="currency-icon">✦</span><div><b>Искры: +${esc(a.currency_reward)}</b><small>Валюта аккаунта</small></div></div>`:''}
     <section class="achievement-recipients">
@@ -7279,9 +7165,8 @@ async function createAchievement() {
     if (!title) throw new Error('Введите название достижения');
     const icon = await uploadAchievementIconIfNeeded();
     const icon_thumb = val('achIconThumb') || '';
-    const customTagName = val('achCustomTagName');
     await api(`/api/campaigns/${state.currentCampaignId}/achievements`, {method:'POST', body:{
-      icon, icon_thumb, title, description: val('achDescription'), tag: val('achTag'), cosmetic_reward_id: val('achReward') || null, cosmetic_effect_reward_id: val('achEffectReward') || null, tag_reward_id: customTagName ? null : (val('achTagReward') || null), inventory_model_reward_id: val('achModelReward') || null, custom_tag_name: customTagName, custom_tag_emoji: val('achCustomTagEmoji'), custom_tag_style: val('achCustomTagStyle') || 'tag_shape_classic', currency_reward: num('achCurrencyReward', 0)
+      icon, icon_thumb, title, description: val('achDescription'), tag: val('achTag'), cosmetic_reward_id: val('achReward') || null, cosmetic_effect_reward_id: val('achEffectReward') || null, inventory_model_reward_id: val('achModelReward') || null, currency_reward: num('achCurrencyReward', 0)
     }});
     state.campaignState = await api(`/api/campaigns/${state.currentCampaignId}/state`);
     showToast('Достижение создано', 'heal'); renderCampaign();
@@ -7306,7 +7191,7 @@ function renderPlayerAchievements() {
   if (!grants.length) return '<div class="card empty-state">🏆 Достижений пока нет. Когда мастер выдаст ачивку, она появится здесь.</div>';
   const groups = {};
   for (const g of grants) {
-    const tag = g.achievement?.tag || 'Без тэга';
+    const tag = g.achievement?.tag || 'Без раздела';
     (groups[tag] ||= []).push(g);
   }
   return `<div class="stack achievements-screen player-achievements">${Object.entries(groups).map(([tag, items]) => `<section class="card stack ach-group"><div class="name">${esc(tag)}</div><div class="achievement-row-list">${items.map(g => `<button class="achievement-row-card ${!g.opened_at ? 'unread-achievement' : ''}" onclick="openPlayerAchievement(${Number(g.id)})"><span class="unread-dot"></span><span class="achievement-row-icon">${achIconHtml(g.achievement?.icon || '🏆', '', g.achievement?.icon_thumb || '')}</span><span class="achievement-row-text"><b>${esc(g.achievement?.title || 'Достижение')}</b></span></button>`).join('')}</div></section>`).join('')}</div>`;
@@ -7332,10 +7217,6 @@ function effectRewardPreviewHtml(effect) {
   if (!effect) return '';
   return `<div class="reward-preview"><span class="frame-demo effect-demo ${esc(effectClassFor(effect.id))}" data-effect-id="${esc(effect.id)}"></span><div><b>Эффект: ${esc(effect.name)}</b><small>${esc(effect.description || '')}</small></div></div>`;
 }
-function tagRewardPreviewHtml(tag) {
-  if (!tag) return '';
-  return `<div class="reward-preview">${tagTextPreview(tag, defaultTagShapeId())}<div><b>Текст тэга: ${esc(tag.name)}</b><small>${esc(tag.description || '')}</small></div></div>`;
-}
 function modelRewardPreviewHtml(model) {
   if (!model) return '';
   return `<div class="reward-preview"><span class="inventory-model-mini"><img loading="lazy" src="${esc(inventoryModelImgPath(model))}" alt=""></span><div><b>Модель: ${esc(model.name)}</b><small>${esc(model.description || 'Открывает новую модель в фэнтези-инвентаре.')}</small></div></div>`;
@@ -7344,7 +7225,6 @@ function achievementRewardsHtml(a) {
   const parts = [];
   if (a.cosmetic_reward) parts.push(frameRewardPreviewHtml(a.cosmetic_reward));
   if (a.cosmetic_effect_reward) parts.push(effectRewardPreviewHtml(a.cosmetic_effect_reward));
-  if (a.tag_reward) parts.push(tagRewardPreviewHtml(a.tag_reward));
   if (a.inventory_model_reward) parts.push(modelRewardPreviewHtml(a.inventory_model_reward));
   if (Number(a.currency_reward || 0) > 0) parts.push(`<div class="reward-preview"><div class="currency-icon">✦</div><div><b>Искры: +${esc(a.currency_reward)}</b><small>Валюта аккаунта</small></div></div>`);
   return parts.join('');
@@ -7360,7 +7240,6 @@ async function openPlayerAchievement(grantId) {
       state.campaignState.achievement_grants = out.achievement_grants || state.campaignState.achievement_grants;
       state.campaignState.unlocked_cosmetic_ids = out.unlocked_cosmetic_ids || state.campaignState.unlocked_cosmetic_ids;
       state.campaignState.unlocked_effect_ids = out.unlocked_effect_ids || state.campaignState.unlocked_effect_ids;
-      state.campaignState.unlocked_tag_ids = out.unlocked_tag_ids || state.campaignState.unlocked_tag_ids;
       state.campaignState.unlocked_inventory_model_ids = out.unlocked_inventory_model_ids || state.campaignState.unlocked_inventory_model_ids;
       state.campaignState.currency_balance = out.currency_balance ?? state.campaignState.currency_balance;
       state.campaignState.currency_transactions = out.currency_transactions || state.campaignState.currency_transactions;

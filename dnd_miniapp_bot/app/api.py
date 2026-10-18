@@ -18,7 +18,7 @@ from app import fantasy_rules as rules
 from app import formatters, generators
 from app.auth import TelegramUser, get_current_user_factory
 from app.config import Settings
-from app.db import Database
+from app.db import Database, MAX_OPEN_REQUESTS_PER_PLAYER
 from app.image_utils import optimize_upload
 
 # Карты временно отключены по запросу: UI их не показывает, API возвращает пустые списки/ошибку.
@@ -134,6 +134,11 @@ class MassEnemyDamageIn(BaseModel):
     damage: int = Field(ge=0, le=100000)
 
 
+class MassHealIn(BaseModel):
+    target_ids: list[int]
+    amount: int = Field(ge=1, le=100000)
+
+
 class ManualEditIn(BaseModel):
     current_hp: int | None = Field(default=None, ge=0, le=100000)
     temp_hp: int | None = Field(default=None, ge=0, le=100000)
@@ -152,9 +157,6 @@ class PlayerSettingsIn(BaseModel):
     color: str | None = Field(default=None, max_length=20)
     custom_frame: str | None = Field(default=None, max_length=80)
     custom_effect: str | None = Field(default=None, max_length=80)
-    custom_tag: str | None = Field(default=None, max_length=80)
-    custom_tag_text: str | None = Field(default=None, max_length=80)
-    custom_tag_style: str | None = Field(default=None, max_length=80)
 
 
 class AchievementCreateIn(BaseModel):
@@ -165,11 +167,7 @@ class AchievementCreateIn(BaseModel):
     tag: str = Field(default="", max_length=80)
     cosmetic_reward_id: str | None = Field(default=None, max_length=80)
     cosmetic_effect_reward_id: str | None = Field(default=None, max_length=80)
-    tag_reward_id: str | None = Field(default=None, max_length=80)
     inventory_model_reward_id: str | None = Field(default=None, max_length=80)
-    custom_tag_name: str = Field(default="", max_length=40)
-    custom_tag_emoji: str = Field(default="", max_length=8)
-    custom_tag_style: str = Field(default="tag_shape_classic", max_length=80)
     currency_reward: int = Field(default=0, ge=0, le=1000000)
 
 
@@ -186,7 +184,7 @@ class AchievementGrantManyIn(BaseModel):
 
 
 class ShopPurchaseIn(BaseModel):
-    item_type: Literal["frame", "effect", "tag"]
+    item_type: Literal["frame", "effect"]
     item_id: str = Field(min_length=1, max_length=80)
 
 
@@ -487,10 +485,12 @@ def _cyber_log(state: dict[str, Any], text: str) -> None:
     state["log"] = log
 
 
-def _ensure_no_open_player_request(db: Database, campaign_id: int, player_tg_id: int) -> None:
-    existing_request = db.get_any_open_request_by_player(int(campaign_id), int(player_tg_id))
-    if existing_request:
-        raise HTTPException(400, "У тебя уже есть активная заявка. Дождись решения мастера, прежде чем отправлять новую.")
+def _ensure_player_request_capacity(db: Database, campaign_id: int, player_tg_id: int) -> None:
+    if db.count_open_requests_by_player(int(campaign_id), int(player_tg_id)) >= MAX_OPEN_REQUESTS_PER_PLAYER:
+        raise HTTPException(
+            400,
+            f"У тебя уже {MAX_OPEN_REQUESTS_PER_PLAYER} активных заявок. Дождись решения мастера, прежде чем отправлять новую.",
+        )
 
 
 def _require_master(db: Database, campaign_id: int, user: TelegramUser) -> dict[str, Any]:
@@ -611,9 +611,6 @@ def _public_character(ch: dict[str, Any]) -> dict[str, Any]:
         "avatar_path": ch.get("avatar_path", ""),
         "custom_frame": ch.get("custom_frame", ""),
         "custom_effect": ch.get("custom_effect", ""),
-        "custom_tag": ch.get("custom_tag", ""),
-        "custom_tag_text": ch.get("custom_tag_text", ""),
-        "custom_tag_style": ch.get("custom_tag_style", "tag_shape_classic"),
         "unique_custom_unlocked": ch.get("unique_custom_unlocked", False),
         "current_hp": ch.get("current_hp", 0),
         "current_max_hp": ch.get("current_max_hp", 0),
@@ -1024,11 +1021,9 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "events": events,
             "cosmetics": db.list_cosmetics(),
             "cosmetic_effects": db.list_cosmetic_effects(),
-            "cosmetic_tags": db.list_tags(),
             "inventory_models": db.list_inventory_models(),
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(viewer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(viewer_tg_id),
-            "unlocked_tag_ids": db.list_unlocked_tag_ids(viewer_tg_id),
             "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
             "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
@@ -1166,6 +1161,85 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             db.log(int(campaign_id), None, "combat_damage", title, {"combat_id": item["combat_id"], "damage": data.damage, "before": item, "after": updated, "mass_enemy_damage": True})
             outputs.append({"combatant": updated, "message": f"{updated['name']}: HP {item.get('current_hp')} → {updated.get('current_hp')} / {updated.get('max_hp')}"})
         return {"items": outputs, "result_text": "\n".join(o["message"] for o in outputs)}
+
+    @app.post("/api/campaigns/{campaign_id}/heal/mass")
+    async def mass_heal_characters(
+        campaign_id: int,
+        data: MassHealIn,
+        request: Request,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        ids = [int(value) for value in data.target_ids if int(value) > 0]
+        if not ids:
+            raise HTTPException(400, "Нужно выбрать хотя бы одного персонажа")
+        targets = []
+        for character_id in dict.fromkeys(ids):
+            character = _character_or_404(db, character_id)
+            if int(character["campaign_id"]) != int(campaign_id):
+                raise HTTPException(400, "Персонаж из другой кампании")
+            targets.append(character)
+        outputs = []
+        for before in targets:
+            character_id = int(before["id"])
+            updated = db.heal_character(character_id, data.amount)
+            restored = max(0, int(updated.get("current_hp") or 0) - int(before.get("current_hp") or 0))
+            message = (
+                f"{updated['name']}: HP {before.get('current_hp')} → "
+                f"{updated.get('current_hp')} / {updated.get('current_max_hp')}"
+            )
+            db.log(
+                int(campaign_id), character_id, "manual", f"{updated['name']}: восстановлено {restored} HP",
+                {
+                    "requested_healing": data.amount, "restored_hp": restored, "mass_heal": True,
+                    "character_before": before, "character_after": updated, **_undo_for(before),
+                },
+            )
+            await _notify(
+                request,
+                updated.get("telegram_user_id"),
+                f"Мастер восстановил тебе {restored} HP. Сейчас: {updated.get('current_hp')}/{updated.get('current_max_hp')}.",
+            )
+            outputs.append({"character": updated, "restored_hp": restored, "message": message})
+        return {"items": outputs, "result_text": "\n".join(item["message"] for item in outputs)}
+
+    @app.post("/api/campaigns/{campaign_id}/combatants/enemies/heal/mass")
+    async def mass_heal_enemies(
+        campaign_id: int,
+        data: MassHealIn,
+        user: TelegramUser = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _require_master(db, campaign_id, user)
+        ids = [int(value) for value in data.target_ids if int(value) > 0]
+        if not ids:
+            raise HTTPException(400, "Нужно выбрать хотя бы одного врага")
+        targets = []
+        for combatant_id in dict.fromkeys(ids):
+            combatant = db.get_combatant(combatant_id)
+            if not combatant or combatant.get("kind") != "enemy":
+                raise HTTPException(404, "Враг не найден")
+            combat = db.get_combat(int(combatant["combat_id"]))
+            if not combat or int(combat.get("campaign_id") or 0) != int(campaign_id):
+                raise HTTPException(400, "Враг из другой кампании")
+            targets.append(combatant)
+        outputs = []
+        for before in targets:
+            combatant_id = int(before["id"])
+            updated = db.heal_enemy_combatant(combatant_id, data.amount)
+            restored = max(0, int(updated.get("current_hp") or 0) - int(before.get("current_hp") or 0))
+            message = (
+                f"{updated['name']}: HP {before.get('current_hp')} → "
+                f"{updated.get('current_hp')} / {updated.get('max_hp')}"
+            )
+            db.log(
+                int(campaign_id), None, "combat", f"{updated['name']}: восстановлено {restored} HP",
+                {
+                    "combat_id": before["combat_id"], "requested_healing": data.amount,
+                    "restored_hp": restored, "before": before, "after": updated, "mass_enemy_heal": True,
+                },
+            )
+            outputs.append({"combatant": updated, "restored_hp": restored, "message": message})
+        return {"items": outputs, "result_text": "\n".join(item["message"] for item in outputs)}
 
 
     @app.get("/api/campaigns/{campaign_id}/combat-templates")
@@ -1516,34 +1590,6 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                     raise HTTPException(400, "Неизвестный эффект")
                 if not db.has_effect_unlocked(effective_player_id, effect):
                     raise HTTPException(403, "Этот эффект ещё не открыт")
-        if "custom_tag_style" in updates:
-            style = str(updates.get("custom_tag_style") or "tag_shape_classic")
-            if style == "tag_none":
-                style = "tag_shape_classic"
-                updates["custom_tag_style"] = style
-            shape = db.get_tag(style)
-            if not shape:
-                raise HTTPException(400, "Форма тэга не найдена")
-            if str(shape.get("category") or "") not in {"base", "tag_shape"}:
-                raise HTTPException(400, "Выбранный тэг не является формой")
-            if not db.has_tag_unlocked(effective_player_id, style):
-                raise HTTPException(403, "Эта форма тэга ещё не открыта")
-        if "custom_tag" in updates:
-            tag = str(updates.get("custom_tag") or "")
-            if not tag or tag == "tag_none":
-                updates["custom_tag"] = ""
-                updates["custom_tag_text"] = ""
-            else:
-                cosmetic_tag = db.get_tag(tag)
-                if not cosmetic_tag:
-                    raise HTTPException(400, "Текст тэга не найден")
-                if str(cosmetic_tag.get("category") or "") == "tag_shape":
-                    raise HTTPException(400, "Выбранный тэг является формой, а не текстом")
-                if not db.has_tag_unlocked(effective_player_id, tag):
-                    raise HTTPException(403, "Этот текст тэга ещё не открыт")
-                updates["custom_tag_text"] = str(cosmetic_tag.get("name") or tag)[:80]
-                if str(updates.get("custom_tag_style") or ch.get("custom_tag_style") or "tag_none") == "tag_none":
-                    updates["custom_tag_style"] = "tag_shape_classic"
         if not updates:
             return {"character": ch}
         new_ch = db.update_character_fields(character_id, **updates)
@@ -1651,7 +1697,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         if int(ch.get("telegram_user_id") or 0) != int(user.id) and not dev_ok:
             raise HTTPException(403, "Это не твой персонаж")
         effective_player_id = _effective_player_id_for_dev(user, ch) if dev_ok else user.id
-        _ensure_no_open_player_request(db, int(ch["campaign_id"]), effective_player_id)
+        _ensure_player_request_capacity(db, int(ch["campaign_id"]), effective_player_id)
         payload: dict[str, Any] = {}
         if data.request_type == "heal":
             if data.hp_amount is None:
@@ -1864,33 +1910,6 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             cosmetic_effect = db.get_cosmetic_effect(effect_reward)
             if not cosmetic_effect or str(effect_reward) == "effect_none":
                 raise HTTPException(400, "Эффект-награда не найден")
-        tag_reward = (data.tag_reward_id or '').strip() or None
-        custom_tag_name = (data.custom_tag_name or '').strip()
-        if custom_tag_name:
-            # Unique tags are created only through achievements. One achievement creates one account-wide tag reward.
-            import re, time
-            safe = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ_]+", "_", custom_tag_name).strip("_").lower()[:32] or "tag"
-            tag_id = f"custom_tag_{campaign_id}_{int(time.time())}_{safe}"
-            allowed_styles = {
-                "tag_shape_classic",
-                "tag-custom-gold", "tag-custom-cyber", "tag-custom-shadow",
-                "tag-custom-blood", "tag-custom-arcane", "tag-custom-neon",
-                "tag-custom-emerald", "tag-custom-frost", "tag-custom-royal",
-                "tag-custom-glitch", "tag-custom-sunset", "tag-custom-steel",
-            }
-            style = data.custom_tag_style if data.custom_tag_style in allowed_styles else "tag_shape_classic"
-            tag = db.create_custom_tag(
-                tag_id=tag_id,
-                name=custom_tag_name[:40],
-                emoji=(data.custom_tag_emoji or '').strip()[:8],
-                css_class=style,
-                description=data.description[:500],
-            )
-            tag_reward = tag.get("id")
-        if tag_reward:
-            cosmetic_tag = db.get_tag(tag_reward)
-            if not cosmetic_tag or str(tag_reward) == "tag_none":
-                raise HTTPException(400, "Тэг-награда не найден")
         model_reward = (data.inventory_model_reward_id or '').strip() or None
         if model_reward:
             model = db.get_inventory_model(model_reward)
@@ -1908,7 +1927,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                 tag=data.tag or c.get("name") or "Кампания",
                 cosmetic_reward_id=reward,
                 cosmetic_effect_reward_id=effect_reward,
-                tag_reward_id=tag_reward,
+                tag_reward_id=None,
                 inventory_model_reward_id=model_reward,
                 currency_reward=data.currency_reward,
             )
@@ -2045,7 +2064,6 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "achievement_grants": db.list_player_achievement_grants(viewer_tg_id),
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(viewer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(viewer_tg_id),
-            "unlocked_tag_ids": db.list_unlocked_tag_ids(viewer_tg_id),
             "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
             "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
@@ -2345,7 +2363,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         if int(ch.get("telegram_user_id") or 0) != int(user.id) and not (dev_character and int(dev_character["id"]) == int(ch["id"])):
             raise HTTPException(403, "Заявку может отправить только игрок персонажа")
         effective_player_id = _effective_player_id_for_dev(user, ch) if dev_character else user.id
-        _ensure_no_open_player_request(db, int(ch["campaign_id"]), effective_player_id)
+        _ensure_player_request_capacity(db, int(ch["campaign_id"]), effective_player_id)
         try:
             req = db.create_inventory_request(int(ch["campaign_id"]), int(ch["id"]), int(item_id), effective_player_id, "reload_weapon", {"magazine_id": data.magazine_id})
         except ValueError as exc:
@@ -2361,15 +2379,21 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         ch = _character_or_404(db, int(item["character_id"]))
         dev_character = _dev_impersonated_character(db, settings, int(ch["campaign_id"]), user, x_dev_view_character_id)
         if int(ch.get("telegram_user_id") or 0) != int(user.id) and not (dev_character and int(dev_character["id"]) == int(ch["id"])):
-            raise HTTPException(403, "Заявку может отправить только игрок персонажа")
-        effective_player_id = _effective_player_id_for_dev(user, ch) if dev_character else user.id
-        _ensure_no_open_player_request(db, int(ch["campaign_id"]), effective_player_id)
+            raise HTTPException(403, "Заряжать оружие может только игрок персонажа")
         try:
-            req = db.create_inventory_request(int(ch["campaign_id"]), int(ch["id"]), int(item_id), effective_player_id, "refill_magazine", {"magazine_id": data.magazine_id, "stock_id": data.stock_id, "amount": data.amount})
+            updated = db.apply_inventory_action(
+                int(item_id),
+                "refill_magazine",
+                {"magazine_id": data.magazine_id, "stock_id": data.stock_id, "amount": data.amount},
+            )
         except ValueError as exc:
             raise HTTPException(400, str(exc))
-        db.log(int(ch["campaign_id"]), int(ch["id"]), "request", f"{ch['name']}: заявка на пополнение магазина {item['name']}", {"inventory_request": req})
-        return {"request": req}
+        db.log(
+            int(ch["campaign_id"]), int(ch["id"]), "inventory",
+            f"{ch['name']}: зарядил магазин {item['name']}",
+            {"inventory_action": "refill_magazine", "item_before": item, "item_after": updated},
+        )
+        return {"item": updated, "inventory": db.list_inventory(int(ch["id"])), "message": "Магазин заряжен"}
 
 
     @app.post("/api/inventory/items/{item_id}/load-shells-request")
@@ -2380,15 +2404,19 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         ch = _character_or_404(db, int(item["character_id"]))
         dev_character = _dev_impersonated_character(db, settings, int(ch["campaign_id"]), user, x_dev_view_character_id)
         if int(ch.get("telegram_user_id") or 0) != int(user.id) and not (dev_character and int(dev_character["id"]) == int(ch["id"])):
-            raise HTTPException(403, "Заявку может отправить только игрок персонажа")
-        effective_player_id = _effective_player_id_for_dev(user, ch) if dev_character else user.id
-        _ensure_no_open_player_request(db, int(ch["campaign_id"]), effective_player_id)
+            raise HTTPException(403, "Заряжать оружие может только игрок персонажа")
         try:
-            req = db.create_inventory_request(int(ch["campaign_id"]), int(ch["id"]), int(item_id), effective_player_id, "load_shells", {"stock_id": data.stock_id, "count": data.count})
+            updated = db.apply_inventory_action(
+                int(item_id), "load_shells", {"stock_id": data.stock_id, "count": data.count}
+            )
         except ValueError as exc:
             raise HTTPException(400, str(exc))
-        db.log(int(ch["campaign_id"]), int(ch["id"]), "request", f"{ch['name']}: заявка на зарядку {item['name']}", {"inventory_request": req})
-        return {"request": req}
+        db.log(
+            int(ch["campaign_id"]), int(ch["id"]), "inventory",
+            f"{ch['name']}: зарядил {item['name']}",
+            {"inventory_action": "load_shells", "item_before": item, "item_after": updated},
+        )
+        return {"item": updated, "inventory": db.list_inventory(int(ch["id"])), "message": "Оружие заряжено"}
 
     @app.post("/api/inventory/items/{item_id}/refill-shell-stock-request")
     async def inventory_refill_shell_stock_request(item_id: int, data: ShellRefillRequestIn, user: TelegramUser = Depends(get_current_user), x_dev_view_character_id: str | None = Header(default=None, alias="X-Dev-View-Character-Id")) -> dict[str, Any]:
@@ -2398,15 +2426,19 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         ch = _character_or_404(db, int(item["character_id"]))
         dev_character = _dev_impersonated_character(db, settings, int(ch["campaign_id"]), user, x_dev_view_character_id)
         if int(ch.get("telegram_user_id") or 0) != int(user.id) and not (dev_character and int(dev_character["id"]) == int(ch["id"])):
-            raise HTTPException(403, "Заявку может отправить только игрок персонажа")
-        effective_player_id = _effective_player_id_for_dev(user, ch) if dev_character else user.id
-        _ensure_no_open_player_request(db, int(ch["campaign_id"]), effective_player_id)
+            raise HTTPException(403, "Пополнять патроны может только игрок персонажа")
         try:
-            req = db.create_inventory_request(int(ch["campaign_id"]), int(ch["id"]), int(item_id), effective_player_id, "refill_shell_stock", {"stock_id": data.stock_id, "amount": data.amount})
+            updated = db.apply_inventory_action(
+                int(item_id), "refill_shell_stock", {"stock_id": data.stock_id, "amount": data.amount}
+            )
         except ValueError as exc:
             raise HTTPException(400, str(exc))
-        db.log(int(ch["campaign_id"]), int(ch["id"]), "request", f"{ch['name']}: заявка на пополнение боеприпасов {item['name']}", {"inventory_request": req})
-        return {"request": req}
+        db.log(
+            int(ch["campaign_id"]), int(ch["id"]), "inventory",
+            f"{ch['name']}: пополнил запас патронов {item['name']}",
+            {"inventory_action": "refill_shell_stock", "item_before": item, "item_after": updated},
+        )
+        return {"item": updated, "inventory": db.list_inventory(int(ch["id"])), "message": "Запас патронов пополнен"}
 
     @app.post("/api/inventory/requests/{request_id}/decide")
     async def decide_inventory_request(request_id: int, data: RequestDecisionIn, request: Request, user: TelegramUser = Depends(get_current_user)) -> dict[str, Any]:
@@ -2449,8 +2481,6 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         user: TelegramUser = Depends(get_current_user),
         x_dev_view_character_id: str | None = Header(default=None, alias="X-Dev-View-Character-Id"),
     ) -> dict[str, Any]:
-        if data.item_type == "tag":
-            raise HTTPException(400, "Раздел тэгов временно закрыт и добавится позже")
         # In dev/master preview mode the UI state is shown for the selected player
         # character. Purchases must use the same effective player id, otherwise the
         # modal shows one balance but the backend checks the master's own balance.
@@ -2469,7 +2499,6 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             **out,
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(buyer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(buyer_tg_id),
-            "unlocked_tag_ids": db.list_unlocked_tag_ids(buyer_tg_id),
             "currency_balance": db.get_currency_balance(buyer_tg_id),
             "currency_transactions": db.list_currency_transactions(buyer_tg_id, 20),
         }

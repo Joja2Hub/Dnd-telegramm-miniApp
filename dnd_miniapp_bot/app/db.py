@@ -39,6 +39,7 @@ def normalize_color(value: Any) -> str:
 
 
 STANDARD_INVENTORY_MODEL_CATEGORIES = ("base", "cyberpunk_base")
+MAX_OPEN_REQUESTS_PER_PLAYER = 5
 
 
 
@@ -1132,6 +1133,10 @@ class Database:
                 status TEXT NOT NULL DEFAULT 'open',
                 created_at TEXT NOT NULL
             );
+            CREATE INDEX IF NOT EXISTS idx_requests_campaign_player_status
+                ON requests(campaign_id, player_tg_id, status);
+            CREATE INDEX IF NOT EXISTS idx_inventory_requests_campaign_player_status
+                ON inventory_requests(campaign_id, player_tg_id, status);
             CREATE TABLE IF NOT EXISTS cyber_inventory_slots (
                 character_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
                 mode TEXT NOT NULL,
@@ -1611,6 +1616,19 @@ class Database:
         if not char:
             raise ValueError("Персонаж не найден")
         return char
+
+    def heal_character(self, character_id: int, amount: int) -> dict[str, Any]:
+        character = self.get_character(int(character_id))
+        if not character:
+            raise ValueError("Персонаж не найден")
+        healing = max(0, int(amount))
+        new_hp = min(
+            int(character.get("current_max_hp") or 0),
+            int(character.get("current_hp") or 0) + healing,
+        )
+        self.conn.execute("UPDATE characters SET current_hp=? WHERE id=?", (new_hp, int(character_id)))
+        self.conn.commit()
+        return self.get_character(int(character_id)) or {**character, "current_hp": new_hp}
 
     def add_status(self, character_id: int, text: str) -> dict[str, Any]:
         char = self.get_character(character_id)
@@ -2152,6 +2170,20 @@ class Database:
         if combat and int(combat.get("current_combatant_id") or 0) == int(combatant_id) and not alive:
             self.advance_turn(int(item["combat_id"]))
         return self.get_combatant(combatant_id) or {**item, "current_hp": new_hp, "alive": alive}
+
+    def heal_enemy_combatant(self, combatant_id: int, amount: int) -> dict[str, Any]:
+        item = self.get_combatant(combatant_id)
+        if not item or item.get("kind") != "enemy":
+            raise ValueError("Враг не найден")
+        healing = max(0, int(amount))
+        max_hp = max(1, int(item.get("max_hp") or 1))
+        new_hp = min(max_hp, int(item.get("current_hp") or 0) + healing)
+        self.conn.execute(
+            "UPDATE combatants SET current_hp=?, alive=? WHERE id=?",
+            (new_hp, int(new_hp > 0), int(combatant_id)),
+        )
+        self.conn.commit()
+        return self.get_combatant(combatant_id) or {**item, "current_hp": new_hp, "alive": new_hp > 0}
 
     def delete_combatant(self, combatant_id: int) -> None:
         item = self.get_combatant(combatant_id)
@@ -3324,8 +3356,8 @@ class Database:
         return row
 
     def create_request(self, campaign_id: int, character_id: int, player_tg_id: int, request_type: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if self.get_any_open_request_by_player(campaign_id, player_tg_id):
-            raise ValueError("У тебя уже есть активная заявка. Дождись решения мастера, прежде чем отправлять новую.")
+        if self.count_open_requests_by_player(campaign_id, player_tg_id) >= MAX_OPEN_REQUESTS_PER_PLAYER:
+            raise ValueError(f"У тебя уже {MAX_OPEN_REQUESTS_PER_PLAYER} активных заявок. Дождись решения мастера, прежде чем отправлять новую.")
         cur = self.conn.execute(
             "INSERT INTO requests(campaign_id, character_id, player_tg_id, request_type, status, payload_json, created_at) VALUES (?, ?, ?, ?, 'open', ?, ?)",
             (campaign_id, character_id, player_tg_id, request_type, json.dumps(payload or {}, ensure_ascii=False), utc_now()),
@@ -3370,6 +3402,17 @@ class Database:
             regular["source"] = "character"
             return regular
         return self.get_open_inventory_request_by_player(campaign_id, player_tg_id)
+
+    def count_open_requests_by_player(self, campaign_id: int, player_tg_id: int) -> int:
+        regular = self._one(
+            "SELECT COUNT(*) AS n FROM requests WHERE campaign_id=? AND player_tg_id=? AND status='open'",
+            (int(campaign_id), int(player_tg_id)),
+        )
+        inventory = self._one(
+            "SELECT COUNT(*) AS n FROM inventory_requests WHERE campaign_id=? AND player_tg_id=? AND status='open'",
+            (int(campaign_id), int(player_tg_id)),
+        )
+        return int((regular or {}).get("n") or 0) + int((inventory or {}).get("n") or 0)
 
     def close_request(self, request_id: int, status: str) -> None:
         self.conn.execute("UPDATE requests SET status=? WHERE id=?", (status, request_id))
@@ -4028,9 +4071,133 @@ class Database:
         self.conn.commit()
         return {'item': self.get_inventory_item(item_id), 'fire_log': {'weapon': item.get('name'), 'mode': mode.get('name'), 'requested': cost, 'spent': len(fired), 'ammo_types': fired, 'before': before, 'after': after}}
 
+    def _apply_inventory_action(self, item_id: int, request_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        item = self.get_inventory_item(int(item_id))
+        if not item or item.get("item_type") != "weapon":
+            raise ValueError("Оружие не найдено")
+
+        if request_type == "reload_weapon":
+            magazine_id = int(payload.get("magazine_id") or 0)
+            magazine = self._one(
+                "SELECT id FROM weapon_magazines WHERE id=? AND item_id=?",
+                (magazine_id, int(item_id)),
+            )
+            if not magazine:
+                raise ValueError("Магазин не найден у этого оружия")
+            self.conn.execute(
+                "UPDATE inventory_items SET active_magazine_id=?, updated_at=? WHERE id=?",
+                (magazine_id, utc_now(), int(item_id)),
+            )
+
+        elif request_type == "refill_magazine":
+            magazine_id = int(payload.get("magazine_id") or 0)
+            amount = payload.get("amount")
+            stock_id = int(payload.get("stock_id") or 0)
+            magazine = self._one(
+                "SELECT * FROM weapon_magazines WHERE id=? AND item_id=?",
+                (magazine_id, int(item_id)),
+            )
+            if not magazine:
+                raise ValueError("Магазин не найден у этого оружия")
+            current = int(magazine.get("ammo_current") or 0)
+            max_ammo = int(magazine.get("ammo_max") or 0)
+            free = max(0, max_ammo - current)
+            if stock_id:
+                stock = self._one(
+                    "SELECT * FROM weapon_shell_stocks WHERE id=? AND item_id=?",
+                    (stock_id, int(item_id)),
+                )
+                if not stock:
+                    raise ValueError("Патроны не найдены")
+                magazine_type = str(magazine.get("ammo_type") or "")
+                stock_type = str(stock.get("ammo_type") or "")
+                if current > 0 and magazine_type and magazine_type != stock_type:
+                    raise ValueError("В магазине уже лежат другие патроны")
+                requested = free if amount is None else min(free, max(0, int(amount)))
+                can_load = max(0, min(requested, int(stock.get("quantity") or 0)))
+                if can_load <= 0:
+                    raise ValueError("Некуда заряжать или патроны закончились")
+                self.conn.execute(
+                    "UPDATE weapon_magazines SET ammo_current=?, ammo_type=?, description=? WHERE id=?",
+                    (
+                        current + can_load,
+                        stock_type[:80] or "патроны",
+                        str(stock.get("description") or "")[:300],
+                        magazine_id,
+                    ),
+                )
+                self.conn.execute(
+                    "UPDATE weapon_shell_stocks SET quantity=quantity-? WHERE id=?",
+                    (can_load, stock_id),
+                )
+            else:
+                target = max_ammo if amount is None else min(max_ammo, current + max(0, int(amount)))
+                if target <= current:
+                    raise ValueError("Магазин уже полный")
+                self.conn.execute("UPDATE weapon_magazines SET ammo_current=? WHERE id=?", (target, magazine_id))
+
+        elif request_type == "load_shells":
+            stock_id = int(payload.get("stock_id") or 0)
+            count = max(1, int(payload.get("count") or 1))
+            stock = self._one(
+                "SELECT * FROM weapon_shell_stocks WHERE id=? AND item_id=?",
+                (stock_id, int(item_id)),
+            )
+            if not stock:
+                raise ValueError("Патроны не найдены")
+            max_loaded = max(1, int(item.get("mag_capacity") or 1))
+            loaded_count = len(item.get("loaded_shells") or [])
+            can_load = max(0, min(count, max_loaded - loaded_count, int(stock.get("quantity") or 0)))
+            if can_load <= 0:
+                raise ValueError("Некуда заряжать или патроны закончились")
+            order_start = int((self._one(
+                "SELECT COALESCE(MAX(sort_order), -1)+1 AS n FROM weapon_loaded_shells WHERE item_id=?",
+                (int(item_id),),
+            ) or {}).get("n") or 0)
+            for index in range(can_load):
+                self.conn.execute(
+                    "INSERT INTO weapon_loaded_shells(item_id, ammo_type, description, emoji, sort_order) VALUES (?, ?, ?, ?, ?)",
+                    (
+                        int(item_id), stock.get("ammo_type") or "заряд", stock.get("description") or "",
+                        stock.get("emoji") or "", order_start + index,
+                    ),
+                )
+            self.conn.execute(
+                "UPDATE weapon_shell_stocks SET quantity=quantity-? WHERE id=?",
+                (can_load, stock_id),
+            )
+
+        elif request_type == "refill_shell_stock":
+            stock_id = int(payload.get("stock_id") or 0)
+            amount = max(1, int(payload.get("amount") or 1))
+            stock = self._one(
+                "SELECT id FROM weapon_shell_stocks WHERE id=? AND item_id=?",
+                (stock_id, int(item_id)),
+            )
+            if not stock:
+                raise ValueError("Стопка патронов не найдена у этого оружия")
+            self.conn.execute(
+                "UPDATE weapon_shell_stocks SET quantity=quantity+? WHERE id=?",
+                (amount, stock_id),
+            )
+        else:
+            raise ValueError("Неизвестное действие с инвентарём")
+
+        self.conn.execute("UPDATE inventory_items SET updated_at=? WHERE id=?", (utc_now(), int(item_id)))
+        return self.get_inventory_item(int(item_id)) or item
+
+    def apply_inventory_action(self, item_id: int, request_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            item = self._apply_inventory_action(int(item_id), request_type, payload)
+            self.conn.commit()
+            return item
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def create_inventory_request(self, campaign_id: int, character_id: int, item_id: int, player_tg_id: int, request_type: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if self.get_any_open_request_by_player(campaign_id, player_tg_id):
-            raise ValueError("У тебя уже есть активная заявка. Дождись решения мастера, прежде чем отправлять новую.")
+        if self.count_open_requests_by_player(campaign_id, player_tg_id) >= MAX_OPEN_REQUESTS_PER_PLAYER:
+            raise ValueError(f"У тебя уже {MAX_OPEN_REQUESTS_PER_PLAYER} активных заявок. Дождись решения мастера, прежде чем отправлять новую.")
         cur = self.conn.execute(
             "INSERT INTO inventory_requests(campaign_id, character_id, item_id, player_tg_id, request_type, payload_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'open', ?)",
             (int(campaign_id), int(character_id), int(item_id), int(player_tg_id), request_type, json.dumps(payload, ensure_ascii=False), utc_now()),
@@ -4058,70 +4225,14 @@ class Database:
         req = self.get_inventory_request(request_id)
         if not req or req.get('status') != 'open':
             raise ValueError('Заявка не найдена')
-        if approve:
-            payload = req.get('payload') or {}
-            item = self.get_inventory_item(int(req['item_id']))
-            if req['request_type'] == 'reload_weapon' and item:
-                new_mag_id = int(payload.get('magazine_id') or 0)
-                if new_mag_id:
-                    self.update_inventory_item(int(item['id']), active_magazine_id=new_mag_id)
-            elif req['request_type'] == 'refill_magazine':
-                mag_id = int(payload.get('magazine_id') or 0)
-                amount = payload.get('amount')
-                stock_id = int(payload.get('stock_id') or 0)
-                mag = self._one("SELECT * FROM weapon_magazines WHERE id=?", (mag_id,))
-                if mag:
-                    current = int(mag.get('ammo_current') or 0)
-                    max_ammo = int(mag.get('ammo_max') or 0)
-                    free = max(0, max_ammo - current)
-                    if stock_id:
-                        stock = self._one(
-                            "SELECT * FROM weapon_shell_stocks WHERE id=? AND item_id=?",
-                            (stock_id, int(item['id']) if item else 0),
-                        )
-                        if not stock:
-                            raise ValueError("Патроны не найдены")
-                        if current > 0 and str(mag.get('ammo_type') or '') and str(mag.get('ammo_type') or '') != str(stock.get('ammo_type') or ''):
-                            raise ValueError("В магазине уже лежат другие патроны")
-                        requested = free if amount is None else min(free, max(0, int(amount)))
-                        can_load = max(0, min(requested, int(stock.get('quantity') or 0)))
-                        if can_load <= 0:
-                            raise ValueError("Некуда заряжать или патроны закончились")
-                        self.conn.execute(
-                            "UPDATE weapon_magazines SET ammo_current=?, ammo_type=?, description=? WHERE id=?",
-                            (
-                                current + can_load,
-                                str(stock.get('ammo_type') or 'патроны')[:80],
-                                str(stock.get('description') or '')[:300],
-                                mag_id,
-                            ),
-                        )
-                        self.conn.execute("UPDATE weapon_shell_stocks SET quantity=quantity-? WHERE id=?", (can_load, stock_id))
-                    else:
-                        target = max_ammo if amount is None else min(max_ammo, current + max(0, int(amount)))
-                        self.conn.execute("UPDATE weapon_magazines SET ammo_current=? WHERE id=?", (target, mag_id))
-            elif req['request_type'] == 'load_shells' and item:
-                stock_id = int(payload.get('stock_id') or 0)
-                count = max(1, int(payload.get('count') or 1))
-                stock = self._one("SELECT * FROM weapon_shell_stocks WHERE id=? AND item_id=?", (stock_id, int(item['id'])))
-                max_loaded = max(1, int(item.get('mag_capacity') or 1))
-                loaded_count = len(item.get('loaded_shells') or [])
-                can_load = max(0, min(count, max_loaded - loaded_count, int(stock.get('quantity') or 0) if stock else 0))
-                if stock and can_load:
-                    order_start = int((self._one("SELECT COALESCE(MAX(sort_order), -1)+1 AS n FROM weapon_loaded_shells WHERE item_id=?", (int(item['id']),)) or {}).get('n') or 0)
-                    for i in range(can_load):
-                        self.conn.execute("INSERT INTO weapon_loaded_shells(item_id, ammo_type, description, emoji, sort_order) VALUES (?, ?, ?, ?, ?)", (int(item['id']), stock.get('ammo_type') or 'заряд', stock.get('description') or '', stock.get('emoji') or '', order_start+i))
-                    self.conn.execute("UPDATE weapon_shell_stocks SET quantity=quantity-? WHERE id=?", (can_load, stock_id))
-            elif req['request_type'] == 'refill_shell_stock' and item:
-                stock_id = int(payload.get('stock_id') or 0)
-                amount = max(1, int(payload.get('amount') or 1))
-                self.conn.execute("UPDATE weapon_shell_stocks SET quantity=quantity+? WHERE id=? AND item_id=?", (amount, stock_id, int(item['id'])))
-        if approve:
-            item_after = self.get_inventory_item(int(req['item_id']))
-            if item_after:
-                self.conn.execute("UPDATE inventory_items SET updated_at=? WHERE id=?", (utc_now(), int(req['item_id'])))
-        self.conn.execute("UPDATE inventory_requests SET status=? WHERE id=?", ('approved' if approve else 'declined', int(request_id)))
-        self.conn.commit()
+        try:
+            if approve:
+                self._apply_inventory_action(int(req['item_id']), str(req['request_type']), req.get('payload') or {})
+            self.conn.execute("UPDATE inventory_requests SET status=? WHERE id=?", ('approved' if approve else 'declined', int(request_id)))
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
         return self.get_inventory_request(request_id) or req
 
     def delete_campaign(self, campaign_id: int) -> None:

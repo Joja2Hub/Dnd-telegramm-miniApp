@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090c10">
+  <title>FX Lab — эффекты персонажей</title>
+  <link rel="stylesheet" href="./styles.css?v=4">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-sigil" aria-hidden="true"><i></i><i></i></div>
+      <div>
+        <p>FX LAB · ВТОРАЯ ИТЕРАЦИЯ</p>
+        <h1>Эффекты персонажей</h1>
+      </div>
+    </div>
+    <div class="build-facts" aria-label="Параметры прототипа">
+      <div><b id="effect-total">12</b><span>проработанных эффектов</span></div>
+      <div><b>2</b><span>слоя вокруг портрета</span></div>
+      <div><b>64 px</b><span>основной игровой размер</span></div>
+      <div><b>Canvas 2D</b><span>текущий стек проекта</span></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="toolbar" aria-label="Управление каталогом">
+      <label class="search-box">
+        <span aria-hidden="true">⌕</span>
+        <input id="search" type="search" autocomplete="off" placeholder="Название, класс или стихия">
+      </label>
+
+      <label class="field-control">
+        <span>Портрет</span>
+        <select id="avatar-select" aria-label="Портрет для проверки">
+          <option value="fantasy">Фэнтези</option>
+          <option value="mystic">Мистика</option>
+          <option value="cyber">Киберпанк</option>
+        </select>
+      </label>
+
+      <label class="field-control">
+        <span>Размер</span>
+        <select id="size-select" aria-label="Игровой размер аватара">
+          <option value="48">48 px</option>
+          <option value="64" selected>64 px</option>
+          <option value="80">80 px</option>
+        </select>
+      </label>
+
+      <label class="field-control">
+        <span>Фон</span>
+        <select id="backdrop-select" aria-label="Фон проверки">
+          <option value="ink">Чернильный</option>
+          <option value="stone">Светлый камень</option>
+          <option value="ember">Тёплый</option>
+        </select>
+      </label>
+
+      <button id="motion-toggle" class="motion-button" type="button" aria-pressed="false" title="Приостановить анимацию">
+        <i aria-hidden="true">Ⅱ</i><span>Движение</span>
+      </button>
+    </section>
+
+    <nav id="category-bar" class="category-bar" aria-label="Категории эффектов"></nav>
+
+    <section class="catalog-section">
+      <div class="section-head">
+        <div>
+          <p>КУРАТОРСКИЙ НАБОР · БЕЗ РАМОК</p>
+          <h2>Эффекты вокруг портрета</h2>
+        </div>
+        <span id="result-count"></span>
+      </div>
+      <div id="effect-grid" class="effect-grid"></div>
+      <div id="empty-state" class="empty-state" hidden>
+        <b>Ничего не найдено</b>
+        <span>Измените запрос или категорию.</span>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="effect-dialog" class="effect-dialog">
+    <div class="dialog-layout">
+      <button id="dialog-close" class="dialog-close" type="button" aria-label="Закрыть" title="Закрыть">×</button>
+      <div id="dialog-stage" class="dialog-stage" data-backdrop="ink"></div>
+      <div class="dialog-copy">
+        <p id="dialog-kicker"></p>
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-description"></p>
+        <div class="dialog-specs">
+          <div><span>Композиция</span><b id="dialog-layout-name"></b></div>
+          <div><span>Цикл</span><b id="dialog-loop"></b></div>
+        </div>
+        <div id="dialog-tags" class="tag-row"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="./app.js?v=30"></script>
+</body>
+</html>

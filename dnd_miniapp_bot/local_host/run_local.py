@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ipaddress
 import os
+import signal
 import socket
 import sqlite3
 import subprocess
@@ -88,10 +90,47 @@ def windows_physical_ipv4() -> str | None:
     return ip if ip and not ip.startswith("127.") else None
 
 
+def windows_routed_lan_ipv4() -> str | None:
+    if os.name != "nt":
+        return None
+    try:
+        result = subprocess.run(
+            ["route", "print", "-4"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=6,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    candidates: list[tuple[int, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) != 5 or parts[0] != "0.0.0.0" or parts[1] != "0.0.0.0":
+            continue
+        gateway, interface, metric_text = parts[2], parts[3], parts[4]
+        if gateway.lower() == "on-link":
+            continue
+        try:
+            address = ipaddress.ip_address(interface)
+            metric = int(metric_text)
+        except ValueError:
+            continue
+        if address.version == 4 and address.is_private and not address.is_loopback:
+            candidates.append((metric, interface))
+    return min(candidates)[1] if candidates else None
+
+
 def preferred_local_ipv4() -> str | None:
     physical_ip = windows_physical_ipv4()
     if physical_ip:
         return physical_ip
+    routed_lan_ip = windows_routed_lan_ipv4()
+    if routed_lan_ip:
+        return routed_lan_ip
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
             probe.connect(("8.8.8.8", 80))
@@ -144,7 +183,17 @@ def stop_port_listeners(port: int) -> None:
         return
     print(f"Stopping old local server on port {port}: {', '.join(map(str, sorted(pids)))}")
     for pid in sorted(pids):
-        subprocess.run(["taskkill", "/PID", str(pid), "/F", "/T"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        result = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/F", "/T"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if result.returncode != 0:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
     deadline = time.time() + 5
     while time.time() < deadline:
         if not port_listener_pids(port):
@@ -349,18 +398,26 @@ def main() -> None:
         dev_mode=True,
         main_master_tg_id=int(os.getenv("MAIN_MASTER_TG_ID", "0") or 0),
     )
-    db = Database(settings.db_path)
-    try:
-        db.init_schema()
-    except sqlite3.OperationalError as exc:
-        if "database is locked" in str(exc).lower():
-            print("")
-            print("The SQLite database is locked.")
-            print("Close the Telegram bot, old local-site windows, or any other running server for this project.")
-            print("Then start START_LOCAL_SITE.bat again.")
-            print("")
-            return
-        raise
+    db: Database | None = None
+    for attempt in range(6):
+        candidate = Database(settings.db_path)
+        try:
+            candidate.init_schema()
+            db = candidate
+            break
+        except sqlite3.OperationalError as exc:
+            candidate.conn.close()
+            if "database is locked" not in str(exc).lower():
+                raise
+            if attempt < 5:
+                time.sleep(1)
+    if db is None:
+        print("")
+        print("The SQLite database is locked.")
+        print("Close the Telegram bot, old local-site windows, or any other running server for this project.")
+        print("Then start START_LOCAL_SITE.bat again.")
+        print("")
+        return
     player_ip = preferred_local_ipv4()
     player_url = f"http://{player_ip}:{port}/local/" if player_ip else f"http://localhost:{port}/local/"
     try:

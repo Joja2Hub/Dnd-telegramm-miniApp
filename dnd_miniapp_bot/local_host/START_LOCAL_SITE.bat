@@ -5,10 +5,31 @@ pushd "%~dp0.."
 set "PROJECT_DIR=%CD%"
 set "LOCAL_PORT=8000"
 set "PYTHON_EXE=%PROJECT_DIR%\.venv\Scripts\python.exe"
+set "PYTHONPATH="
 
-if not exist "%PYTHON_EXE%" (
-  set "PYTHON_EXE=python"
+if exist "%PYTHON_EXE%" (
+  "%PYTHON_EXE%" --version >nul 2>nul
 )
+if not exist "%PYTHON_EXE%" goto find_fallback_python
+if errorlevel 1 goto find_fallback_python
+goto python_ready
+
+:find_fallback_python
+set "PYTHON_EXE=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+if exist "%PYTHON_EXE%" (
+  set "PYTHONPATH=%PROJECT_DIR%\.venv\Lib\site-packages"
+  goto python_ready
+)
+set "PYTHON_EXE=python"
+where python >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Python was not found. Reinstall Python 3.12 or recreate the .venv folder.
+  pause
+  popd
+  exit /b 1
+)
+
+:python_ready
 
 echo.
 echo If phones cannot open the site, run local_host\ALLOW_FIREWALL_PORT_8000_AS_ADMIN.bat once.
