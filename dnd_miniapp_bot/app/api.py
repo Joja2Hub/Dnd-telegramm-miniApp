@@ -439,6 +439,28 @@ def _effective_player_id_for_dev(user: TelegramUser, ch: dict[str, Any]) -> int:
     return int(ch.get("telegram_user_id") or user.id)
 
 
+def _dev_impersonated_character_for_account(
+    db: Database,
+    settings: Settings,
+    user: TelegramUser,
+    character_id: str | int | None,
+) -> dict[str, Any] | None:
+    """Resolve a local player account even for rewards from another campaign."""
+    if not settings.dev_mode or not character_id:
+        return None
+    try:
+        cid = int(character_id)
+    except Exception:
+        return None
+    ch = db.get_character(cid)
+    if not ch:
+        return None
+    campaign = db.get_campaign(int(ch.get("campaign_id") or 0))
+    if not campaign or int(campaign.get("master_tg_id") or 0) != int(user.id):
+        return None
+    return ch
+
+
 def _require_cyberpunk(campaign: dict[str, Any]) -> None:
     if campaign.get("rule_type") != "cyberpunk":
         raise HTTPException(404, "Модуль нетраннера доступен только в кампании Киберпанка")
@@ -2029,7 +2051,12 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
         dev_character = None
         raw_grant = db._one("SELECT * FROM achievement_grants WHERE id=?", (int(grant_id),))
         if raw_grant and x_dev_view_character_id:
-            dev_character = _dev_impersonated_character(db, settings, int(raw_grant.get("campaign_id") or 0), user, x_dev_view_character_id)
+            dev_character = _dev_impersonated_character_for_account(
+                db,
+                settings,
+                user,
+                x_dev_view_character_id,
+            )
             if dev_character and dev_character.get("telegram_user_id"):
                 viewer_tg_id = int(dev_character["telegram_user_id"])
         try:

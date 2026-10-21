@@ -9,6 +9,11 @@
 
   const CATEGORY_LABELS = {
     all: 'Все',
+    new: 'Новые',
+    violet: 'Фиолетовая магия',
+    cryo: 'Крио',
+    electro: 'Электро',
+    mystic: 'Мистика',
     fire: 'Огонь',
     nature: 'Природа',
     class: 'Классы',
@@ -88,29 +93,23 @@
     },
     {
       id: 'old-forest-lights', code: 'FX10', name: 'Огни старого леса', category: 'nature', kind: 'forest-lights',
-      palette: ['#a7df70', '#426b4e', '#fff1a1'], layout: 'девять живых светлячков', loop: '20 секунд',
+      palette: ['#a7df70', '#426b4e', '#fff1a1'], layout: 'свободный рой у кромки портрета', loop: '18 секунд',
       tags: ['светлячки', 'лес', 'свечение'],
-      short: 'Девять светлячков медленно собираются вокруг аватара и вспыхивают каждый в своём ритме.',
-      description: 'Пять крупных и четыре более далёких светлячка движутся по небольшим разным петлям и несинхронно разгораются до тёплого свечения. Между вспышками остаются видны крылья и тёмное тельце, поэтому рой выглядит живым, а не как россыпь точек.',
+      short: 'Девять светлячков независимо блуждают у самой кромки аватара без общей орбиты.',
+      description: 'У каждого светлячка собственная небольшая область полёта, скорость, направление и паузы. Рой не вращается синхронным кольцом: отдельные огни сближаются с портретом, расходятся и меняют глубину, сохраняя вертикальное положение тела и независимый взмах крыльев.',
     },
     {
-      id: 'willow-whisper', code: 'FX11', name: 'Шёпот сакуры', category: 'nature', kind: 'willow-whisper',
-      palette: ['#efb4bf', '#60493f', '#fff0e8'], layout: 'ветвь сакуры и падающие лепестки', loop: '19 секунд',
-      tags: ['сакура', 'лепестки', 'ветвь'],
-      short: 'Цветущая ветвь склоняется над аватаром, а редкие лепестки медленно опускаются перед портретом.',
-      description: 'Живая ветвь сакуры остаётся над верхним краем аватара. Цветы собраны небольшими группами на развилках, а пять крупных лепестков падают разными путями перед портретом и мягко исчезают у нижнего края.',
+      id: 'willow-whisper', code: 'FX11', name: 'Дождь сакуры', category: 'nature', kind: 'willow-whisper',
+      palette: ['#efb4bf', '#955867', '#fff0e8'], layout: 'быстрый дождь крупных лепестков', loop: '11 секунд',
+      tags: ['сакура', 'лепестки', 'ветер'],
+      short: 'Крупные лепестки сакуры быстро проходят над аватаром и перед ним плотным, но чистым потоком.',
+      description: 'Девять лепестков падают с разной глубиной, скоростью и амплитудой бокового движения. Ветки и постоянной рамки нет: эффект существует только как короткий живой порыв, пересекающий портрет сверху вниз.',
     },
-    {
-      id: 'thorn-rose', code: 'FX12', name: 'Терновая роза', category: 'nature', kind: 'thorn-rose',
-      palette: ['#b94f63', '#30483a', '#efb3aa'], layout: 'три розы, лоза и два побега', loop: '18 секунд',
-      tags: ['роза', 'терн', 'лоза'],
-      short: 'Три розы лежат на нижней лозе, а тонкие терновые побеги поднимаются по сторонам портрета.',
-      description: 'Нижняя лоза образует собранный полукруг с тремя многослойными цветками. Из её концов вырастают два тонких асимметричных побега с шипами, листьями и закрытыми бутонами; движение остаётся почти незаметным.',
-    },
+    ...(window.FXMagic?.effects || []),
   ];
 
   const state = {
-    category: 'all',
+    category: new URLSearchParams(window.location.search).get('category') || 'new',
     query: '',
     avatar: 'fantasy',
     size: 64,
@@ -139,6 +138,9 @@
     dialogLayout: document.getElementById('dialog-layout-name'),
     dialogLoop: document.getElementById('dialog-loop'),
     dialogTags: document.getElementById('dialog-tags'),
+    dialogPrevious: document.getElementById('dialog-previous'),
+    dialogNext: document.getElementById('dialog-next'),
+    dialogPosition: document.getElementById('dialog-position'),
     total: document.getElementById('effect-total'),
   };
 
@@ -155,22 +157,27 @@
   function filteredEffects() {
     const query = normalize(state.query);
     return EFFECTS.filter(effect => {
-      if (state.category !== 'all' && effect.category !== state.category) return false;
+      if (state.category === 'new' && !effect.isNew) return false;
+      if (!['all', 'new'].includes(state.category) && effect.category !== state.category) return false;
       if (!query) return true;
       return normalize([effect.name, effect.short, effect.description, categoryName(effect.category), ...effect.tags].join(' ')).includes(query);
     });
   }
 
   function renderCategories() {
-    const categories = ['all', ...Object.keys(CATEGORY_LABELS).filter(key => key !== 'all' && EFFECTS.some(effect => effect.category === key))];
+    const categories = ['all', 'new', ...Object.keys(CATEGORY_LABELS).filter(key => !['all', 'new'].includes(key) && EFFECTS.some(effect => effect.category === key))];
     refs.categories.replaceChildren(...categories.map(category => {
       const button = document.createElement('button');
-      const count = category === 'all' ? EFFECTS.length : EFFECTS.filter(effect => effect.category === category).length;
+      const count = category === 'all' ? EFFECTS.length : EFFECTS.filter(effect => category === 'new' ? effect.isNew : effect.category === category).length;
       button.type = 'button';
       button.className = `category-button${state.category === category ? ' active' : ''}`;
+      button.setAttribute('aria-pressed', String(state.category === category));
       button.textContent = `${categoryName(category)} · ${count}`;
       button.addEventListener('click', () => {
         state.category = category;
+        const url = new URL(window.location.href);
+        url.searchParams.set('category', category);
+        window.history.replaceState(null, '', url);
         renderCategories();
         renderGrid();
       });
@@ -218,6 +225,7 @@
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'effect-card';
+    card.dataset.effectId = effect.id;
     card.style.setProperty('--a', effect.palette[0]);
     card.style.setProperty('--b', effect.palette[1]);
     card.setAttribute('aria-label', `Открыть эффект: ${effect.name}`);
@@ -276,8 +284,17 @@
       tag.textContent = text;
       return tag;
     }));
+    const items = filteredEffects();
+    refs.dialogPosition.textContent = `${items.indexOf(effect) + 1} / ${items.length}`;
+    refs.dialogPrevious.disabled = refs.dialogNext.disabled = items.length < 2;
     if (!refs.dialog.open) refs.dialog.showModal();
     requestAnimationFrame(() => engine.refresh());
+  }
+
+  function moveDialog(direction) {
+    const items = filteredEffects();
+    const current = items.indexOf(state.dialogEffect);
+    if (items.length) openDialog(items[(current + direction + items.length) % items.length]);
   }
 
   function updateMotion() {
@@ -306,6 +323,14 @@
   });
   refs.motion.addEventListener('click', () => { state.paused = !state.paused; updateMotion(); });
   refs.dialogClose.addEventListener('click', () => refs.dialog.close());
+  refs.dialogPrevious.addEventListener('click', () => moveDialog(-1));
+  refs.dialogNext.addEventListener('click', () => moveDialog(1));
+  refs.dialog.addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      moveDialog(event.key === 'ArrowRight' ? 1 : -1);
+    }
+  });
   refs.dialog.addEventListener('click', event => { if (event.target === refs.dialog) refs.dialog.close(); });
   refs.dialog.addEventListener('close', () => engine.prune());
 
@@ -323,7 +348,8 @@
     const alwaysAnimated = new WeakMap();
     let paused = false;
     let frameId = 0;
-    let frozenTime = performance.now() / 1000;
+    let frozenTime = 3.7;
+    let previousFrame = 0;
     const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
       entries.forEach(entry => {
         visible.set(entry.target, entry.isIntersecting);
@@ -343,6 +369,7 @@
       alwaysAnimated.set(host, animateAlways);
       observer?.observe(host);
       renderer.draw(frozenTime);
+      renderer.localTime = frozenTime;
       if (animateAlways) start();
     }
 
@@ -358,16 +385,19 @@
       frameId = 0;
       prune();
       if (paused) return;
-      frozenTime = nowMs / 1000;
+      const dt = previousFrame ? Math.min((nowMs - previousFrame) / 1000, .05) : 1 / 60;
+      previousFrame = nowMs;
       let keepRunning = false;
       for (const [host, renderer] of renderers) {
         if (!isAnimated(host)) continue;
         if (visible.get(host) !== false) {
-          renderer.draw(frozenTime);
+          renderer.localTime += dt;
+          renderer.draw(renderer.localTime);
           keepRunning = true;
         }
       }
       if (keepRunning) frameId = requestAnimationFrame(tick);
+      else previousFrame = 0;
     }
 
     function start() {
@@ -387,6 +417,7 @@
       if (paused) {
         if (frameId) cancelAnimationFrame(frameId);
         frameId = 0;
+        previousFrame = 0;
       } else {
         start();
       }
@@ -394,7 +425,7 @@
 
     function refresh() {
       prune();
-      for (const renderer of renderers.values()) renderer.draw(frozenTime);
+      for (const renderer of renderers.values()) renderer.draw(renderer.localTime);
       start();
     }
 
@@ -469,7 +500,7 @@
         case 'fire-ring': this.drawFireRing(time, p); break;
         case 'forest-lights': this.drawForestLights(time, p); break;
         case 'willow-whisper': this.drawWillowWhisper(time, p); break;
-        case 'thorn-rose': this.drawThornRose(time, p); break;
+        case 'magic': window.FXMagic.draw(this, time); break;
         default: break;
       }
     }
@@ -1438,51 +1469,60 @@
       );
     }
 
-    drawFirefly(ctx, x, y, scale, p, pulse, tilt = 0) {
-      const halo = ctx.createRadialGradient(x, y, 0, x, y, 16 * scale);
-      halo.addColorStop(0, rgba(p[2], .46 * pulse));
-      halo.addColorStop(.36, rgba(p[0], .26 * pulse));
+    drawFirefly(ctx, x, y, scale, p, pulse, wingPhase = 0) {
+      const halo = ctx.createRadialGradient(x, y, 0, x, y, 13 * scale);
+      halo.addColorStop(0, rgba(p[2], .56 * pulse));
+      halo.addColorStop(.34, rgba(p[0], .3 * pulse));
       halo.addColorStop(1, rgba(p[0], 0));
       ctx.fillStyle = halo;
       ctx.beginPath();
-      ctx.arc(x, y, 16 * scale, 0, Math.PI * 2);
+      ctx.arc(x, y, 13 * scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(tilt);
-      ctx.fillStyle = rgba('#edf7d5', .38 + pulse * .4);
+      const wingBeat = (Math.sin(wingPhase) + 1) * .5;
+      const wingOffset = (1.55 + wingBeat * 1.28) * scale;
+      const wingWidth = (2.45 + wingBeat * 1.2) * scale;
+      const wingHeight = (.66 + wingBeat * .46) * scale;
+      const wingAngle = .22 + wingBeat * .38;
+      ctx.fillStyle = rgba('#edf7d5', .48 + pulse * .38);
       ctx.beginPath();
-      ctx.ellipse(-2.45 * scale, -.5 * scale, 3.1 * scale, 1.05 * scale, -.38, 0, Math.PI * 2);
-      ctx.ellipse(2.45 * scale, -.5 * scale, 3.1 * scale, 1.05 * scale, .38, 0, Math.PI * 2);
+      ctx.ellipse(-wingOffset, -.62 * scale, wingWidth, wingHeight, -wingAngle, 0, Math.PI * 2);
+      ctx.ellipse(wingOffset, -.62 * scale, wingWidth, wingHeight, wingAngle, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = rgba('#263529', .82);
       ctx.beginPath();
-      ctx.ellipse(0, .15 * scale, .72 * scale, 1.8 * scale, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, .15 * scale, .78 * scale, 2 * scale, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      this.dot(ctx, x, y, 1.15 * scale, rgba(p[2], .45 + pulse * .52), 9 * scale);
+      this.dot(ctx, x, y, 1.28 * scale, rgba(p[2], .5 + pulse * .48), 8 * scale);
     }
 
     drawForestLights(time, p) {
       const lights = [
-        { x:-48, y:-27, rx:11, ry:7, speed:.19, phase:.2, scale:1.05, layer:this.back },
-        { x:47, y:-24, rx:9, ry:12, speed:.16, phase:1.7, scale:.98, layer:this.back },
-        { x:-49, y:25, rx:12, ry:8, speed:.14, phase:3.2, scale:1.08, layer:this.front },
-        { x:47, y:29, rx:10, ry:7, speed:.17, phase:4.5, scale:1.15, layer:this.front },
-        { x:7, y:-53, rx:13, ry:6, speed:.12, phase:5.6, scale:1, layer:this.front },
-        { x:-18, y:-57, rx:7, ry:4, speed:.13, phase:.9, scale:.76, layer:this.back },
-        { x:62, y:3, rx:6, ry:10, speed:.11, phase:2.5, scale:.8, layer:this.back },
-        { x:-63, y:1, rx:7, ry:9, speed:.15, phase:4, scale:.84, layer:this.front },
-        { x:18, y:56, rx:10, ry:5, speed:.12, phase:6.2, scale:.82, layer:this.front },
+        { cx:-39, cy:-19, ax:7, ay:10, sx:.43, sy:.31, px:.2, py:1.4, sz:.27, pz:.5, scale:1.08 },
+        { cx:-11, cy:-40, ax:11, ay:5, sx:-.29, sy:.47, px:1.8, py:.3, sz:.34, pz:2.1, scale:.88 },
+        { cx:30, cy:-29, ax:8, ay:9, sx:.37, sy:-.26, px:2.7, py:1.9, sz:.22, pz:4.3, scale:1 },
+        { cx:41, cy:4, ax:5, ay:12, sx:-.48, sy:.35, px:.9, py:3.1, sz:.31, pz:1.2, scale:.84 },
+        { cx:29, cy:31, ax:10, ay:6, sx:.25, sy:.44, px:4.2, py:.7, sz:.25, pz:5.4, scale:1.12 },
+        { cx:2, cy:40, ax:12, ay:5, sx:-.34, sy:-.39, px:5.3, py:2.4, sz:.37, pz:3.7, scale:.86 },
+        { cx:-31, cy:30, ax:8, ay:8, sx:.46, sy:-.23, px:3.5, py:5.1, sz:.29, pz:.1, scale:.96 },
+        { cx:-42, cy:7, ax:5, ay:11, sx:-.27, sy:.5, px:1.1, py:4.4, sz:.2, pz:2.8, scale:.82 },
+        { cx:10, cy:-39, ax:7, ay:7, sx:.52, sy:.28, px:5.9, py:3.6, sz:.33, pz:4.9, scale:1.04 },
       ];
       lights.forEach((light, index) => {
-        const angle = time * light.speed + light.phase;
-        const x = light.x + Math.cos(angle) * light.rx + Math.sin(time * .09 + light.phase) * 2;
-        const y = light.y + Math.sin(angle * .82) * light.ry + Math.cos(time * .11 + light.phase) * 1.6;
-        const glow = (Math.sin(time * .43 + light.phase * 1.73) + 1) * .5;
+        const x = light.cx
+          + Math.sin(time * light.sx + light.px) * light.ax
+          + Math.sin(time * light.sy * .43 + light.py) * 2.2;
+        const y = light.cy
+          + Math.cos(time * light.sy + light.py) * light.ay
+          + Math.sin(time * light.sx * .37 + light.px) * 1.8;
+        const depth = Math.sin(time * light.sz + light.pz);
+        const glow = (Math.sin(time * (.36 + index * .017) + light.py * 1.73) + 1) * .5;
         const pulse = .11 + Math.pow(glow, 2.65) * .89;
-        const tilt = Math.atan2(Math.cos(angle * .82) * light.ry * .82, -Math.sin(angle) * light.rx);
-        this.drawFirefly(light.layer, x, y, light.scale, p, pulse, tilt);
+        const layer = depth > .08 ? this.front : this.back;
+        const scale = light.scale * (.95 + depth * .05);
+        this.drawFirefly(layer, x, y, scale, p, pulse, time * (6.4 + index * .23) + light.px * 1.7);
       });
     }
 
@@ -1772,77 +1812,645 @@
     }
 
     drawWillowWhisper(time, p) {
-      const back = this.back;
-      const front = this.front;
-      const branch = this.cubicPoints(
-        { x:-74, y:-51 }, { x:-43, y:-76 }, { x:22, y:-53 }, { x:73, y:-65 }, 72
-      );
-      const wood = back.createLinearGradient(-74, -51, 73, -65);
-      wood.addColorStop(0, rgba('#342827', .98));
-      wood.addColorStop(.55, rgba(p[1], .96));
-      wood.addColorStop(1, rgba('#8a615b', .72));
-      this.ribbon(back, branch, progress => .45 + Math.pow(1 - progress, .72) * 3.45, wood, .98);
-      this.strokeOrganicPath(back, branch, p[2], .42, .18);
-
-      const forkSpecs = [
-        [.16, { x:-53, y:-80 }],
-        [.42, { x:-13, y:-79 }],
-        [.68, { x:37, y:-84 }],
-        [.86, { x:67, y:-45 }],
-      ];
-      const forks = forkSpecs.map(([progress, tip]) => {
-        const start = this.pathSample(branch, progress);
-        return this.cubicPoints(
-          { x:start.x, y:start.y },
-          { x:(start.x * 2 + tip.x) / 3, y:start.y - 4 },
-          { x:(start.x + tip.x * 2) / 3, y:tip.y + 3 },
-          tip, 26
-        );
-      });
-      forks.forEach((fork, index) => {
-        const twig = back.createLinearGradient(fork[0].x, fork[0].y, fork[fork.length - 1].x, fork[fork.length - 1].y);
-        twig.addColorStop(0, rgba('#59403b', .96));
-        twig.addColorStop(1, rgba(index === 3 ? '#a06e68' : p[1], .62));
-        this.ribbon(back, fork, progress => .25 + Math.pow(1 - progress, .75) * 1.15, twig, .92);
-      });
-
-      const blossoms = [
-        [branch,.06,6.3,-.2],[branch,.29,7.5,.18],[branch,.55,6.7,-.1],
-        [branch,.78,7.8,.2],[branch,.96,6.3,-.32],
-        [forks[0],.88,6.6,.22],[forks[1],.84,7.1,-.16],
-        [forks[2],.9,6.8,.12],[forks[3],.88,6.2,-.2],
-      ];
-      blossoms.forEach((entry, index) => {
-        const point = this.pathSample(entry[0], entry[1]);
-        const openness = .9 + Math.sin(time * .27 + index * 1.17) * .035;
-        this.drawCherryBlossom(front, point.x, point.y, entry[2], point.angle + entry[3], p, openness, .9);
-      });
-
-      const budPalette = [p[0], p[1], p[2]];
-      [
-        [forks[0],.56,5.4,-.12],
-        [forks[2],.56,5.8,.16],
-        [forks[3],.5,5.1,.1],
-      ].forEach(entry => {
-        const point = this.pathSample(entry[0], entry[1]);
-        this.natureBud(front, point.x, point.y, entry[2], point.angle + Math.PI / 2 + entry[3], budPalette, .82);
-      });
-
       const falling = [
-        { x:-37, drift:9, speed:.031, phase:.05, size:5.2, spin:.46 },
-        { x:-14, drift:7, speed:.026, phase:.38, size:4.4, spin:-.38 },
-        { x:7, drift:11, speed:.029, phase:.69, size:6.1, spin:.31 },
-        { x:29, drift:8, speed:.024, phase:.14, size:4.8, spin:-.42 },
-        { x:48, drift:10, speed:.027, phase:.82, size:5.5, spin:.35 },
+        { x:-49, drift:12, speed:.082, phase:.04, size:9.2, spin:.42, front:true },
+        { x:-34, drift:9, speed:.069, phase:.31, size:7.2, spin:-.36, front:false },
+        { x:-19, drift:14, speed:.091, phase:.67, size:10.4, spin:.29, front:true },
+        { x:-4, drift:10, speed:.074, phase:.16, size:8.1, spin:-.44, front:true },
+        { x:12, drift:15, speed:.086, phase:.81, size:11, spin:.34, front:false },
+        { x:27, drift:11, speed:.065, phase:.45, size:7.8, spin:-.31, front:true },
+        { x:42, drift:13, speed:.094, phase:.73, size:9.7, spin:.39, front:true },
+        { x:55, drift:8, speed:.077, phase:.22, size:6.8, spin:-.46, front:false },
+        { x:2, drift:18, speed:.089, phase:.54, size:8.8, spin:.26, front:true },
       ];
       falling.forEach((petal, index) => {
         const progress = (time * petal.speed + petal.phase) % 1;
-        const x = petal.x + Math.sin(progress * Math.PI * 2 + index * 1.3) * petal.drift;
-        const y = -57 + progress * 126;
-        const opacity = .12 + Math.sin(progress * Math.PI) * .78;
-        const rotation = progress * Math.PI * 2 * petal.spin + Math.sin(time * .2 + index) * .22;
-        this.drawSakuraPetal(front, x, y, petal.size, rotation, p, opacity);
+        const x = petal.x + Math.sin(progress * Math.PI * 2 + index * 1.27) * petal.drift;
+        const y = -80 + progress * 164;
+        const fade = Math.min(1, progress * 7, (1 - progress) * 7);
+        const opacity = fade * (petal.front ? .9 : .5);
+        const rotation = progress * Math.PI * 2 * petal.spin + Math.sin(time * .55 + index) * .28;
+        this.drawSakuraPetal(petal.front ? this.front : this.back, x, y, petal.size, rotation, p, opacity);
       });
+    }
+
+    drawWindLeaf(ctx, x, y, length, width, rotation, roll, p, tone, opacity) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.scale(1, .35 + Math.abs(Math.cos(roll)) * .65);
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = rgba(p[0], opacity * .24);
+      this.natureLeaf(ctx, -length * .5, 0, length, width, 0, p, tone, opacity);
+      ctx.restore();
+    }
+
+    drawLeafGust(time, p) {
+      const cycle = (time / 12) % 1;
+      const leaves = [
+        { delay:0, y:37, rise:-26, size:14, width:4.2, tone:0, front:true, sway:5, spin:1.25 },
+        { delay:.026, y:23, rise:-19, size:11, width:3.4, tone:2, front:false, sway:7, spin:-1.08 },
+        { delay:.058, y:49, rise:-33, size:12.5, width:3.7, tone:1, front:true, sway:4, spin:.94 },
+        { delay:.5, y:31, rise:-23, size:13.5, width:4, tone:2, front:false, sway:6, spin:-1.18 },
+        { delay:.525, y:52, rise:-31, size:10.5, width:3.2, tone:0, front:true, sway:5, spin:1.36 },
+        { delay:.553, y:18, rise:-17, size:12, width:3.6, tone:1, front:false, sway:8, spin:-.87 },
+        { delay:.584, y:42, rise:-29, size:14.5, width:4.3, tone:0, front:true, sway:4, spin:1.04 },
+      ];
+      leaves.forEach((leaf, index) => {
+        const local = (cycle - leaf.delay + 1) % 1;
+        const duration = .48 + (index % 3) * .02;
+        if (local > duration) return;
+        const progress = local / duration;
+        const x = -91 + progress * 182;
+        const y = leaf.y
+          + Math.sin(progress * Math.PI) * leaf.rise
+          + Math.sin(progress * Math.PI * 2 + index * 1.7) * leaf.sway;
+        const fade = Math.min(1, progress * 8, (1 - progress) * 8);
+        const roll = time * leaf.spin + index * 1.37;
+        const rotation = -.12 + Math.sin(progress * Math.PI * 2 + index) * .28;
+        this.drawWindLeaf(
+          leaf.front ? this.front : this.back,
+          x, y, leaf.size, leaf.width, rotation, roll, p, leaf.tone,
+          fade * (leaf.front ? .9 : .62)
+        );
+      });
+    }
+
+    drawDandelionDrift(time, p) {
+      const seeds = [
+        { phase:.03, speed:.062, y:66, sway:8, scale:1.08, front:true },
+        { phase:.2, speed:.049, y:53, sway:11, scale:.88, front:false },
+        { phase:.39, speed:.071, y:72, sway:7, scale:1, front:true },
+        { phase:.56, speed:.045, y:45, sway:13, scale:.82, front:false },
+        { phase:.72, speed:.058, y:61, sway:9, scale:.94, front:true },
+        { phase:.87, speed:.052, y:36, sway:10, scale:.78, front:false },
+      ];
+      seeds.forEach((seed, index) => {
+        const progress = (time * seed.speed + seed.phase) % 1;
+        const x = -88 + progress * 176 + Math.sin(progress * Math.PI * 3 + index * 1.4) * seed.sway;
+        const y = seed.y - progress * 132 + Math.sin(progress * Math.PI * 4 + index) * 6;
+        const fade = Math.min(1, progress * 7, (1 - progress) * 7);
+        const rotation = -.72 + Math.sin(time * (.31 + index * .015) + index * 1.9) * .2;
+        this.drawDandelionSeed(
+          seed.front ? this.front : this.back,
+          x, y, seed.scale, rotation, p,
+          fade * (seed.front ? .86 : .56)
+        );
+      });
+    }
+
+    drawRainDrop(ctx, x, y, length, tilt, p, opacity) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(tilt);
+      ctx.globalCompositeOperation = 'lighter';
+      const trail = ctx.createLinearGradient(0, -length, 0, 1);
+      trail.addColorStop(0, rgba(p[0], 0));
+      trail.addColorStop(.48, rgba(p[0], opacity * .34));
+      trail.addColorStop(1, rgba(p[2], opacity * .94));
+      ctx.strokeStyle = trail;
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 3;
+      ctx.shadowColor = rgba(p[0], opacity * .42);
+      ctx.beginPath();
+      ctx.moveTo(0, -length);
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = rgba(p[2], opacity * .34);
+      ctx.lineWidth = .34;
+      ctx.beginPath();
+      ctx.moveTo(-.65, -length * .68);
+      ctx.lineTo(-.65, -.5);
+      ctx.stroke();
+      ctx.fillStyle = rgba(p[2], opacity * .76);
+      ctx.beginPath();
+      ctx.ellipse(0, .7, .72, 1.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    drawRainSplash(ctx, x, y, progress, p, opacity) {
+      if (progress <= 0 || progress >= 1) return;
+      const spread = 3 + progress * 9;
+      const alpha = Math.sin(progress * Math.PI) * opacity;
+      ctx.save();
+      ctx.strokeStyle = rgba(p[2], alpha * .58);
+      ctx.lineWidth = .65;
+      ctx.beginPath();
+      ctx.ellipse(x, y, spread, spread * .22, 0, Math.PI * .08, Math.PI * .92);
+      ctx.stroke();
+      [-1, 1].forEach(side => {
+        const lift = Math.sin(progress * Math.PI) * 7;
+        this.dot(ctx, x + side * (2 + progress * 4), y - lift, .62, rgba(p[0], alpha * .64), 2);
+      });
+      ctx.restore();
+    }
+
+    drawSummerRain(time, p) {
+      const drops = [
+        { phase:.03, speed:.34, x:-68, length:21, front:false },
+        { phase:.14, speed:.39, x:-52, length:27, front:true },
+        { phase:.27, speed:.36, x:-35, length:18, front:false },
+        { phase:.38, speed:.43, x:-18, length:25, front:true },
+        { phase:.5, speed:.35, x:0, length:22, front:false },
+        { phase:.61, speed:.41, x:17, length:29, front:true },
+        { phase:.72, speed:.37, x:34, length:19, front:false },
+        { phase:.83, speed:.45, x:51, length:26, front:true },
+        { phase:.94, speed:.38, x:68, length:23, front:false },
+      ];
+      const intensity = .48 + Math.pow((Math.sin(time * .68) + 1) * .5, 2) * .52;
+      drops.forEach((drop, index) => {
+        const progress = (time * drop.speed + drop.phase) % 1;
+        const x = drop.x + progress * (11 + index % 4) + Math.sin(time * .23 + index) * 2;
+        const y = -83 + progress * 166;
+        const fade = Math.min(1, progress * 8, (1 - progress) * 8) * intensity;
+        this.drawRainDrop(
+          drop.front ? this.front : this.back,
+          x, y, drop.length, -.15, p,
+          fade * (drop.front ? .9 : .58)
+        );
+      });
+
+      [
+        { phase:.18, speed:.31, x:-28 },
+        { phase:.68, speed:.29, x:31 },
+      ].forEach(splash => {
+        const cycle = (time * splash.speed + splash.phase) % 1;
+        const progress = (cycle - .78) / .2;
+        this.drawRainSplash(this.front, splash.x, 57, progress, p, .88 * intensity);
+      });
+    }
+
+    drawDappleBlob(ctx, x, y, radiusX, radiusY, rotation, color, opacity) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusX);
+      glow.addColorStop(0, rgba(color, opacity));
+      glow.addColorStop(.46, rgba(color, opacity * .58));
+      glow.addColorStop(1, rgba(color, 0));
+      ctx.fillStyle = glow;
+      ctx.scale(1, radiusY / radiusX);
+      ctx.beginPath();
+      ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    drawLeafShadow(ctx, x, y, size, rotation, color, opacity, bend = 0) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.fillStyle = rgba(color, opacity);
+      ctx.beginPath();
+      ctx.moveTo(-size, 0);
+      ctx.bezierCurveTo(-size * .52, -size * (.48 + bend), size * .38, -size * .4, size, 0);
+      ctx.bezierCurveTo(size * .32, size * .42, -size * .5, size * (.5 - bend), -size, 0);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    drawForestDapple(time, p) {
+      const front = this.front;
+      const radius = 37.6;
+      const breeze = Math.sin(time * .31);
+
+      front.save();
+      front.beginPath();
+      front.arc(0, 0, radius, 0, Math.PI * 2);
+      front.clip();
+
+      front.globalCompositeOperation = 'screen';
+      const lights = [
+        { x:-23, y:-18, rx:22, ry:9, sx:.82, sy:.41, phase:.2, alpha:.34 },
+        { x:8, y:1, rx:18, ry:8, sx:.57, sy:.76, phase:2.1, alpha:.27 },
+        { x:27, y:22, rx:20, ry:7, sx:.71, sy:.48, phase:4.4, alpha:.24 },
+      ];
+      lights.forEach((light, index) => {
+        const x = light.x + Math.sin(time * light.sx + light.phase) * 20;
+        const y = light.y + Math.cos(time * light.sy + light.phase) * 11;
+        const breathe = .72 + Math.sin(time * (.39 + index * .07) + light.phase) * .28;
+        this.drawDappleBlob(
+          front, x, y, light.rx, light.ry,
+          -.48 + breeze * .07, index === 1 ? p[0] : p[2], light.alpha * breathe
+        );
+      });
+
+      front.globalCompositeOperation = 'source-over';
+      const shadows = [
+        { x:-34, y:-11, size:9.5, phase:.4, speed:.42, rotation:.24 },
+        { x:-12, y:21, size:7.5, phase:2.6, speed:.35, rotation:-.52 },
+        { x:17, y:-24, size:8.5, phase:4.1, speed:.31, rotation:.7 },
+        { x:35, y:9, size:10, phase:1.4, speed:.38, rotation:-.16 },
+      ];
+      shadows.forEach((shadow, index) => {
+        const drift = Math.sin(time * shadow.speed + shadow.phase);
+        const x = shadow.x + drift * 15;
+        const y = shadow.y + Math.cos(time * (shadow.speed * .73) + shadow.phase) * 8;
+        const opacity = .13 + (drift + 1) * .025;
+        this.drawLeafShadow(
+          front, x, y, shadow.size,
+          shadow.rotation + breeze * .08,
+          p[1], opacity, Math.sin(time * .27 + index) * .08
+        );
+      });
+      front.restore();
+
+      const glintLife = (time * .075) % 1;
+      const glintAngle = -2.25 + glintLife * 2.1;
+      const glintFade = Math.sin(glintLife * Math.PI);
+      if (glintFade > .08) {
+        const x = Math.cos(glintAngle) * radius;
+        const y = Math.sin(glintAngle) * radius;
+        this.dot(front, x, y, .8 + glintFade * .45, rgba(p[2], glintFade * .38), 5);
+      }
+    }
+
+    drawMothWing(ctx, side, time, p) {
+      ctx.save();
+      ctx.scale(side, 1);
+      const opening = 1 + Math.sin(time * .34) * .038;
+      ctx.scale(opening, 1);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = rgba(p[0], .28);
+
+      const upper = ctx.createLinearGradient(14, -7, 76, -57);
+      upper.addColorStop(0, rgba(p[1], .88));
+      upper.addColorStop(.5, rgba(p[0], .58));
+      upper.addColorStop(1, rgba(p[2], .18));
+      ctx.fillStyle = upper;
+      ctx.strokeStyle = rgba(p[2], .32);
+      ctx.lineWidth = .82;
+      ctx.beginPath();
+      ctx.moveTo(13, -7);
+      ctx.bezierCurveTo(18, -42, 43, -72, 72, -61);
+      ctx.bezierCurveTo(83, -43, 76, -17, 57, -3);
+      ctx.bezierCurveTo(42, 4, 24, 2, 13, -7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const lower = ctx.createLinearGradient(18, 4, 66, 54);
+      lower.addColorStop(0, rgba(p[1], .9));
+      lower.addColorStop(.56, rgba('#52786b', .66));
+      lower.addColorStop(1, rgba(p[0], .22));
+      ctx.fillStyle = lower;
+      ctx.beginPath();
+      ctx.moveTo(18, 2);
+      ctx.bezierCurveTo(42, 1, 70, 14, 68, 42);
+      ctx.bezierCurveTo(60, 60, 37, 56, 22, 34);
+      ctx.bezierCurveTo(16, 24, 14, 11, 18, 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = rgba(p[2], .24);
+      ctx.lineWidth = .62;
+      [
+        [15,-6,39,-34,69,-56],
+        [16,-3,44,-19,72,-28],
+        [19,5,43,14,64,37],
+        [21,11,37,31,55,50],
+      ].forEach(points => {
+        ctx.beginPath();
+        ctx.moveTo(points[0], points[1]);
+        ctx.quadraticCurveTo(points[2], points[3], points[4], points[5]);
+        ctx.stroke();
+      });
+
+      const eyeA = ctx.createRadialGradient(54, -34, 1, 54, -34, 8);
+      eyeA.addColorStop(0, rgba(p[2], .55));
+      eyeA.addColorStop(.35, rgba(p[1], .78));
+      eyeA.addColorStop(.68, rgba(p[0], .28));
+      eyeA.addColorStop(1, rgba(p[0], 0));
+      ctx.fillStyle = eyeA;
+      ctx.beginPath();
+      ctx.ellipse(54, -34, 8, 6.4, -.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      const eyeB = ctx.createRadialGradient(50, 27, 1, 50, 27, 7);
+      eyeB.addColorStop(0, rgba(p[2], .42));
+      eyeB.addColorStop(.45, rgba(p[1], .62));
+      eyeB.addColorStop(1, rgba(p[0], 0));
+      ctx.fillStyle = eyeB;
+      ctx.beginPath();
+      ctx.ellipse(50, 27, 7.2, 5.4, .25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    drawForestMoth(time, p) {
+      const back = this.back;
+      const front = this.front;
+      this.drawMothWing(back, -1, time, p);
+      this.drawMothWing(back, 1, time + .28, p);
+
+      back.save();
+      const body = back.createLinearGradient(0, -45, 0, 39);
+      body.addColorStop(0, rgba(p[2], .72));
+      body.addColorStop(.25, rgba(p[1], .96));
+      body.addColorStop(1, rgba('#182b28', .86));
+      back.fillStyle = body;
+      back.beginPath();
+      back.ellipse(0, -1, 7.2, 43, 0, 0, Math.PI * 2);
+      back.fill();
+      back.restore();
+
+      front.save();
+      const head = front.createRadialGradient(0, -39, 1, 0, -39, 9);
+      head.addColorStop(0, rgba(p[2], .78));
+      head.addColorStop(.42, rgba(p[0], .74));
+      head.addColorStop(1, rgba(p[1], .95));
+      front.fillStyle = head;
+      front.shadowBlur = 7;
+      front.shadowColor = rgba(p[0], .36);
+      front.beginPath();
+      front.ellipse(0, -39, 8.2, 9.4, 0, 0, Math.PI * 2);
+      front.fill();
+      front.shadowBlur = 0;
+      front.strokeStyle = rgba(p[2], .36);
+      front.lineWidth = .72;
+      [-1, 1].forEach(side => {
+        front.beginPath();
+        front.moveTo(side * 3, -45);
+        front.bezierCurveTo(side * 11, -55, side * 17, -60, side * 20, -68);
+        front.stroke();
+      });
+      front.restore();
+    }
+
+    drawMushroom(ctx, x, y, height, capWidth, tilt, p, tone, light, opacity = 1) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(tilt);
+      const capY = -height;
+      const stemWidth = Math.max(2.2, capWidth * .15);
+      const stem = ctx.createLinearGradient(-stemWidth, 0, stemWidth, 0);
+      stem.addColorStop(0, rgba(p[1], opacity * .84));
+      stem.addColorStop(.48, rgba('#d8d2aa', opacity * (.54 + light * .24)));
+      stem.addColorStop(1, rgba(p[1], opacity * .92));
+      ctx.fillStyle = stem;
+      ctx.beginPath();
+      ctx.moveTo(-stemWidth * .78, 0);
+      ctx.bezierCurveTo(-stemWidth, -height * .3, -stemWidth * .72, -height * .76, -stemWidth * .45, capY + 2);
+      ctx.lineTo(stemWidth * .45, capY + 2);
+      ctx.bezierCurveTo(stemWidth * .86, -height * .7, stemWidth, -height * .28, stemWidth * .72, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      const accents = [p[0], p[2], '#87a778'];
+      const capColor = accents[tone % accents.length];
+      const cap = ctx.createLinearGradient(0, capY - capWidth * .42, 0, capY + capWidth * .18);
+      cap.addColorStop(0, rgba(p[2], opacity * (.42 + light * .34)));
+      cap.addColorStop(.42, rgba(capColor, opacity * .94));
+      cap.addColorStop(1, rgba(p[1], opacity * .96));
+      ctx.fillStyle = cap;
+      ctx.strokeStyle = rgba(p[2], opacity * .3);
+      ctx.lineWidth = .65;
+      ctx.shadowBlur = 7 + light * 5;
+      ctx.shadowColor = rgba(capColor, .34 + light * .24);
+      ctx.beginPath();
+      ctx.moveTo(-capWidth * .5, capY + 1);
+      ctx.bezierCurveTo(-capWidth * .42, capY - capWidth * .38, capWidth * .34, capY - capWidth * .47, capWidth * .5, capY + 1);
+      ctx.quadraticCurveTo(0, capY + capWidth * .22, -capWidth * .5, capY + 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = rgba(p[2], opacity * (.2 + light * .24));
+      ctx.lineWidth = .48;
+      [-.3,-.15,0,.15,.3].forEach(offset => {
+        ctx.beginPath();
+        ctx.moveTo(offset * capWidth, capY + 2);
+        ctx.lineTo(offset * capWidth * .55, capY + capWidth * .14);
+        ctx.stroke();
+      });
+
+      ctx.fillStyle = rgba(p[2], opacity * .48);
+      [[-.2,-.16,.8],[.12,-.25,.65],[.28,-.08,.52]].forEach(spot => {
+        ctx.beginPath();
+        ctx.arc(spot[0] * capWidth, capY + spot[1] * capWidth, spot[2], 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    drawMushroomGrove(time, p) {
+      const back = this.back;
+      const front = this.front;
+      const glow = (Math.sin(time * .48) + 1) * .5;
+
+      const ground = back.createRadialGradient(0, 61, 3, 0, 61, 70);
+      ground.addColorStop(0, rgba(p[0], .18 + glow * .08));
+      ground.addColorStop(.52, rgba(p[1], .52));
+      ground.addColorStop(1, rgba(p[1], 0));
+      back.fillStyle = ground;
+      back.beginPath();
+      back.ellipse(0, 61, 68, 14, 0, 0, Math.PI * 2);
+      back.fill();
+
+      [
+        [-45,55,30,25,-.16,0,.82],
+        [39,53,26,23,.13,2,.76],
+        [-17,64,21,18,.08,1,.7],
+      ].forEach((mushroom, index) => {
+        const local = (Math.sin(time * .42 + index * 1.4) + 1) * .5;
+        this.drawMushroom(
+          back, mushroom[0], mushroom[1], mushroom[2], mushroom[3], mushroom[4],
+          p, mushroom[5], local, mushroom[6]
+        );
+      });
+
+      [
+        [13,65,31,28,-.08,1,.9],
+        [50,61,19,17,.18,0,.72],
+      ].forEach((mushroom, index) => {
+        const local = (Math.sin(time * .42 + 2.4 + index * 1.7) + 1) * .5;
+        this.drawMushroom(front, mushroom[0], mushroom[1], mushroom[2], mushroom[3], mushroom[4], p, mushroom[5], local, mushroom[6]);
+      });
+
+      front.save();
+      front.strokeStyle = rgba(p[0], .24 + glow * .12);
+      front.lineWidth = .55;
+      [[-52,67,-8,72],[-15,69,30,74],[11,70,56,66]].forEach(points => {
+        front.beginPath();
+        front.moveTo(points[0], points[1]);
+        front.bezierCurveTo((points[0] + points[2]) * .5, points[1] - 4, (points[0] + points[2]) * .5, points[3] + 3, points[2], points[3]);
+        front.stroke();
+      });
+      front.restore();
+    }
+
+    drawPine(ctx, x, baseY, height, width, color, opacity) {
+      ctx.save();
+      ctx.translate(x, baseY);
+      const canopy = ctx.createLinearGradient(0, -height, 0, 0);
+      canopy.addColorStop(0, rgba('#9ab9a4', opacity * .72));
+      canopy.addColorStop(.24, rgba(color, opacity));
+      canopy.addColorStop(1, rgba('#182a25', opacity * .92));
+      ctx.fillStyle = canopy;
+      ctx.strokeStyle = rgba('#c3d5c6', opacity * .2);
+      ctx.lineWidth = .5;
+      ctx.beginPath();
+      ctx.roundRect(-1.15, -height * .78, 2.3, height * .78, 1.1);
+      ctx.fill();
+      for (let level = 0; level < 7; level += 1) {
+        const y = -height + level * height * .108;
+        const depth = height * (.19 + level * .012);
+        const half = width * (.24 + level * .112);
+        const lean = Math.sin(level * 2.17 + x * .08) * width * .035;
+        ctx.beginPath();
+        ctx.moveTo(lean, y);
+        ctx.bezierCurveTo(-half * .26, y + depth * .18, -half * .62, y + depth * .66, -half, y + depth * .84);
+        ctx.quadraticCurveTo(-half * .62, y + depth * 1.03, -half * .26, y + depth * .78);
+        ctx.quadraticCurveTo(-half * .12, y + depth * 1.05, lean, y + depth * .76);
+        ctx.quadraticCurveTo(half * .12, y + depth * 1.05, half * .27, y + depth * .78);
+        ctx.quadraticCurveTo(half * .63, y + depth * 1.03, half, y + depth * .84);
+        ctx.bezierCurveTo(half * .62, y + depth * .66, half * .26, y + depth * .18, lean, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.strokeStyle = rgba('#d7e1d9', opacity * .15);
+      ctx.lineWidth = .45;
+      for (let level = 2; level < 7; level += 2) {
+        const y = -height + level * height * .108 + height * .13;
+        const half = width * (.2 + level * .095);
+        ctx.beginPath();
+        ctx.moveTo(-half, y);
+        ctx.quadraticCurveTo(0, y + height * .032, half, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    drawMistGrove(time, p) {
+      const back = this.back;
+      const front = this.front;
+      const clearing = back.createRadialGradient(0, -7, 5, 0, -7, 76);
+      clearing.addColorStop(0, rgba(p[2], .1));
+      clearing.addColorStop(.46, rgba(p[0], .055));
+      clearing.addColorStop(1, rgba(p[1], 0));
+      back.fillStyle = clearing;
+      back.beginPath();
+      back.arc(0, -7, 76, 0, Math.PI * 2);
+      back.fill();
+      const farTrees = [
+        [-70,66,76,23],[-45,67,91,27],[-18,68,72,22],[17,68,83,25],[46,67,96,29],[71,66,74,22],
+      ];
+      farTrees.forEach((tree, index) => this.drawPine(back, tree[0], tree[1], tree[2], tree[3], index % 2 ? p[0] : p[1], .22));
+      const nearTrees = [[-60,68,101,32],[-27,69,88,29],[31,69,96,31],[62,68,105,34]];
+      nearTrees.forEach((tree, index) => this.drawPine(back, tree[0], tree[1], tree[2], tree[3], index % 2 ? '#385149' : p[1], .38));
+
+      const shiftA = Math.sin(time * .19) * 9;
+      const shiftB = Math.cos(time * .16) * 11;
+      const mistA = this.cubicPoints(
+        { x:-88 + shiftA, y:-9 }, { x:-41 + shiftA, y:-28 }, { x:36 + shiftA, y:9 }, { x:88 + shiftA, y:-12 }, 48
+      );
+      const mistB = this.cubicPoints(
+        { x:90 + shiftB, y:47 }, { x:42 + shiftB, y:31 }, { x:-38 + shiftB, y:63 }, { x:-91 + shiftB, y:44 }, 48
+      );
+      const hazeA = back.createLinearGradient(-80, -20, 80, 4);
+      hazeA.addColorStop(0, rgba(p[2], 0));
+      hazeA.addColorStop(.28, rgba(p[0], .16));
+      hazeA.addColorStop(.55, rgba(p[2], .27));
+      hazeA.addColorStop(1, rgba(p[2], 0));
+      this.ribbon(back, mistA, progress => .8 + Math.sin(progress * Math.PI) * 6.2, hazeA, .86);
+      const hazeB = front.createLinearGradient(82, 38, -82, 54);
+      hazeB.addColorStop(0, rgba(p[2], 0));
+      hazeB.addColorStop(.32, rgba(p[0], .12));
+      hazeB.addColorStop(.58, rgba(p[2], .24));
+      hazeB.addColorStop(1, rgba(p[2], 0));
+      this.ribbon(front, mistB, progress => .7 + Math.sin(progress * Math.PI) * 5.4, hazeB, .8);
+    }
+
+    drawOwlSpirit(time, p) {
+      const back = this.back;
+      const front = this.front;
+      const lift = Math.sin(time * .38) * 3.2;
+      this.drawOwlWing(back, -1, lift, p);
+      this.drawOwlWing(back, 1, lift, p);
+
+      back.save();
+      const body = back.createLinearGradient(0, -44, 0, 42);
+      body.addColorStop(0, rgba(p[0], .64));
+      body.addColorStop(.42, rgba(p[1], .94));
+      body.addColorStop(1, rgba(p[1], .18));
+      back.fillStyle = body;
+      back.beginPath();
+      back.moveTo(-12, -39);
+      back.bezierCurveTo(-18, -12, -15, 22, 0, 47);
+      back.bezierCurveTo(15, 22, 18, -12, 12, -39);
+      back.closePath();
+      back.fill();
+      back.restore();
+
+      front.save();
+      const face = front.createLinearGradient(0, -69, 0, -29);
+      face.addColorStop(0, rgba(p[0], .78));
+      face.addColorStop(.46, rgba('#415a50', .94));
+      face.addColorStop(1, rgba(p[1], .96));
+      front.fillStyle = face;
+      front.strokeStyle = rgba(p[2], .4);
+      front.lineWidth = .9;
+      front.shadowBlur = 7;
+      front.shadowColor = rgba(p[0], .26);
+      front.beginPath();
+      front.moveTo(0, -67);
+      front.lineTo(-8, -63);
+      front.lineTo(-16, -66);
+      front.lineTo(-15, -58);
+      front.bezierCurveTo(-22, -52, -20, -40, -12, -33);
+      front.bezierCurveTo(-7, -29, -3, -28, 0, -24);
+      front.bezierCurveTo(3, -28, 7, -29, 12, -33);
+      front.bezierCurveTo(20, -40, 22, -52, 15, -58);
+      front.lineTo(16, -66);
+      front.lineTo(8, -63);
+      front.closePath();
+      front.fill();
+      front.stroke();
+      front.shadowBlur = 0;
+
+      const blink = Math.pow(Math.max(0, Math.sin(time * .51)), 16);
+      [-1, 1].forEach(side => {
+        const disk = front.createRadialGradient(side * 6.7, -49, 1, side * 6.7, -49, 10);
+        disk.addColorStop(0, rgba(p[2], .2));
+        disk.addColorStop(.52, rgba(p[0], .3));
+        disk.addColorStop(1, rgba(p[1], 0));
+        front.fillStyle = disk;
+        front.beginPath();
+        front.moveTo(0, -44);
+        front.bezierCurveTo(side * 2, -59, side * 12, -62, side * 14, -51);
+        front.bezierCurveTo(side * 13, -40, side * 5, -36, 0, -44);
+        front.closePath();
+        front.fill();
+        front.strokeStyle = rgba(p[2], .22);
+        front.lineWidth = .55;
+        front.stroke();
+        front.fillStyle = rgba(p[2], .86);
+        front.beginPath();
+        front.ellipse(side * 6.7, -49, 1.35, Math.max(.24, 1.48 - blink * 1.28), 0, 0, Math.PI * 2);
+        front.fill();
+      });
+      front.strokeStyle = rgba(p[2], .26);
+      front.lineWidth = .7;
+      [-1, 1].forEach(side => {
+        front.beginPath();
+        front.moveTo(side * 1.5, -54);
+        front.quadraticCurveTo(side * 8, -61, side * 14, -56);
+        front.stroke();
+      });
+      front.fillStyle = rgba('#c6a45c', .88);
+      front.beginPath();
+      front.moveTo(-2.4, -44);
+      front.lineTo(2.4, -44);
+      front.lineTo(0, -39.5);
+      front.closePath();
+      front.fill();
+      front.restore();
     }
 
     drawMapleLeaf(ctx, x, y, size, rotation, p, tone = 0, opacity = 1) {

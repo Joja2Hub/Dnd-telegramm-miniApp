@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#090c10">
   <title>FX Lab — эффекты персонажей</title>
-  <link rel="stylesheet" href="./styles.css?v=4">
+  <link rel="stylesheet" href="./styles.css?v=5">
 </head>
 <body>
   <header class="app-header">
     <div class="brand">
       <div class="brand-sigil" aria-hidden="true"><i></i><i></i></div>
       <div>
-        <p>FX LAB · ВТОРАЯ ИТЕРАЦИЯ</p>
+        <p>FX LAB · МАГИЯ И СТИХИИ</p>
         <h1>Эффекты персонажей</h1>
       </div>
     </div>
     <div class="build-facts" aria-label="Параметры прототипа">
-      <div><b id="effect-total">12</b><span>проработанных эффектов</span></div>
-      <div><b>2</b><span>слоя вокруг портрета</span></div>
-      <div><b>64 px</b><span>основной игровой размер</span></div>
-      <div><b>Canvas 2D</b><span>текущий стек проекта</span></div>
+      <div><b id="effect-total">36</b><span>эффектов</span></div>
+      <div><b>25</b><span>новых вариантов</span></div>
+      <div><b>7</b><span>категорий</span></div>
+      <div><b>FX 12–36</b><span>новая коллекция</span></div>
     </div>
   </header>
 
@@ -68,8 +68,8 @@
     <section class="catalog-section">
       <div class="section-head">
         <div>
-          <p>КУРАТОРСКИЙ НАБОР · БЕЗ РАМОК</p>
-          <h2>Эффекты вокруг портрета</h2>
+          <p>КОЛЛЕКЦИЯ ЭФФЕКТОВ</p>
+          <h2>Библиотека</h2>
         </div>
         <span id="result-count"></span>
       </div>
@@ -94,10 +94,16 @@
           <div><span>Цикл</span><b id="dialog-loop"></b></div>
         </div>
         <div id="dialog-tags" class="tag-row"></div>
+        <div class="dialog-navigation">
+          <button id="dialog-previous" type="button" aria-label="Предыдущий эффект" title="Предыдущий эффект">←</button>
+          <span id="dialog-position"></span>
+          <button id="dialog-next" type="button" aria-label="Следующий эффект" title="Следующий эффект">→</button>
+        </div>
       </div>
     </div>
   </dialog>
 
-  <script src="./app.js?v=30"></script>
+  <script src="./magic-effects.js?v=1"></script>
+  <script src="./app.js?v=38"></script>
 </body>
 </html>

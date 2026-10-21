@@ -109,6 +109,77 @@ class AchievementPlayerGrantTests(unittest.TestCase):
                 admin = client.post('/api/sparks/admin/players/400/achievements/grant', headers=master, json={'achievement_id': achievement['id']})
                 self.assertEqual(admin.status_code, 200, admin.text)
 
+    def test_local_player_can_open_account_achievement_from_another_campaign(self) -> None:
+        with ExitStack() as stack:
+            tmp = stack.enter_context(tempfile.TemporaryDirectory())
+            db_path = str(Path(tmp) / "test.sqlite3")
+            db = Database(db_path)
+            stack.callback(db.conn.close)
+            db.init_schema()
+            reward_campaign = db.create_campaign("Old game", 100)
+            current_campaign = db.create_campaign("Current game", 300)
+            current_character = db.create_character(int(current_campaign["id"]), "Current hero", 20, 12)
+            db.link_character(int(current_character["id"]), 200)
+            achievement = db.create_achievement(
+                int(reward_campaign["id"]), 100, icon="*", title="Millionaire?",
+                description="Cross-campaign reward", tag="Old game", currency_reward=10,
+            )
+            grant = db.grant_achievement_to_player(
+                int(achievement["id"]), 200, int(reward_campaign["id"]), 100,
+            )
+            settings = Settings(db_path=db_path, bot_token='', dev_mode=True, main_master_tg_id=100)
+            local_player = {
+                "X-Dev-Telegram-Id": "300",
+                "X-Dev-View-Character-Id": str(current_character["id"]),
+            }
+
+            with TestClient(create_app(db, settings)) as client:
+                opened = client.post(f"/api/achievement-grants/{grant['id']}/open", headers=local_player)
+
+            self.assertEqual(opened.status_code, 200, opened.text)
+            self.assertEqual(db.get_currency_balance(200), 10)
+            self.assertTrue(db.get_grant_by_achievement_user(int(achievement["id"]), 200)["opened_at"])
+
+    def test_open_repairs_legacy_opened_grant_without_currency_reward(self) -> None:
+        with ExitStack() as stack:
+            tmp = stack.enter_context(tempfile.TemporaryDirectory())
+            db_path = str(Path(tmp) / "test.sqlite3")
+            db = Database(db_path)
+            stack.callback(db.conn.close)
+            db.init_schema()
+            campaign = db.create_campaign("Campaign", 100)
+            character = db.create_character(int(campaign["id"]), "Hero", 20, 12)
+            db.link_character(int(character["id"]), 200)
+            achievement = db.create_achievement(
+                int(campaign["id"]), 100, icon="*", title="Legacy",
+                description="Missing old reward", tag="Campaign", currency_reward=10,
+            )
+            grant = db.grant_achievement_to_player(
+                int(achievement["id"]), 200, int(campaign["id"]), 100,
+                character_id=int(character["id"]),
+            )
+            db.conn.execute(
+                "UPDATE achievement_grants SET opened_at=? WHERE id=?",
+                ("2026-01-01T00:00:00+00:00", int(grant["id"])),
+            )
+            db.conn.commit()
+            settings = Settings(db_path=db_path, bot_token='', dev_mode=True, main_master_tg_id=100)
+            player = {"X-Dev-Telegram-Id": "200"}
+
+            with TestClient(create_app(db, settings)) as client:
+                for _ in range(2):
+                    opened = client.post(f"/api/achievement-grants/{grant['id']}/open", headers=player)
+                    self.assertEqual(opened.status_code, 200, opened.text)
+
+            self.assertEqual(db.get_currency_balance(200), 10)
+            reward_rows = db._many(
+                "SELECT id FROM currency_transactions WHERE telegram_user_id=? AND source='achievement' AND source_id=?",
+                (200, int(grant["id"])),
+            )
+            self.assertEqual(len(reward_rows), 1)
+            repaired_grant = db.get_grant_by_achievement_user(int(achievement["id"]), 200)
+            self.assertEqual(int(repaired_grant["character_id"]), int(character["id"]))
+
 
 if __name__ == "__main__":
     unittest.main()

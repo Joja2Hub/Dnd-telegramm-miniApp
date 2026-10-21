@@ -3157,6 +3157,8 @@ class Database:
             ch = self.get_character(int(character_id))
             if not ch or int(ch.get("telegram_user_id") or 0) != tg_id:
                 raise ValueError("Персонаж не принадлежит этому игроку")
+            if int(ch.get("campaign_id") or 0) != int(campaign_id):
+                raise ValueError("Персонаж из другой кампании")
         cur = self.conn.execute(
             """
             INSERT INTO achievement_grants(achievement_id, telegram_user_id, campaign_id, character_id, given_by_master_id, master_comment, created_at)
@@ -3168,7 +3170,15 @@ class Database:
                 master_comment=excluded.master_comment,
                 created_at=excluded.created_at
             """,
-            (int(achievement_id), tg_id, int(campaign_id), None, int(master_tg_id), master_comment.strip(), utc_now()),
+            (
+                int(achievement_id),
+                tg_id,
+                int(campaign_id),
+                int(character_id) if character_id else None,
+                int(master_tg_id),
+                master_comment.strip(),
+                utc_now(),
+            ),
         )
         grant_id = int(cur.lastrowid or 0)
         self.conn.commit()
@@ -3179,12 +3189,7 @@ class Database:
         grant = self._one("SELECT * FROM achievement_grants WHERE id=? AND telegram_user_id=?", (int(grant_id), int(telegram_user_id)))
         if not grant:
             raise ValueError("Достижение не найдено")
-        opened_at = ""
-        if not str(grant.get("opened_at") or ""):
-            opened_at = utc_now()
-            self.conn.execute("UPDATE achievement_grants SET opened_at=? WHERE id=?", (opened_at, int(grant_id)))
-            self.conn.commit()
-            grant = self._one("SELECT * FROM achievement_grants WHERE id=?", (int(grant_id),)) or grant
+        first_open = not str(grant.get("opened_at") or "")
         ach = self.get_achievement(int(grant["achievement_id"]))
         if ach:
             reward = ach.get("cosmetic_reward_id")
@@ -3201,9 +3206,21 @@ class Database:
                 self.unlock_inventory_model(int(telegram_user_id), str(model_reward), source='achievement', source_id=int(grant["id"]))
             currency_reward = int(ach.get("currency_reward") or 0)
             if currency_reward > 0:
-                # Чтобы повторное открытие не дублировало валюту: начисляем только когда opened_at был пустым.
-                if opened_at:
+                reward_transaction = self._one(
+                    """
+                    SELECT id FROM currency_transactions
+                    WHERE telegram_user_id=? AND source='achievement' AND source_id=?
+                    LIMIT 1
+                    """,
+                    (int(telegram_user_id), int(grant["id"])),
+                )
+                if not reward_transaction:
                     self.grant_currency_from_master(int(grant.get("given_by_master_id") or 0), int(telegram_user_id), currency_reward, campaign_id=int(grant.get("campaign_id") or 0), target_character_id=int(grant.get("character_id") or 0) if grant.get("character_id") else None, comment=f"Достижение: {ach.get('title')}", source='achievement', source_id=int(grant["id"]), created_by_tg_id=int(grant.get("given_by_master_id") or 0))
+        if first_open:
+            opened_at = utc_now()
+            self.conn.execute("UPDATE achievement_grants SET opened_at=? WHERE id=?", (opened_at, int(grant_id)))
+            self.conn.commit()
+            grant = self._one("SELECT * FROM achievement_grants WHERE id=?", (int(grant_id),)) or grant
         return self._hydrate_grant(grant) or grant
 
     def get_grant_by_achievement_user(self, achievement_id: int, telegram_user_id: int) -> dict[str, Any] | None:
