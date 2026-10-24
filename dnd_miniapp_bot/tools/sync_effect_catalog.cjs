@@ -1,0 +1,10 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const root=path.resolve(__dirname,'..'),window={};
+for(const file of ['arcane-effects.js','smoke-effects.js'])vm.runInNewContext(fs.readFileSync(path.join(root,'frontend/cosmetics-preview',file),'utf8'),{window});
+const source=fs.readFileSync(path.join(root,'frontend/cosmetics-preview/app.js'),'utf8');
+const start=source.indexOf('  const restoredEffects'),end=source.indexOf('  const state');
+if(start<0||end<start)throw Error('Preview catalog boundaries changed');
+const effects=vm.runInNewContext(source.slice(start,end)+';EFFECTS',{window});
+if(new Set(effects.map(e=>e.id)).size!==effects.length)throw Error('Duplicate effect IDs');
+fs.writeFileSync(path.join(root,'frontend/effect-catalog.json'),JSON.stringify(effects,null,2)+'\n');
+console.log('Synced '+effects.length+' effect definitions.');

@@ -18,6 +18,9 @@ data/*.db
 data/*.db-*
 data/backups/
 data/uploads/
+data1/
+backups/
+uploads/
 local_host/*.json
 
 # =========================
@@ -60,8 +63,7 @@ desktop.ini
 *.bak
 *.swp
 *.swo
-tmp/combat-template-*.png
-tmp/*combat_templates*.sqlite3
+tmp/
 
 # =========================
 # Local tunnel / process artifacts

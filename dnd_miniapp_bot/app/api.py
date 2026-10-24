@@ -157,6 +157,7 @@ class PlayerSettingsIn(BaseModel):
     color: str | None = Field(default=None, max_length=20)
     custom_frame: str | None = Field(default=None, max_length=80)
     custom_effect: str | None = Field(default=None, max_length=80)
+    effect_style: dict[str, Any] | None = None
 
 
 class AchievementCreateIn(BaseModel):
@@ -184,8 +185,9 @@ class AchievementGrantManyIn(BaseModel):
 
 
 class ShopPurchaseIn(BaseModel):
-    item_type: Literal["frame", "effect"]
+    item_type: Literal["frame", "effect", "effect_style"]
     item_id: str = Field(min_length=1, max_length=80)
+    option_id: str = Field(default='', max_length=80)
 
 
 class CurrencyGrantIn(BaseModel):
@@ -633,6 +635,7 @@ def _public_character(ch: dict[str, Any]) -> dict[str, Any]:
         "avatar_path": ch.get("avatar_path", ""),
         "custom_frame": ch.get("custom_frame", ""),
         "custom_effect": ch.get("custom_effect", ""),
+        "effect_style": ch.get("effect_style", {}),
         "unique_custom_unlocked": ch.get("unique_custom_unlocked", False),
         "current_hp": ch.get("current_hp", 0),
         "current_max_hp": ch.get("current_max_hp", 0),
@@ -804,6 +807,7 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "campaigns": [_campaign_summary(db, c, user.id) for c in by_id.values()],
             "dev_mode": settings.dev_mode,
             "spark_admin": _is_spark_admin(db, settings, user),
+            "shop_gift_available": db.shop_gift_available(user.id),
         }
 
     @app.post("/api/campaigns")
@@ -1046,6 +1050,8 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "inventory_models": db.list_inventory_models(),
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(viewer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(viewer_tg_id),
+            "effect_style_unlocks": db.effect_style_state(viewer_tg_id),
+            "shop_gift_available": db.shop_gift_available(viewer_tg_id),
             "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
             "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
@@ -1612,6 +1618,25 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                     raise HTTPException(400, "Неизвестный эффект")
                 if not db.has_effect_unlocked(effective_player_id, effect):
                     raise HTTPException(403, "Этот эффект ещё не открыт")
+        if 'effect_style' in updates or 'custom_effect' in updates:
+            from .effect_catalog import canonical
+            effect_id = canonical(str(updates.get('custom_effect', ch.get('custom_effect')) or ''))
+            updates['custom_effect'] = effect_id
+            style_value = updates.pop('effect_style', {'mode':'original'})
+            style_value.setdefault('radius_scale',(ch.get('effect_radii') or {}).get(effect_id,1))
+            style_value.setdefault('layer',(ch.get('effect_layers') or {}).get(effect_id,'auto'))
+            try:
+                style = db.validate_effect_style(effective_player_id,effect_id,style_value) if effect_id else {'mode':'original'}
+            except ValueError as exc:
+                raise HTTPException(403,str(exc))
+            updates['effect_style_json'] = json.dumps(style)
+            if effect_id:
+                radii = dict(ch.get('effect_radii') or {})
+                radii[effect_id] = style.get('radius_scale',1)
+                updates['effect_radii_json'] = json.dumps(radii)
+                layers=dict(ch.get('effect_layers') or {})
+                layers[effect_id]=style.get('layer','auto')
+                updates['effect_layers_json']=json.dumps(layers)
         if not updates:
             return {"character": ch}
         new_ch = db.update_character_fields(character_id, **updates)
@@ -2091,6 +2116,8 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "achievement_grants": db.list_player_achievement_grants(viewer_tg_id),
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(viewer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(viewer_tg_id),
+            "effect_style_unlocks": db.effect_style_state(viewer_tg_id),
+            "shop_gift_available": db.shop_gift_available(viewer_tg_id),
             "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
             "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
@@ -2502,6 +2529,20 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
 
 
 
+    @app.post('/api/shop/welcome-gift')
+    async def claim_shop_welcome_gift(user: TelegramUser=Depends(get_current_user),
+        x_dev_view_character_id: str | None=Header(default=None,alias='X-Dev-View-Character-Id')) -> dict[str,Any]:
+        viewer_id=int(user.id)
+        if x_dev_view_character_id:
+            ch=db.get_character(int(x_dev_view_character_id))
+            if ch:
+                dev_ch=_dev_impersonated_character(db,settings,int(ch['campaign_id']),user,x_dev_view_character_id)
+                if dev_ch and dev_ch.get('telegram_user_id'):viewer_id=int(dev_ch['telegram_user_id'])
+        try:
+            return db.claim_shop_gift(viewer_id)
+        except ValueError as exc:
+            raise HTTPException(400,str(exc))
+
     @app.post("/api/shop/purchase")
     async def purchase_shop_item(
         data: ShopPurchaseIn,
@@ -2519,13 +2560,14 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                 if dev_character and dev_character.get("telegram_user_id"):
                     buyer_tg_id = int(dev_character["telegram_user_id"])
         try:
-            out = db.purchase_cosmetic_item(buyer_tg_id, data.item_type, data.item_id)
+            out = db.purchase_effect_style(buyer_tg_id,data.item_id,data.option_id) if data.item_type == 'effect_style' else db.purchase_cosmetic_item(buyer_tg_id, data.item_type, data.item_id)
         except Exception as e:
             raise HTTPException(400, str(e))
         return {
             **out,
             "unlocked_cosmetic_ids": db.list_unlocked_cosmetic_ids(buyer_tg_id),
             "unlocked_effect_ids": db.list_unlocked_effect_ids(buyer_tg_id),
+            "effect_style_unlocks": db.effect_style_state(buyer_tg_id),
             "currency_balance": db.get_currency_balance(buyer_tg_id),
             "currency_transactions": db.list_currency_transactions(buyer_tg_id, 20),
         }

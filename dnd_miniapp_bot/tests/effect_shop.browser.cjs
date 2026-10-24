@@ -1,0 +1,122 @@
+const path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
+const modules=process.env.CODEX_NODE_MODULES||path.join(os.homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules');
+const {chromium}=require(path.join(modules,'playwright'));
+const base=process.env.SHOP_TEST_URL||'http://127.0.0.1:8000';
+(async()=>{
+ const browser=await chromium.launch({channel:'msedge',headless:true});
+ try {
+  const context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  const data=await (await context.request.get(base+'/local-api/active-campaign')).json();
+  const ch=data.characters.find(c=>c.telegram_user_id&&c.telegram_user_id!==data.campaign?.master_tg_id);
+  assert.ok(ch,'A linked player in the active local campaign is needed for this read-only test.');
+  await page.goto(base+`/local-app/?local_tg_id=${ch.telegram_user_id}&campaign_id=${data.campaign.id}&local_character_id=${ch.id}`);
+  await page.waitForFunction(()=>typeof state!=='undefined'&&state.campaignState?.cosmetic_effects?.length);
+  await page.evaluate(()=>setTab('settings'));
+  await page.locator('details.effects > summary').click();
+  await page.locator('details.effects .shop-category-control select').selectOption('new');
+  await page.waitForTimeout(450);
+  assert.equal(await page.locator('details.effects .shop-new-badge').count(),28);
+  assert.equal(await page.evaluate(()=>[...activeCanvasEffects.values()].filter(r=>r.el.closest('.shop-buy-card')&&r.engine.active).length),0);
+  await page.evaluate(()=>{
+    const root=document.createElement('div');root.id='animation-regression';root.style.cssText='position:fixed;top:70px;right:10px;width:160px;z-index:1';
+    root.innerHTML=['wildfire','fire-ring','plasma-pulse'].map(custom_effect=>avatarCircle({name:'QA',custom_effect},'sm')).join('');
+    document.body.append(root);setupCanvasEffects(root);scheduleCanvasEffectsFrame();
+  });
+  await page.waitForTimeout(350);
+  assert.equal(await page.evaluate(()=>[...activeCanvasEffects.values()].filter(r=>r.el.closest('#animation-regression')&&r.engine.active).length),3);
+  await page.evaluate(()=>openShopPreview('effect','wildfire'));
+  await page.waitForTimeout(350);
+  assert.equal(await page.evaluate(()=>[...activeCanvasEffects.values()].filter(r=>r.engine.active).length),1);
+  assert.equal(await page.locator('.shop-palette-swatch').count(),13);
+  await page.locator('.shop-radius-control input').fill('80');
+  await page.waitForFunction(()=>{const engine=[...activeCanvasEffects.values()].find(r=>r.el.closest('.cosmetic-preview-modal')).engine;return Math.abs(engine.renderer.sceneSize/engine.baseSceneSize-.8)<.01;});
+  await page.locator('[aria-label="Сбросить радиус"]').click();
+  await page.waitForFunction(()=>{const engine=[...activeCanvasEffects.values()].find(r=>r.el.closest('.cosmetic-preview-modal')).engine;return Math.abs(engine.renderer.sceneSize/engine.baseSceneSize-1)<.01;});
+  const sceneFit=await page.evaluate(()=>{
+    const rec=[...activeCanvasEffects.values()].find(r=>r.el.closest('.cosmetic-preview-modal'));
+    const before=rec.engine.renderer.sceneSize;
+    rec.el.style.setProperty('--fx-canvas-scale','4','important');rec.geometry=null;sizeCanvasEffectHost(rec);
+    const after=rec.engine.renderer.sceneSize,anchor=effectAnchorMetrics(rec.el).base;
+    rec.el.style.removeProperty('--fx-canvas-scale');rec.geometry=null;sizeCanvasEffectHost(rec);
+    return {before,after,anchor};
+  });
+  assert.ok(Math.abs(sceneFit.before-sceneFit.after)<4,'Canvas padding changed effect size');
+  assert.ok(Math.abs(sceneFit.before/sceneFit.anchor-240/84)<.05,'Effect does not hug its anchor');
+  await page.locator('[aria-label="Расположение эффекта"]').selectOption('back');await page.waitForTimeout(100);
+  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.cosmetic-preview-modal canvas.effect-engine-canvas')].every(c=>Number(getComputedStyle(c).zIndex)<10)),'Back layer covers the frame');
+  await page.locator('[aria-label="Расположение эффекта"]').selectOption('front');await page.waitForTimeout(100);
+  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.cosmetic-preview-modal canvas.effect-engine-canvas')].every(c=>Number(getComputedStyle(c).zIndex)>20)),'Front layer is behind the frame');
+  await page.locator('[aria-label="Расположение эффекта"]').selectOption('between');
+  await page.waitForFunction(()=>document.querySelector('.cosmetic-preview-modal .fx-avatar-shell')?.dataset.effectLayer==='between');
+  assert.ok(await page.evaluate(()=>{
+    const host=document.querySelector('.cosmetic-preview-modal .fx-avatar-shell'),shell=host.querySelector('.avatar-shell');
+    if(!shell)return true;
+    const avatar=shell.querySelector('.avatar'),frame=shell.querySelector('.avatar-shell-frame');
+    return [...host.querySelectorAll('canvas.effect-engine-canvas')].every(c=>c.parentElement===shell&&Number(getComputedStyle(c).zIndex)>Number(getComputedStyle(avatar).zIndex)&&Number(getComputedStyle(c).zIndex)<Number(getComputedStyle(frame).zIndex));
+  }),'Middle layer does not sit between portrait and frame');
+  await page.evaluate(()=>{
+    window.qaModal=document.querySelector('.cosmetic-preview-modal');
+    window.qaEngine=[...activeCanvasEffects.values()].find(r=>r.el.closest('.cosmetic-preview-modal')).engine;
+    window.qaReadbacks=0;window.qaRead=CanvasRenderingContext2D.prototype.getImageData;
+    CanvasRenderingContext2D.prototype.getImageData=function(...args){window.qaReadbacks++;return window.qaRead.apply(this,args);};
+  });
+  const timings=await page.evaluate(()=>{
+    const samples=[];
+    for(let j=0;j<20;j++){const start=performance.now();chooseEffectStyle('wildfire',j%2?'gradient':'preset:purple',playerChar().id);samples.push(performance.now()-start);}
+    return samples.sort((a,b)=>a-b);
+  });
+  assert.equal(await page.locator('[aria-label="Расположение эффекта"]').inputValue(),'between');
+  await page.waitForTimeout(600);
+  assert.ok(await page.evaluate(()=>qaModal===document.querySelector('.cosmetic-preview-modal')),'Changing color replaced the modal');
+  assert.ok(await page.evaluate(()=>[...activeCanvasEffects.values()].some(r=>r.engine===qaEngine&&r.engine.active)),'Changing color recreated the renderer');
+  assert.equal(await page.evaluate(()=>qaReadbacks),0,'Color animation reads pixels back to the CPU');
+  assert.equal(await page.evaluate(()=>[...activeCanvasEffects.values()].filter(r=>r.engine.active).length),1);
+  await page.evaluate(()=>{CanvasRenderingContext2D.prototype.getImageData=qaRead;});
+  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(250);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'Mobile overflow');
+  await page.evaluate(()=>closeModal());await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(()=>[...activeCanvasEffects.values()].filter(r=>r.el.closest('#animation-regression')&&r.engine.active).length),3,'Other windows did not resume');
+  await page.evaluate(()=>{document.getElementById('animation-regression').remove();pruneCanvasEffects();});
+  assert.deepEqual(errors,[]);
+  console.log('Passed: static shop, exactly one selected animation, all three non-shop effects resume, stable modal/renderer, zero CPU readbacks, mobile layout.');
+  console.log('Palette switch p95: '+timings[18].toFixed(2)+' ms');
+  // Exercise the announcement without claiming a real player's gift.
+  const giftContext=await browser.newContext({viewport:{width:390,height:844}}),giftPage=await giftContext.newPage();
+  let claimed=false,balance=null;
+  await giftPage.route('**/api/campaigns/*/state',async route=>{
+    const response=await route.fetch(),json=await response.json();balance??=Number(json.currency_balance||0);
+    await route.fulfill({response,json:{...json,shop_gift_available:!claimed,currency_balance:balance+(claimed?500:0)}});
+  });
+  await giftPage.route('**/api/me',async route=>{const response=await route.fetch(),json=await response.json();await route.fulfill({response,json:{...json,shop_gift_available:!claimed}});});
+  await giftPage.route('**/api/shop/welcome-gift',route=>{const first=!claimed;claimed=true;return route.fulfill({json:{claimed:first,amount:first?500:0,currency_balance:balance+500,currency_transactions:[]}});});
+  await giftPage.goto(base+`/local-app/?local_tg_id=${ch.telegram_user_id}&campaign_id=${data.campaign.id}&local_character_id=${ch.id}`);
+  await giftPage.waitForSelector('#shopGiftWisp',{state:'attached'});
+  const appearance=await giftPage.locator('#shopGiftWisp').evaluate(async e=>{
+    const fade=e.getAnimations().find(a=>a.animationName==='shopGiftAppear');
+    const flight=e.getAnimations().find(a=>a.animationName==='shopGiftFlight');
+    fade.pause();fade.currentTime=0;await new Promise(requestAnimationFrame);
+    const initial=Number(getComputedStyle(e).opacity);
+    fade.currentTime=6500;await new Promise(requestAnimationFrame);const middle=Number(getComputedStyle(e).opacity);
+    fade.currentTime=8000;flight.pause();flight.currentTime=0;await new Promise(requestAnimationFrame);const start=e.getBoundingClientRect();
+    flight.currentTime=7000;await new Promise(requestAnimationFrame);const end=e.getBoundingClientRect(),matrix=new DOMMatrix(getComputedStyle(e).transform);
+    return {initial,middle,distance:Math.hypot(end.x-start.x,end.y-start.y),upright:Math.abs(matrix.a-1)<.01&&Math.abs(matrix.b)<.01};
+  });
+  assert.equal(appearance.initial,0);assert.ok(appearance.middle>0&&appearance.middle<1);
+  assert.ok(appearance.distance>12&&appearance.distance<60&&appearance.upright,'Spirit must circle gently without spinning');
+  await giftPage.locator('#shopGiftWisp').evaluate(e=>{e.style.animation='none';e.style.transform='translate(20px,180px)';});
+  await giftPage.locator('#shopGiftWisp').click();
+  await giftPage.waitForSelector('.shop-gift-modal');
+  assert.ok(await giftPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'Gift modal mobile overflow');
+  if(process.env.SHOP_QA_GIFT_IMAGE)await giftPage.locator('.shop-gift-modal').screenshot({path:process.env.SHOP_QA_GIFT_IMAGE});
+  assert.ok((await giftPage.locator('.shop-gift-modal').innerText()).includes('500'));
+  assert.equal(await giftPage.locator('#shopGiftWisp').count(),0);
+  await giftPage.getByRole('button',{name:'В магазин',exact:true}).click();
+  await giftPage.waitForSelector('details.effects[open]');
+  assert.equal(await giftPage.locator('details.effects .shop-category-control select').inputValue(),'new');
+  await giftPage.reload();await giftPage.waitForFunction(()=>typeof state!=='undefined'&&state.campaignState?.cosmetic_effects);
+  assert.equal(await giftPage.locator('#shopGiftWisp,.shop-gift-modal').count(),0);
+  await giftContext.close();
+  console.log('Gift UI: firefly, announcement, direct shop navigation and no repeat after reload verified with a mocked claim; no real gift claimed.');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1)});

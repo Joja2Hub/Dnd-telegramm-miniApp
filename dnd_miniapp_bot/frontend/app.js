@@ -140,7 +140,7 @@ function uniqueEffects() { return cosmeticEffects().filter(c => c.category === '
 
 const HIDDEN_EFFECT_IDS = new Set();
 const MODERN_EFFECT_IDS = new Set(['silver_motes', 'soft_mist', 'dew_drift', 'shadow_dust', 'heavy_rain', 'snow_squall', 'black_rain', 'midnight_snow', 'soot_rain', 'moon_sigils', 'toxic_drizzle', 'star_chorus', 'coin_whirl', 'grave_whispers', 'storm_lash', 'oracle_glyphs', 'grave_candles', 'necrotic_ash', 'night_script', 'neon_rain', 'holo_glitch', 'quantum_pixels', 'meridian_orbit', 'thunder_throne', 'nightfall', 'oblivion_script', 'golden_glint', 'amethyst_dust', 'halo_of_dawn', 'umbra_crown', 'rune_ascent', 'brutalist_hud', 'corporate_veil', 'gear_orbit', 'silver_glint', 'gem_grotto', 'low_equator_orbit', 'red_equator_scan', 'matrix_rain', 'diamond_shimmer', 'matrix_rain_cyan', 'matrix_rain_violet', 'matrix_rain_gold', 'matrix_orbit', 'quantum_hex', 'hex_beacon', 'ring_glints', 'holo_iris', 'aether_loom', 'effect_none']);
-function isModernEffectId(id) { return MODERN_EFFECT_IDS.has(String(id || '')); }
+function isModernEffectId(id) { return MODERN_EFFECT_IDS.has(String(id || '')) || !!effectById(id)?.renderer; }
 function normalizedEffectId(id) { return isModernEffectId(id) ? String(id || '') : ''; }
 function visibleEffects() { return cosmeticEffects().filter(e => e.id !== 'effect_none' && isModernEffectId(e.id)); }
 function frameClassFor(id) {
@@ -250,7 +250,6 @@ class EffectEngine {
         this.spawnAcc = 0;
         this.active = false;
         this.resize();
-        window.addEventListener('resize', () => this.resize());
       }
 
       setActive(value) {
@@ -282,7 +281,7 @@ class EffectEngine {
         // the particle scene. 140 matches the v61 radius while still allowing CSS
         // to override it for special cases.
         const densityBase = Math.max(120, Number(this.canvas.dataset.effectFitBase || 140) || 140);
-        const fit = anchorBase / densityBase;
+        const fit = anchorBase / densityBase * (this.radiusScale||1);
         const offsetX = (((rect.width || this.stage) - this.stage * fit) / 2) * dpr;
         const offsetY = (((rect.height || this.stage) - this.stage * fit) / 2) * dpr;
         this.ctx.setTransform(dpr * fit, 0, 0, dpr * fit, offsetX, offsetY);
@@ -3036,29 +3035,27 @@ const canvasEffectVisibilityObserver = typeof IntersectionObserver === 'function
     }, {rootMargin:'180px 0px'})
   : null;
 
-function isCanvasManagedEffectId(id) { return CANVAS_EFFECT_IDS.has(String(id || '')); }
+function isCanvasManagedEffectId(id) { return CANVAS_EFFECT_IDS.has(String(id || '')) || !!effectById(id)?.renderer; }
 function activationWrapperForEffectTarget(el) {
   return el?.closest?.('.fx-avatar-shell, .effect-choice-preview, .avatar-shell, .frame-demo.effect-demo') || el;
 }
-function desiredCanvasEffectState(el) {
+function desiredCanvasEffectState(el, shopModal=document.querySelector('[data-shop-preview]')) {
   if (!el) return false;
+  if(canvasEffectVisibility.get(el)===false)return false;
+  if(shopModal)return el.closest('[data-shop-preview]')===shopModal && el.dataset.effectId===shopModal.dataset.shopEffectId;
+  if(el.closest('.customization-card,.shop-standalone-card'))return false;
   const wrapper = activationWrapperForEffectTarget(el);
   const inPreviewModal = !!(el.closest?.('.cosmetic-preview-modal') || wrapper?.closest?.('.cosmetic-preview-modal'));
   const forced = !!(el.classList?.contains('effect-force-active') || wrapper?.classList?.contains('effect-force-active'));
   if (inPreviewModal) return true;
+  if(el.closest?.('.shop-buy-card'))return false;
   if (forced) return canvasEffectVisibility.get(el) !== false;
   // Applied character effects are rendered by avatarCircle() as fx-avatar-shell
   // without the fx-preview-shell marker. These must stay alive everywhere: shop
   // header/settings preview, party, combat, public/profile windows, etc.
   if (el.classList?.contains('avatar') && el.classList.contains('cosmetic-effect')) return true;
   if (el.classList?.contains('fx-avatar-shell') && !el.classList?.contains('fx-preview-shell')) return true;
-  // Static effect cards may wake on hover/focus, but they do not run permanently.
-  if (wrapper?.closest?.('.frame-choice') && !inPreviewModal) return false;
-  try {
-    return !!(wrapper?.matches?.(':hover') || el?.matches?.(':hover'));
-  } catch(_) {
-    return false;
-  }
+  return true;
 }
 function bindCanvasHostWake(wrapper) {
   if (!wrapper || wrapper.dataset.effectCanvasWakeBound === '1') return;
@@ -3069,7 +3066,8 @@ function bindCanvasHostWake(wrapper) {
 function ensureCanvasEffectHost(el) {
   if (!el || !el.isConnected) return null;
   const effectId = String(el.dataset.effectId || '');
-  const type = canvasEffectTypeForId(effectId);
+  const definition=effectById(effectId)?.renderer;
+  const type = definition ? 'lab:'+effectId : canvasEffectTypeForId(effectId);
   if (!type) return null;
   let rec = activeCanvasEffects.get(el);
   if (!rec) {
@@ -3077,11 +3075,20 @@ function ensureCanvasEffectHost(el) {
     canvas.className = 'effect-engine-canvas';
     canvas.setAttribute('aria-hidden', 'true');
     el.appendChild(canvas);
-    rec = {el, canvas, engine:new EffectEngine(canvas, type), type};
+    rec = {el, canvas, engine:definition?new window.ShopEffectEngine(canvas,definition):new EffectEngine(canvas, type), type};
+    if(!definition) {
+      rec.engine.update=((update)=>function(now){
+        const radius=window.effectRadiusForHost(el);
+        if(this.radiusScale!==radius){this.radiusScale=radius;this.resize();}
+        update.call(this,now);window.tintLegacyShopEffect(this,el);
+      })(rec.engine.update);
+      rec.engine.setActive=function(value){this.active=!!value;this.last=performance.now();};
+    }
     activeCanvasEffects.set(el, rec);
   } else if (rec.type !== type) {
     rec.type = type;
-    rec.engine = new EffectEngine(rec.canvas, type);
+    rec.engine.destroy?.();
+    rec.engine = definition?new window.ShopEffectEngine(rec.canvas,definition):new EffectEngine(rec.canvas, type);
   }
   el.dataset.effectRender = 'canvas';
   el.classList.add('effect-canvas-host');
@@ -3094,16 +3101,45 @@ function ensureCanvasEffectHost(el) {
   sizeCanvasEffectHost(rec);
   return rec;
 }
+const effectFrameFootprints=new Map();
+const pendingEffectFrameImages=new WeakSet();
+function visibleEffectFrameRect(image,rect) {
+  if(!image?.complete || !image.naturalWidth) {
+    if(image&&!pendingEffectFrameImages.has(image)) {
+      pendingEffectFrameImages.add(image);
+      image.addEventListener('load',()=>{
+        const rec=activeCanvasEffects.get(image.closest('.fx-avatar-shell'));
+        if(rec){rec.geometry=null;sizeCanvasEffectHost(rec);scheduleCanvasEffectsFrame();}
+      },{once:true});
+    }
+    return rect;
+  }
+  const key=image.currentSrc||image.src;
+  let footprint=effectFrameFootprints.get(key);
+  if(!footprint) {
+    try {
+      const sample=document.createElement('canvas');sample.width=sample.height=128;
+      const ctx=sample.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,128,128);
+      const data=ctx.getImageData(0,0,128,128).data;
+      let left=128,top=128,right=-1,bottom=-1;
+      for(let y=0;y<128;y++)for(let x=0;x<128;x++)if(data[(y*128+x)*4+3]>48){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
+      footprint=right>=left?{x:left/128,y:top/128,w:(right-left+1)/128,h:(bottom-top+1)/128}:{x:0,y:0,w:1,h:1};
+    }catch{footprint={x:0,y:0,w:1,h:1};}
+    effectFrameFootprints.set(key,footprint);
+  }
+  return {left:rect.left+rect.width*footprint.x,top:rect.top+rect.height*footprint.y,width:rect.width*footprint.w,height:rect.height*footprint.h};
+}
 function effectAnchorMetrics(el) {
   if (!el || !el.isConnected) return {base:24, x:0, y:0};
   const rectOf = (node) => {
     if (!node) return null;
     const rect = node.getBoundingClientRect?.();
     if (!rect) return null;
-    const width = Math.max(rect.width || 0, node.offsetWidth || 0);
-    const height = Math.max(rect.height || 0, node.offsetHeight || 0);
+    const width = rect.width || node.offsetWidth || 0;
+    const height = rect.height || node.offsetHeight || 0;
     if (!width && !height) return null;
-    return {left:rect.left || 0, top:rect.top || 0, width, height};
+    const result={left:rect.left || 0, top:rect.top || 0, width, height};
+    return node.classList?.contains('avatar-shell-frame')?visibleEffectFrameRect(node,result):result;
   };
   const centerOffset = (anchor, host) => {
     if (!anchor || !host) return {x:0, y:0};
@@ -3150,6 +3186,9 @@ function applyCanvasEffectGeometry(rec, size, base, x=0, y=0) {
   const safeBase = Math.round(Math.max(1, Number(base) || 1));
   const safeX = Number.isFinite(Number(x)) ? Number(x) : 0;
   const safeY = Number.isFinite(Number(y)) ? Number(y) : 0;
+  const geometry=[safeSize,safeBase,safeX,safeY].join(':');
+  if(rec.geometry===geometry)return;
+  rec.geometry=geometry;
   rec.canvas.dataset.effectAnchorBase = String(safeBase);
   rec.el.style.setProperty('--effect-canvas-size', `${safeSize}px`);
   rec.el.style.setProperty('--effect-center-x', `${safeX.toFixed(2)}px`);
@@ -3163,6 +3202,11 @@ function applyCanvasEffectGeometry(rec, size, base, x=0, y=0) {
   rec.canvas.style.top = `calc(50% + ${safeY.toFixed(2)}px)`;
   rec.canvas.style.transform = 'translate(-50%, -50%)';
   rec.engine.resize();
+  if(!rec.type.startsWith('lab:')) {
+    rec.engine.active=true;
+    for(let i=0;i<12;i++)rec.engine.update(performance.now()+i*80);
+    rec.engine.active=false;
+  }
 }
 function sizeCanvasEffectHost(rec) {
   if (!rec?.el?.isConnected) return;
@@ -3176,7 +3220,7 @@ function sizeCanvasEffectHost(rec) {
     const rawPad = Number(style.getPropertyValue('--fx-canvas-scale') || 3.10);
     const padScale = Math.max(2.60, Math.min(4.10, Number.isFinite(rawPad) ? rawPad : 3.10));
     const fitBaseRaw = Number(style.getPropertyValue('--fx-effect-fit-base') || 140);
-    const fitBase = Math.max(120, Math.min(160, Number.isFinite(fitBaseRaw) ? fitBaseRaw : 140));
+    const fitBase = Math.max(120, Math.min(180, (Number.isFinite(fitBaseRaw) ? fitBaseRaw : 140)*(rec.type.startsWith('lab:')?1:1.12)));
     rec.canvas.dataset.effectFitBase = String(fitBase);
     const size = Math.round(Math.max(72, base * padScale));
     applyCanvasEffectGeometry(rec, size, base, metrics.x, metrics.y);
@@ -3188,7 +3232,7 @@ function sizeCanvasEffectHost(rec) {
   const rawScale = Number(css.getPropertyValue('--effect-canvas-scale') || wrapperCss?.getPropertyValue('--effect-canvas-scale') || 2.40);
   const hostScale = Math.max(1.90, Math.min(3.30, Number.isFinite(rawScale) ? rawScale : 2.40));
   const fitBaseRaw = Number(css.getPropertyValue('--effect-fit-base') || wrapperCss?.getPropertyValue('--effect-fit-base') || 140);
-  const fitBase = Math.max(120, Math.min(160, Number.isFinite(fitBaseRaw) ? fitBaseRaw : 140));
+  const fitBase = Math.max(120, Math.min(180, (Number.isFinite(fitBaseRaw) ? fitBaseRaw : 140)*1.12));
   rec.canvas.dataset.effectFitBase = String(fitBase);
   const size = Math.round(Math.max(64, base * hostScale));
   applyCanvasEffectGeometry(rec, size, base, metrics.x, metrics.y);
@@ -3198,6 +3242,7 @@ function pruneCanvasEffects() {
     if (!el.isConnected) {
       try { rec.engine.setActive(false); } catch(_) {}
       try { rec.canvas.remove(); } catch(_) {}
+      rec.engine.destroy?.();
       canvasEffectVisibilityObserver?.unobserve(el);
       activeCanvasEffects.delete(el);
     }
@@ -3206,23 +3251,31 @@ function pruneCanvasEffects() {
 function scheduleCanvasEffectsFrame() {
   if (!activeCanvasEffectsRaf) activeCanvasEffectsRaf = requestAnimationFrame(runCanvasEffectsFrame);
 }
+function syncCanvasEffectsActivity() {
+  const shopModal=document.querySelector('[data-shop-preview]');
+  for(const rec of activeCanvasEffects.values()) {
+    const active=desiredCanvasEffectState(rec.el,shopModal);
+    if(rec.engine.active!==active)rec.engine.setActive(active);
+  }
+}
 function runCanvasEffectsFrame(now) {
   activeCanvasEffectsRaf = 0;
   pruneCanvasEffects();
   let keepAlive = false;
+  const shopModal=document.querySelector('[data-shop-preview]');
   for (const rec of activeCanvasEffects.values()) {
     if (!rec.el.isConnected) continue;
-    const shouldBeActive = desiredCanvasEffectState(rec.el);
+    const shouldBeActive = desiredCanvasEffectState(rec.el,shopModal);
     if (!!rec.engine.active !== shouldBeActive) rec.engine.setActive(shouldBeActive);
-    if (shouldBeActive || rec.engine.active || (rec.engine.particles && rec.engine.particles.length)) {
+    if (shouldBeActive) {
       try { rec.engine.update(now); } catch(_) {}
-      if (shouldBeActive || (rec.engine.particles && rec.engine.particles.length)) keepAlive = true;
+      keepAlive = true;
     }
   }
   if (keepAlive) scheduleCanvasEffectsFrame();
 }
-function upgradeLegacyEffectAvatars() {
-  document.querySelectorAll('.avatar.cosmetic-effect[data-effect-id]').forEach(avatar => {
+function upgradeLegacyEffectAvatars(root=document) {
+  root.querySelectorAll('.avatar.cosmetic-effect[data-effect-id]').forEach(avatar => {
     if (!avatar || !avatar.isConnected || avatar.closest('.fx-avatar-shell')) return;
     const effectId = String(avatar.dataset.effectId || '');
     if (!isCanvasManagedEffectId(effectId)) return;
@@ -3246,12 +3299,14 @@ function upgradeLegacyEffectAvatars() {
   });
 }
 
-function setupCanvasEffects() {
-  upgradeLegacyEffectAvatars();
-  document.querySelectorAll('.fx-avatar-shell[data-effect-id], .avatar.cosmetic-effect[data-effect-id], .effect-preview-layer[data-effect-id], .frame-demo.effect-demo[data-effect-id]').forEach(el => {
+function setupCanvasEffects(root=document) {
+  if(root!==document&&!root.isConnected)return;
+  upgradeLegacyEffectAvatars(root);
+  root.querySelectorAll('.fx-avatar-shell[data-effect-id], .avatar.cosmetic-effect[data-effect-id], .effect-preview-layer[data-effect-id], .frame-demo.effect-demo[data-effect-id]').forEach(el => {
     if (isCanvasManagedEffectId(el.dataset.effectId)) ensureCanvasEffectHost(el);
   });
   pruneCanvasEffects();
+  syncCanvasEffectsActivity();
   if (!activeCanvasResizeBound) {
     activeCanvasResizeBound = true;
     window.addEventListener('resize', () => {
@@ -3446,8 +3501,8 @@ function toggleEffectActivation(el) {
   scheduleCanvasEffectsFrame();
 }
 
-function bindEffectActivation() {
-  document.querySelectorAll('.fx-avatar-shell, .avatar.cosmetic-effect, .avatar-shell, .effect-choice-preview, .frame-demo.effect-demo').forEach(el => {
+function bindEffectActivation(root=document) {
+  root.querySelectorAll('.fx-avatar-shell, .avatar.cosmetic-effect, .avatar-shell, .effect-choice-preview, .frame-demo.effect-demo').forEach(el => {
     if (el.dataset.effectActivationBound === '1') return;
     if (!getEffectActivationTarget(el)) return;
     el.dataset.effectActivationBound = '1';
@@ -3456,8 +3511,8 @@ function bindEffectActivation() {
   });
 }
 
-function bindDesktopInputFocusFix() {
-  document.querySelectorAll('input, textarea, select').forEach(el => {
+function bindDesktopInputFocusFix(root=document) {
+  root.querySelectorAll('input, textarea, select').forEach(el => {
     if (el.dataset.focusFixBound === '1') return;
     el.dataset.focusFixBound = '1';
     el.addEventListener('pointerdown', () => {
@@ -3469,8 +3524,10 @@ function bindDesktopInputFocusFix() {
   });
 }
 
-function bindAfterRender() {
-  document.querySelectorAll('details[data-section-key]').forEach(d => {
+function bindAfterRender(root=document) {
+  root.querySelectorAll('details[data-section-key]').forEach(d => {
+    if(d.dataset.sectionToggleBound)return;
+    d.dataset.sectionToggleBound='1';
     d.addEventListener('toggle', () => {
       const key = d.dataset.sectionKey;
       if (!key) return;
@@ -3478,7 +3535,9 @@ function bindAfterRender() {
       localStorage.setItem('open_sections', JSON.stringify([...state.openSections]));
     });
   });
-  document.querySelectorAll('input[type="number"]').forEach(el => {
+  root.querySelectorAll('input[type="number"]').forEach(el => {
+    if(el.dataset.numberFocusBound)return;
+    el.dataset.numberFocusBound='1';
     el.addEventListener('focus', () => {
       if (el.dataset.clearedOnce !== '1') {
         el.value = '';
@@ -3486,7 +3545,7 @@ function bindAfterRender() {
       }
     });
   });
-  document.querySelectorAll('input[type="file"]').forEach(el => {
+  root.querySelectorAll('input[type="file"]').forEach(el => {
     if (el.dataset.fileReliabilityBound === '1') return;
     el.dataset.fileReliabilityBound = '1';
     el.addEventListener('click', beginFileInteraction);
@@ -3496,14 +3555,14 @@ function bindAfterRender() {
     });
   });
 
-  bindDesktopInputFocusFix();
-  bindEffectActivation();
-  setupCanvasEffects();
+  bindDesktopInputFocusFix(root);
+  bindEffectActivation(root);
+  setupCanvasEffects(root);
   scheduleCanvasEffectsFrame();
-  setTimeout(() => { setupCanvasEffects(); for (const rec of activeCanvasEffects.values()) sizeCanvasEffectHost(rec); scheduleCanvasEffectsFrame(); }, 80);
-  setTimeout(() => { setupCanvasEffects(); for (const rec of activeCanvasEffects.values()) sizeCanvasEffectHost(rec); scheduleCanvasEffectsFrame(); }, 320);
+  setTimeout(() => { setupCanvasEffects(root); scheduleCanvasEffectsFrame(); }, 80);
+  setTimeout(() => { setupCanvasEffects(root); scheduleCanvasEffectsFrame(); }, 320);
 }
-function app(html) { document.getElementById('app').innerHTML = html; bindAfterRender(); }
+function app(html) { document.getElementById('app').innerHTML = html; if(!document.querySelector('.campaign-screen'))updateShopGiftWisp(false);bindAfterRender(); }
 function rememberUiScroll(){
   rememberOpenSections();
   const el=document.getElementById('initiativeCarousel');
@@ -3583,13 +3642,14 @@ function userIsEditing() {
 async function silentRefresh() {
   if (!state.currentCampaignId || !state.campaignState) return;
   if (state.firingAnimation) return;
+  if (shopGiftClaimPending) return;
   if (uiRefreshLocked()) return;
   const epoch = state.viewEpoch;
   try {
     const fresh = await api(`/api/campaigns/${state.currentCampaignId}/state`);
     if (epoch !== state.viewEpoch || uiRefreshLocked()) return;
     const newId = Number(fresh.events?.[0]?.id || 0);
-    if (newId !== state.lastEventId) {
+    if (newId !== state.lastEventId || fresh.shop_gift_available!==state.campaignState.shop_gift_available) {
       const flashKind = detectPlayerFlash(fresh.events || [], state.lastEventId, fresh);
       const notice = detectPlayerNotice(fresh.events || [], state.lastEventId, fresh);
       state.campaignState = fresh;
@@ -3667,6 +3727,7 @@ function renderHome(extra='') {
         <div class="campaign-list home-section-body">${campaignCards}</div>
       </details>
     </div>`);
+  updateShopGiftWisp(!!state.me?.shop_gift_available);
 }
 
 async function createCampaign() {
@@ -3783,8 +3844,49 @@ function renderCampaign() {
   restoreUiScroll();
   if (state.tab === 'netrunner' || state.tab === 'netrunner_master') setTimeout(drawCyberNetworkLines, 0);
   if (state.tab === 'cyber_inventory') setTimeout(bindCyberInventoryDrag, 0);
+  updateShopGiftWisp(role==='player'&&!!state.campaignState.shop_gift_available);
 }
 function setTab(t) { rememberUiScroll(); if (t === 'maps' && !MAPS_FEATURE_ENABLED) t = 'characters'; state.tab=t; renderCampaign(); }
+
+let shopGiftClaimPending=false;
+function updateShopGiftWisp(available) {
+  const existing=document.getElementById('shopGiftWisp');
+  if(!available){existing?.disposeSpirit?.();existing?.remove();return;}
+  if(existing)return;
+  const button=document.createElement('button');
+  button.id='shopGiftWisp';button.type='button';button.className='shop-gift-wisp';
+  button.title='Поймать огонёк';button.setAttribute('aria-label','Открыть подарок');
+  button.innerHTML='<canvas class="gift-spirit-canvas" aria-hidden="true"></canvas>';
+  button.addEventListener('click',claimShopWelcomeGift);document.body.append(button);
+  button.disposeSpirit=window.ShopGiftSpirit.mount(button.querySelector('canvas'));
+}
+async function claimShopWelcomeGift() {
+  if(shopGiftClaimPending)return;
+  shopGiftClaimPending=true;
+  state.viewEpoch+=1;
+  const button=document.getElementById('shopGiftWisp');if(button)button.disabled=true;
+  try {
+    const out=await api('/api/shop/welcome-gift',{method:'POST'});
+    if(state.me)state.me.shop_gift_available=false;
+    if(state.campaignState)Object.assign(state.campaignState,{shop_gift_available:false,currency_balance:out.currency_balance,currency_transactions:out.currency_transactions});
+    updateShopGiftWisp(false);
+    if(state.currentCampaignId&&state.campaignState)renderCampaign();
+    if(out.claimed||out.replayed)showModal(`<div class="modal-card compact shop-gift-modal"><button class="modal-close" aria-label="Закрыть" onclick="closeModal()">×</button><span class="gift-modal-flame" aria-hidden="true"></span><h2>${out.claimed?'Тебе 500 искр':'Новые эффекты в магазине'}</h2>${out.claimed?'<div class="gift-credit">+500 ✦</div>':''}<p>${out.claimed?'Искры уже зачислены на твой счёт.':'Подарок в 500 искр уже был получен ранее.'}</p><p>В магазине появились новые эффекты. Теперь любую рамку можно дополнить эффектом и настроить его цвет, градиент, радиус и расположение.</p><button class="ok" onclick="openGiftShop()">В магазин</button></div>`);
+    else showToast('Этот подарок уже получен','heal');
+  }catch(e){showToast(e.message,'error');if(button)button.disabled=false;}
+  finally{shopGiftClaimPending=false;}
+}
+async function openGiftShop() {
+  closeModal();
+  if(!state.currentCampaignId||state.campaignState?.role!=='player') {
+    const campaign=state.me?.campaigns?.find(c=>c.role==='player');
+    if(!campaign){showToast('Открой кампанию своего персонажа, чтобы перейти в магазин','error');return;}
+    state.currentCampaignId=Number(campaign.id);localStorage.setItem('campaign_id',String(campaign.id));await render();
+  }
+  shopCategories.effect='new';setTab('settings');
+  const section=document.querySelector('details.effects');
+  if(section){section.open=true;state.openSections.add('player-custom-effects');rememberOpenSections();setupCanvasEffects(section);scheduleCanvasEffectsFrame();section.scrollIntoView({behavior:'smooth',block:'start'});}
+}
 
 function showInviteModal() {
   const c = state.campaignState?.campaign;
@@ -3862,7 +3964,7 @@ function avatarCircle(ch, size='md') {
   if (effect) {
     const cls = effectClassFor(effect);
     // Same composition as the standalone HTML previews: outer shell + centered avatar/frame + canvas layer.
-    return `<span class="fx-avatar-shell ${size} ${esc(cls)}" data-effect-id="${esc(effect)}" style="--char-color:${esc(color)}">${avatarNode}</span>`;
+    return `<span class="fx-avatar-shell ${size} ${esc(cls)}" data-effect-id="${esc(effect)}" data-effect-style="${esc(JSON.stringify(ch?.effect_style||{}))}" style="--char-color:${esc(color)}">${avatarNode}</span>`;
   }
   return avatarNode;
 }
@@ -5888,11 +5990,11 @@ function renderUniqueCustomizationBlock(ch) {
   const effects = availableFirst(visibleEffects(), effectIsAvailable);
   const noFrame = `<button type="button" class="frame-choice plain ${selected===''?'selected':''}" onclick="showCosmeticPreviewModal('frame', emptyCustomizationItem('frame'), false, ${ch.id})"><span class="frame-demo plain">○</span><b>Без рамки</b><small>только цвет персонажа</small></button>`;
   const noEffect = `<button type="button" class="frame-choice plain ${selectedEffect===''?'selected':''}" onclick="showCosmeticPreviewModal('effect', emptyCustomizationItem('effect'), false, ${ch.id})"><span class="frame-demo plain">○</span><b>Без эффекта</b><small>только выбранная рамка</small></button>`;
-  const frameHtml = `<div class="frame-grid">${noFrame}</div>` + rarityGroupHtml('Рамки', frames, c => cosmeticChoiceCard(ch.id, c, frameIsAvailable(c), selected));
-  const effectHtml = `<div class="frame-grid">${noEffect}</div>` + rarityGroupHtml('Эффекты', effects, e => effectChoiceCard(ch.id, e, effectIsAvailable(e), selectedEffect));
+  const frameHtml = `<div class="frame-grid">${noFrame}</div>` + shopItemsHtml('frame',frames);
+  const effectHtml = `<div class="frame-grid">${noEffect}</div>` + shopItemsHtml('effect',effects);
   return `<div class="customization-sections compact-customization">
     <details class="custom-section frames custom-collapse" ${sectionAttrs('player-custom-frames')}>
-      <summary><div class="unique-custom-head"><span>🖼️</span><div><b>Рамки</b><small>Базовые и открытые уникальные рамки. Разделены по редкости.</small></div></div></summary>
+      <summary><div class="unique-custom-head"><span>🖼️</span><div><b>Рамки</b><small>Коллекция и магазин</small></div></div></summary>
       <div class="custom-collapse-body">${frameHtml}</div>
     </details>
     <details class="custom-section effects custom-collapse" ${sectionAttrs('player-custom-effects')}>
@@ -5917,7 +6019,7 @@ function cosmeticChoiceCard(charId, c, available, selected) {
 function effectChoiceCard(charId, e, available, selected) {
   const cls = effectClassFor(e.id);
   const isSelected = selected === e.id;
-  const demo = effectPreviewHtml(e, '', true, charId);
+  const demo = effectPreviewHtml(e, '', false, charId);
   if (!available) {
     return `<button type="button" class="frame-choice locked-choice effect-card rarity-${esc(e.rarity || 'common')} ${esc(cls)}" onclick="showLockedEffect('${esc(e.id)}', ${Number(charId)})">${demo}<span class="lock-badge">🔒</span><b>${esc(e.name)}</b><small>${effectMetaLabel(e)}</small></button>`;
   }
@@ -5937,9 +6039,19 @@ function renderShopBlock(ch) {
   </div>`;
 }
 
+const SHOP_EFFECT_GROUPS={fire:'Огонь',energy:'Энергия и электричество',cosmos:'Космос и астрал',magic:'Чары и мистика',light:'Свет и сияние',nature:'Природа',smoke:'Дым и туман',weather:'Погода',scifi:'Sci-Fi и голограммы'};
+const shopCategories={effect:'all',frame:'all'};
+const effectStyleDrafts=new Map();
+let effectStyleDraftOwner=null;
+function selectShopCategory(kind,value){shopCategories[kind]=value;renderCampaign();}
 function shopItemsHtml(kind, items) {
   const unlocked = kind === 'frame' ? unlockedCosmeticSet() : unlockedEffectSet();
-  return rarityGroupHtml('shop', items, item => shopItemCard(kind, item, unlocked.has(item.id) || displayRarity(item)==='common'));
+  const groups=kind==='effect'?SHOP_EFFECT_GROUPS:{common:'Обычные',rare:'Редкие',epic:'Эпические',legendary:'Легендарные',unique:'Уникальные'};
+  const category=shopCategories[kind];
+  const filtered=items.filter(e=>category==='all'||(category==='new'?e.is_new:(kind==='effect'?e.group:displayRarity(e))===category));
+  filtered.sort((a,b)=>Number(!!b.is_new)-Number(!!a.is_new)||(Number(a.sort_order||0)-Number(b.sort_order||0)));
+  const choices={all:'Все',...(kind==='effect'?{new:'Новое'}:{}),...groups};
+  return `<label class="shop-category-control">Категория<select onchange="selectShopCategory('${kind}',this.value)">${Object.entries(choices).map(([id,label])=>`<option value="${id}" ${id===category?'selected':''}>${esc(label)}</option>`).join('')}</select></label><div class="frame-grid shop-category-grid">${filtered.map(item=>shopItemCard(kind,item,unlocked.has(item.id)||displayRarity(item)==='common')).join('')||'<p class="muted">Пока пусто</p>'}</div>`;
 }
 function shopItemCard(kind, item, unlocked) {
   const isUnique = displayRarity(item) === 'unique' || item.rarity === 'unique';
@@ -5947,16 +6059,17 @@ function shopItemCard(kind, item, unlocked) {
   if (kind === 'frame') preview = item.asset_path ? `<span class="frame-demo image-frame-demo"><img loading="lazy" src="${esc(cosmeticImgPath(item))}" alt=""></span>` : `<span class="frame-demo ${esc(frameClassFor(item.id))}">${esc(item.emoji || '✨')}</span>`;
   if (kind === 'effect') {
     const ch = playerChar();
-    preview = effectPreviewHtml(item, '', true, ch?.id || null);
+    preview = effectPreviewHtml(item, '', false, ch?.id || null);
   }
   const action = unlocked ? '<span class="shop-status owned">куплено</span>' : isUnique ? '<span class="shop-status locked">только за ачивку</span>' : `<span class="shop-status price">${priceLabel(item)}</span>`;
-  return `<div class="frame-choice shop-buy-card rarity-${esc(displayRarity(item))}" role="button" tabindex="0" onclick="openShopPreview('${kind}','${esc(item.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openShopPreview('${kind}','${esc(item.id)}')}">${preview}<b>${esc(item.name)}</b><small>${rarityEmoji(displayRarity(item))} ${esc(rarityRu(displayRarity(item)))}</small>${action}</div>`;
+  return `<div class="frame-choice shop-buy-card rarity-${esc(displayRarity(item))}" role="button" tabindex="0" onclick="openShopPreview('${kind}','${esc(item.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openShopPreview('${kind}','${esc(item.id)}')}">${item.is_new?'<span class="shop-new-badge">NEW</span>':''}${preview}<b>${esc(item.name)}</b><small>${rarityEmoji(displayRarity(item))} ${esc(rarityRu(displayRarity(item)))}</small>${action}</div>`;
 }
 async function buyShopItem(kind, id, charId=null) {
   try {
     const out = await api('/api/shop/purchase', {method:'POST', body:{item_type:kind, item_id:id}});
     state.campaignState.unlocked_cosmetic_ids = out.unlocked_cosmetic_ids || state.campaignState.unlocked_cosmetic_ids;
     state.campaignState.unlocked_effect_ids = out.unlocked_effect_ids || state.campaignState.unlocked_effect_ids;
+    state.campaignState.effect_style_unlocks=out.effect_style_unlocks||state.campaignState.effect_style_unlocks;
     state.campaignState.currency_balance = out.currency_balance;
     state.campaignState.currency_transactions = out.currency_transactions || state.campaignState.currency_transactions;
     showToast(out.message || 'Покупка выполнена', 'heal');
@@ -5996,8 +6109,13 @@ function shopActionButton(kind, item, charId=null) {
   const rarity = displayRarity(item);
   const available = shopItemAvailable(kind, item);
   if (available) {
+    if(kind==='effect') {
+      const style=effectStyleDrafts.get(item.id)||{mode:'original'};
+      const option=style.mode==='preset'?'preset:'+style.preset:style.mode==='solid'?'custom':style.mode;
+      if(option!=='original'&&!(state.campaignState?.effect_style_unlocks?.[item.id]||[]).includes(option))return '<span class="shop-status locked">Сначала открой выбранную окраску</span>';
+    }
     const selected = shopItemSelected(kind, item, charId);
-    if (selected) return `<button class="ok" disabled>Применено</button>`;
+    if (selected && kind!=='effect') return `<button class="ok" disabled>Применено</button>`;
     return `<button class="ok" onclick="event.stopPropagation(); applyShopItem('${kind}','${esc(item.id || '')}', ${charId ? Number(charId) : 'null'})">Применить</button>`;
   }
   if (rarity === 'unique' || item.rarity === 'unique' || item.purchasable === 0) {
@@ -6024,21 +6142,99 @@ function effectPreviewHtml(e, extraClass='', active=false, charId=null) {
   if (!id || id === 'effect_none') return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="frame-demo plain effect-none-demo">○</span></div>`;
   const cls = effectClassFor(id);
   const activeClass = active ? ' effect-force-active' : '';
-  return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="fx-avatar-shell md fx-preview-shell${activeClass} ${esc(cls)}" data-effect-id="${esc(id)}">${effectPreviewAvatar(charId)}</span></div>`;
+  const ch=charId?findChar(Number(charId)):playerChar();
+  const style=active?(effectStyleDrafts.get(id)||(ch?.custom_effect===id?ch.effect_style:{})):{};
+  return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="fx-avatar-shell md fx-preview-shell${activeClass} ${esc(cls)}" data-effect-id="${esc(id)}" data-effect-style="${esc(JSON.stringify(style||{}))}">${effectPreviewAvatar(charId)}</span></div>`;
+}
+
+function effectStyleControls(item,charId) {
+  if(!item.colorizable)return '';
+  const ch=charId?findChar(Number(charId)):playerChar();
+  if(effectStyleDraftOwner!==ch?.id){effectStyleDrafts.clear();effectStyleDraftOwner=ch?.id;}
+  if(!effectStyleDrafts.has(item.id))effectStyleDrafts.set(item.id,ch?.custom_effect===item.id?{...(ch.effect_style||{mode:'original'})}:{mode:'original'});
+  const style=effectStyleDrafts.get(item.id),owned=state.campaignState?.effect_style_unlocks?.[item.id]||[];
+  if(style.radius_scale==null)style.radius_scale=ch?.effect_radii?.[item.id]??1;
+  if(style.layer==null)style.layer=ch?.effect_layers?.[item.id]??'auto';
+  const selected=style.mode==='preset'?'preset:'+style.preset:style.mode==='solid'?'custom':style.mode==='gradient'?'gradient':'original';
+  const options=[['original','Исходная · включена'],...(item.color_presets||[]).map(p=>['preset:'+p.id,`${p.name} · ${owned.includes('preset:'+p.id)?'открыто':item.style_prices.preset+' ✦'}`]),['custom',`Свой цвет · ${owned.includes('custom')?'открыто':item.style_prices.custom+' ✦'}`],['gradient',`Градиент · ${owned.includes('gradient')?'открыто':item.style_prices.gradient+' ✦'}`]];
+  const colors=style.colors||item.renderer?.palette||['#b98aff','#647fba','#fff0d6'];
+  const free=selected==='original'||owned.includes(selected);
+  const swatches=(item.color_presets||[]).map(p=>{
+    const option='preset:'+p.id,available=owned.includes(option),label=`${p.name} · ${available?'открыто':item.style_prices.preset+' ✦'}`;
+    return `<button type="button" class="shop-palette-swatch" title="${esc(label)}" aria-label="${esc(label)}" aria-pressed="${selected===option}" style="background:linear-gradient(135deg,${p.colors.map(esc).join(',')})" onclick="chooseEffectStyle('${esc(item.id)}','${esc(option)}',${charId||'null'})">${available?'<span>✓</span>':''}</button>`;
+  }).join('');
+  const radiusControl=`<div class="shop-radius-control"><label>Радиус <output id="effectRadiusValue">${Math.round(style.radius_scale*100)}%</output><input aria-label="Радиус эффекта" type="range" min="80" max="120" step="1" value="${Math.round(style.radius_scale*100)}" oninput="editEffectRadius('${esc(item.id)}',this.value)"></label><button type="button" title="Сбросить радиус" aria-label="Сбросить радиус" onclick="resetEffectRadius('${esc(item.id)}')">↺</button></div>`;
+  const layerControl=`<label>Расположение<select aria-label="Расположение эффекта" onchange="editEffectLayer('${esc(item.id)}',this.value)">${[['auto','По замыслу эффекта'],['front','Перед всем'],['between','За рамкой, перед аватаркой'],['back','Полностью за всем']].map(([value,label])=>`<option value="${value}" ${style.layer===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
+  const preview=radiusControl+layerControl+(selected!=='original'||item.renderer?.palette?`<div class="shop-current-palette" aria-label="Выбранная палитра" style="background:linear-gradient(${Number(style.angle??45)+90}deg,${(selected==='custom'?[colors[0],colors[0]]:colors).map(esc).join(',')})"></div>`:'');
+  return `<div class="shop-style-controls"><label>Окраска<select onchange="chooseEffectStyle('${esc(item.id)}',this.value,${charId||'null'})">${options.map(([id,label])=>`<option value="${id}" ${selected===id?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${preview}<div class="shop-palette-picker"><span>Готовые градиенты</span><div class="shop-palette-swatches" role="group" aria-label="Готовые градиенты">${swatches}</div></div>${['custom','gradient'].includes(selected)?`<div class="shop-color-inputs">${colors.map((color,i)=>`<input type="color" aria-label="Цвет ${i+1}" value="${esc(color)}" ${selected==='custom'&&i>0?'hidden':''} oninput="editEffectColor('${esc(item.id)}',${i},this.value)">`).join('')}</div>`:''}${selected==='gradient'?`<label>Направление<input type="range" min="0" max="360" step="5" value="${Number(style.angle??45)}" oninput="editEffectAngle('${esc(item.id)}',this.value)"></label>`:''}${!free?`<button onclick="buyEffectStyle('${esc(item.id)}','${esc(selected)}',${charId||'null'})" ${shopItemAvailable('effect',item)?'':'disabled'}>Открыть окраску за ${selected.startsWith('preset:')?item.style_prices.preset:item.style_prices[selected]} ✦</button>`:''}</div>`;
+}
+let effectStylePreviewFrame=0;
+const pendingEffectStylePreviews=new Set();
+function refreshEffectStylePreview(id) {
+  pendingEffectStylePreviews.add(id);
+  if(effectStylePreviewFrame)return;
+  effectStylePreviewFrame=requestAnimationFrame(()=>{
+    effectStylePreviewFrame=0;
+    document.querySelectorAll('.cosmetic-preview-modal [data-effect-id]').forEach(host=>{
+      if(pendingEffectStylePreviews.has(host.dataset.effectId)) {
+        host.dataset.effectStyle=JSON.stringify(effectStyleDrafts.get(host.dataset.effectId)||{});
+        const rec=activeCanvasEffects.get(host);if(rec&&!rec.engine.active)rec.engine.draw?.();
+      }
+    });
+    const style=effectStyleDrafts.get(id),bar=document.querySelector('.cosmetic-preview-modal .shop-current-palette');
+    if(bar&&style?.colors)bar.style.background=`linear-gradient(${Number(style.angle??45)+90}deg,${(style.mode==='solid'?[style.colors[0],style.colors[0]]:style.colors).join(',')})`;
+    pendingEffectStylePreviews.clear();scheduleCanvasEffectsFrame();
+  });
+}
+function chooseEffectStyle(id,option,charId) {
+  const item=effectById(id),old=effectStyleDrafts.get(id)||{},colors=old.colors||item.renderer?.palette||['#b98aff','#647fba','#fff0d6'];
+  const preset=item.color_presets?.find(p=>'preset:'+p.id===option);
+  effectStyleDrafts.set(id,preset?{mode:'preset',preset:preset.id,colors:preset.colors,angle:45}:{mode:option==='custom'?'solid':option,colors,angle:old.angle??45});
+  effectStyleDrafts.get(id).radius_scale=old.radius_scale??1;
+  effectStyleDrafts.get(id).layer=old.layer??'auto';
+  const modal=document.querySelector('.cosmetic-preview-modal');
+  if(!modal)return;
+  modal.querySelector('.shop-style-controls').outerHTML=effectStyleControls(item,charId);
+  modal.querySelector('.modal-actions').innerHTML=shopActionButton('effect',item,charId)+'<button class="secondary" onclick="closeModal()">Назад</button>';
+  bindDesktopInputFocusFix(modal);
+  modal.querySelector('.shop-style-controls select')?.focus({preventScroll:true});
+  refreshEffectStylePreview(id);
+}
+function editEffectColor(id,index,color){const s=effectStyleDrafts.get(id);s.colors=[...s.colors];s.colors[index]=color;if(s.mode==='solid')s.colors=[color,color,color];refreshEffectStylePreview(id);}
+function editEffectAngle(id,value){effectStyleDrafts.get(id).angle=Number(value);refreshEffectStylePreview(id);}
+function editEffectRadius(id,value){
+  effectStyleDrafts.get(id).radius_scale=Math.max(.8,Math.min(1.2,Number(value)/100));
+  const output=document.getElementById('effectRadiusValue');if(output)output.value=`${Math.round(effectStyleDrafts.get(id).radius_scale*100)}%`;
+  refreshEffectStylePreview(id);
+}
+function resetEffectRadius(id){
+  const input=document.querySelector('.shop-radius-control input');if(input)input.value=100;
+  editEffectRadius(id,100);
+}
+function editEffectLayer(id,value){effectStyleDrafts.get(id).layer=value;refreshEffectStylePreview(id);}
+async function buyEffectStyle(id,option,charId){
+  try {
+    const out=await api('/api/shop/purchase',{method:'POST',body:{item_type:'effect_style',item_id:id,option_id:option}});
+    Object.assign(state.campaignState,{effect_style_unlocks:out.effect_style_unlocks,currency_balance:out.currency_balance,currency_transactions:out.currency_transactions});
+    showToast(out.message,'heal');renderCampaign();showCosmeticPreviewModal('effect',effectById(id),false,charId);
+  }catch(e){showToast(e.message,'error');}
 }
 
 function showCosmeticPreviewModal(kind, item, locked=false, charId=null) {
   if (!item) return;
   if (kind === 'tag') return;
   const rarity = kind === 'frame' ? displayRarity(item) : (item.rarity || 'common');
+  const controls=kind==='effect'?effectStyleControls(item,charId):'';
   const preview = kind === 'frame' ? framePreviewHtml(item, 'modal-frame-preview-active') : effectPreviewHtml(item, 'modal-effect-preview-active', true, charId);
   const titleIcon = kind === 'frame' ? '🖼️' : '✨';
   const title = `${locked ? '🔒 ' : ''}${titleIcon} ${esc(item.name || item.id)}`;
   const desc = esc(item.description || (kind === 'frame' ? 'Рамка для аватарки персонажа.' : 'Эффект проигрывается в предпросмотре и будет масштабироваться под размер аватарки.'));
-  showModal(`<div class="modal-card compact unique-modal locked-custom-modal cosmetic-preview-modal"><button class="modal-close" onclick="closeModal()">×</button>
+  const shopPreview=!!document.querySelector('.customization-card,.shop-standalone-card,[data-shop-preview]');
+  showModal(`<div class="modal-card compact unique-modal locked-custom-modal cosmetic-preview-modal" ${shopPreview?`data-shop-preview="1" data-shop-effect-id="${kind==='effect'?esc(item.id):''}"`:''}><button class="modal-close" onclick="closeModal()">×</button>
     <div class="name">${title}</div>
     <div class="locked-preview-card rarity-${esc(rarity)} ${kind === 'effect' ? 'effect-card' : ''}">${preview}<b>${esc(item.name || item.id)}</b><small>${kind === 'frame' ? cosmeticMetaLabel(item) : effectMetaLabel(item)}</small></div>
     <p class="muted centered-text">${desc}</p>
+    ${controls}
     <div class="row modal-actions">${shopActionButton(kind, item, charId)}<button class="secondary" onclick="closeModal()">Назад</button></div>
   </div>`);
 }
@@ -6084,7 +6280,7 @@ async function saveCustomEffect(id, effect) {
   state.pendingActions.add(actionKey);
   try {
     state.viewEpoch += 1;
-    const out = await api(`/api/characters/${id}/self`, {method:'PATCH', body:{custom_effect: effect}});
+    const out = await api(`/api/characters/${id}/self`, {method:'PATCH', body:{custom_effect: effect,effect_style:effectStyleDrafts.get(effect)||{mode:'original'}}});
     mergeCharacterState(out.character);
     showToast(effect ? 'Эффект рамки применён' : 'Эффект отключён', 'heal');
     closeModal();
@@ -7424,7 +7620,7 @@ function injuryIcon(loc){ return {head:'🧠',torso:'🫁',arm_r:'💪',arm_l:'�
 
 async function masterStabilize(injuryId){ try{ const out=await api(`/api/injuries/${injuryId}/stabilize`, {method:'POST'}); alert(out.message); closeModal(); await render(); }catch(e){alert(e.message);} }
 async function masterHealInjury(injuryId){ try{ const out=await api(`/api/injuries/${injuryId}/heal`, {method:'POST'}); alert(out.message); closeModal(); await render(); }catch(e){alert(e.message);} }
-function showModal(html){ closeModal(); const wrap=document.createElement('div'); wrap.id='modal'; wrap.className='modal-backdrop'; wrap.innerHTML=html; document.body.appendChild(wrap); bindAfterRender(); }
-function closeModal(){ const m=document.getElementById('modal'); if(m) m.remove(); endFileInteraction(); }
+function showModal(html){ closeModal(); const wrap=document.createElement('div'); wrap.id='modal'; wrap.className='modal-backdrop'; wrap.innerHTML=html; document.body.appendChild(wrap); document.body.classList.toggle('shop-preview-open',!!wrap.querySelector('[data-shop-preview]')); bindAfterRender(wrap); }
+function closeModal(){ const m=document.getElementById('modal'); if(m) m.remove(); document.body.classList.remove('shop-preview-open'); pruneCanvasEffects();syncCanvasEffectsActivity();scheduleCanvasEffectsFrame();endFileInteraction(); }
 
 init();

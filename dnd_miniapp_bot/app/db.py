@@ -7,6 +7,7 @@ import sqlite3
 import string
 from datetime import datetime, timezone, timedelta
 from typing import Any, Iterable
+from .effect_catalog import LAB_EFFECTS, LAB_BY_ID, ALIASES, LEGENDARY, EffectShopMixin, metadata, canonical
 
 
 def utc_now() -> str:
@@ -469,11 +470,18 @@ def _rebalance_modern_effects_for_shop() -> None:
 
 _rebalance_modern_effects_for_shop()
 
+COSMETIC_EFFECT_LIBRARY.extend({
+    'id': e['id'], 'name': e['name'], 'description': e['description'],
+    'rarity': 'legendary' if e['id'] in LEGENDARY else 'epic',
+    'category':'unique','css_class':'effect-lab','sort_order':2000+i,
+} for i,e in enumerate(LAB_EFFECTS))
+SUPPORTED_MODERN_EFFECT_IDS.update(LAB_BY_ID)
+
 def is_supported_modern_effect(effect_id: str | None) -> bool:
     return str(effect_id or '') in SUPPORTED_MODERN_EFFECT_IDS
 
 
-class Database:
+class Database(EffectShopMixin):
     def __init__(self, path: str) -> None:
         self.path = path
         directory = os.path.dirname(path)
@@ -752,6 +760,7 @@ class Database:
         self._migrate()
         self.seed_cosmetics()
         self.seed_cosmetic_effects()
+        self.init_effect_shop()
         self.seed_inventory_models()
         self.seed_tags()
         self.conn.commit()
@@ -1598,6 +1607,7 @@ class Database:
             "name", "telegram_user_id", "ac", "max_hp_base", "max_hp_penalty", "current_hp", "temp_hp", "pain",
             "armor_max_base", "armor_max_penalty", "armor_current", "color", "avatar_path", "avatar_thumb_path", "custom_frame", "custom_effect", "custom_tag", "custom_tag_text", "custom_tag_style", "selected_inventory_model_id", "statuses_json", "notes"
         }
+        allowed.update({'effect_style_json','effect_radii_json','effect_layers_json'})
         data = {k: v for k, v in fields.items() if k in allowed}
         if "color" in data:
             data["color"] = normalize_color(data["color"])
@@ -1658,6 +1668,18 @@ class Database:
         row["avatar_path"] = str(row.get("avatar_path", "") or "")
         row["custom_frame"] = str(row.get("custom_frame", "") or "")
         row["custom_effect"] = str(row.get("custom_effect", "") or "")
+        try:
+            row['effect_style'] = json.loads(row.get('effect_style_json') or '{}')
+        except (ValueError,TypeError):
+            row['effect_style'] = {}
+        try:
+            row['effect_radii'] = json.loads(row.get('effect_radii_json') or '{}')
+        except (ValueError,TypeError):
+            row['effect_radii'] = {}
+        try:
+            row['effect_layers'] = json.loads(row.get('effect_layers_json') or '{}')
+        except (ValueError,TypeError):
+            row['effect_layers'] = {}
         row["custom_tag"] = str(row.get("custom_tag", "") or "")
         row["custom_tag_text"] = str(row.get("custom_tag_text", "") or "")
         row["custom_tag_style"] = str(row.get("custom_tag_style", "tag_none") or "tag_none")
@@ -1781,6 +1803,12 @@ class Database:
             cols = ", ".join(f"{k}=?" for k in fields)
             self.conn.execute(f"UPDATE characters SET {cols} WHERE id=?", tuple(fields.values()) + (character_id,))
 
+        self.conn.execute('UPDATE characters SET effect_style_json=? WHERE id=?',
+                          (snapshot.get('effect_style_json') or json.dumps(snapshot.get('effect_style',{})),character_id))
+        self.conn.execute('UPDATE characters SET effect_radii_json=? WHERE id=?',
+                          (snapshot.get('effect_radii_json') or json.dumps(snapshot.get('effect_radii',{})),character_id))
+        self.conn.execute('UPDATE characters SET effect_layers_json=? WHERE id=?',
+                          (snapshot.get('effect_layers_json') or json.dumps(snapshot.get('effect_layers',{})),character_id))
         before_injuries = snapshot.get("injuries", []) or []
         before_ids = {int(i["id"]) for i in before_injuries if i.get("id") is not None}
         current_ids = {int(i["id"]) for i in self.list_injuries(character_id, include_healed=True)}
@@ -2048,6 +2076,7 @@ class Database:
                     item["avatar_path"] = ch.get("avatar_path", item.get("avatar_path", ""))
                     item["custom_frame"] = ch.get("custom_frame", "")
                     item["custom_effect"] = ch.get("custom_effect", "")
+                    item['effect_style'] = ch.get('effect_style', {})
                     item["unique_custom_unlocked"] = ch.get("unique_custom_unlocked", False)
                     item["ac"] = int(ch.get("ac", item.get("ac", 10)))
                     item["max_hp"] = int(ch.get("current_max_hp", item.get("max_hp", 1)))
@@ -2071,6 +2100,7 @@ class Database:
                 "avatar_path": x.get("avatar_path", ""),
                 "custom_frame": x.get("custom_frame", ""),
                 "custom_effect": x.get("custom_effect", ""),
+                "effect_style": x.get("effect_style", {}),
                 "initiative": x.get("initiative"),
                 "sort_order": x.get("sort_order"),
                 "alive": x.get("alive"),
@@ -2333,18 +2363,20 @@ class Database:
 
     def list_cosmetic_effects(self) -> list[dict[str, Any]]:
         rows = self._many("SELECT * FROM cosmetic_effects ORDER BY sort_order, name")
-        return [row for row in rows if is_supported_modern_effect(row.get('id'))]
+        return [metadata(row) for row in rows if is_supported_modern_effect(row.get('id')) and row['id'] not in ALIASES]
 
     def get_cosmetic_effect(self, effect_id: str) -> dict[str, Any] | None:
         if not effect_id or str(effect_id) == "effect_none":
             return None
-        return self._one("SELECT * FROM cosmetic_effects WHERE id=?", (str(effect_id),))
+        row = self._one("SELECT * FROM cosmetic_effects WHERE id=?", (canonical(str(effect_id)),))
+        return metadata(row) if row else None
 
     def list_unlocked_effect_ids(self, telegram_user_id: int) -> list[str]:
         rows = self._many("SELECT effect_id FROM user_effect_unlocks WHERE telegram_user_id=?", (int(telegram_user_id),))
-        return [str(r["effect_id"]) for r in rows]
+        return sorted({canonical(str(r["effect_id"])) for r in rows})
 
     def has_effect_unlocked(self, telegram_user_id: int, effect_id: str) -> bool:
+        effect_id = canonical(effect_id)
         if not effect_id or str(effect_id) == "effect_none":
             return True
         effect = self.get_cosmetic_effect(effect_id)
@@ -2359,6 +2391,8 @@ class Database:
         return bool(row)
 
     def unlock_cosmetic_effect(self, telegram_user_id: int, effect_id: str, *, source: str = '', source_id: int | None = None) -> None:
+        alias = ALIASES.get(effect_id)
+        effect_id = canonical(effect_id)
         if not effect_id or str(effect_id) == "effect_none" or not self.get_cosmetic_effect(effect_id):
             return
         self.conn.execute(
@@ -2369,6 +2403,8 @@ class Database:
             """,
             (int(telegram_user_id), str(effect_id), source, source_id, utc_now()),
         )
+        if alias:
+            self.conn.execute('INSERT OR IGNORE INTO user_effect_styles VALUES (?,?,?)',(int(telegram_user_id),effect_id,'preset:'+alias[1]))
         self.conn.commit()
 
     def get_cosmetic(self, cosmetic_id: str) -> dict[str, Any] | None:
@@ -3528,14 +3564,17 @@ class Database:
         self.conn.commit()
 
     def ensure_wallet(self, telegram_user_id: int) -> None:
+        if self._one('SELECT 1 FROM user_wallets WHERE telegram_user_id=?',(int(telegram_user_id),)):
+            return
         self.conn.execute(
             "INSERT INTO user_wallets(telegram_user_id, balance, updated_at) VALUES (?, 0, ?) ON CONFLICT(telegram_user_id) DO NOTHING",
             (int(telegram_user_id), utc_now()),
         )
 
     def get_currency_balance(self, telegram_user_id: int) -> int:
-        self.ensure_wallet(int(telegram_user_id))
         row = self._one("SELECT balance FROM user_wallets WHERE telegram_user_id=?", (int(telegram_user_id),))
+        if not row:
+            return 0
         return int(row["balance"] if row else 0)
 
     def add_currency(self, telegram_user_id: int, amount: int, *, reason: str = '', source: str = '', source_id: int | None = None) -> int:
@@ -3603,13 +3642,14 @@ class Database:
 
     # ---------- spark credit / master reserve ----------
     def ensure_master_spark_wallet(self, master_tg_id: int) -> None:
+        if self._one('SELECT 1 FROM master_spark_wallets WHERE master_tg_id=?',(int(master_tg_id),)):
+            return
         self.conn.execute(
             "INSERT INTO master_spark_wallets(master_tg_id, balance, updated_at) VALUES (?, ?, ?) ON CONFLICT(master_tg_id) DO NOTHING",
             (int(master_tg_id), SPARK_CREDIT_DEFAULT, utc_now()),
         )
 
     def get_master_spark_balance(self, master_tg_id: int) -> int:
-        self.ensure_master_spark_wallet(int(master_tg_id))
         row = self._one("SELECT balance FROM master_spark_wallets WHERE master_tg_id=?", (int(master_tg_id),))
         return int(row.get("balance") if row else SPARK_CREDIT_DEFAULT)
 
@@ -3667,7 +3707,6 @@ class Database:
         out: list[dict[str, Any]] = []
         for r in rows:
             master_id = int(r["master_tg_id"])
-            self.ensure_master_spark_wallet(master_id)
             display_name = self.master_display_name(master_id)
             out.append({
                 "master_tg_id": master_id,
