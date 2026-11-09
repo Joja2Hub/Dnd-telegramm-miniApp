@@ -500,6 +500,11 @@ class Database(EffectShopMixin):
                 username TEXT NOT NULL DEFAULT ''
             );
 
+            CREATE TABLE IF NOT EXISTS player_profiles (
+                telegram_user_id INTEGER PRIMARY KEY,
+                profile_json TEXT NOT NULL DEFAULT '{}'
+            );
+
             CREATE TABLE IF NOT EXISTS campaigns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,

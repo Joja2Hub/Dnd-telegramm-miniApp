@@ -133,27 +133,16 @@ function renderLogin() {
   const createBox = $('hostCreateBox');
   const hostBox = $('hostLoginBox');
   createBox.innerHTML = createCampaignFormHtml();
-  if (!state.active) {
-    characterBox.innerHTML = '<div class="empty-state">После выбора кампании здесь появятся персонажи.</div>';
-    hostBox.innerHTML = `${masterLoginFormHtml()}<button class="secondary reset-login" type="button" onclick="clearLocalLogin()">Сбросить сохраненный вход</button>`;
-    return;
-  }
-
-  const characters = state.characters.length
-    ? `<div class="character-grid">${state.characters.map((character) => `
-        <button class="character secondary" type="button" onclick="enterAsPlayer(${Number(character.id)})">
-          ${avatarHtml(character)}
-          <span class="char-meta">
-            <b>${esc(character.name)}</b>
-            <small>HP ${esc(character.current_hp)}/${esc(character.current_max_hp)} · AC ${esc(character.ac)}</small>
-          </span>
-          <span class="badge">Игрок</span>
-        </button>
-      `).join('')}</div>`
-    : '<div class="empty-state">В активной кампании пока нет персонажей.</div>';
-
-  characterBox.innerHTML = characters;
+  $('localLoginMenu').innerHTML = state.users.map(user=>`<button type="button" aria-label="Войти: ${esc(user.display_name)}" onclick="loginHubUser(${Number(user.telegram_user_id)})">${user.avatar_path?`<img class="hub-portrait" src="${esc(user.avatar_path)}" alt="">`:`<span class="hub-portrait hub-initial">${esc(user.display_name.slice(0,1))}</span>`}<span><b>${esc(user.display_name)}</b><small>${user.roles.includes('master')?'Мастер':'Игрок'}</small></span></button>`).join('')||'<p>Пользователей пока нет.</p>';
   hostBox.innerHTML = `<div class="host-actions">${masterLoginFormHtml()}<button class="secondary reset-login" type="button" onclick="clearLocalLogin()">Сбросить сохраненный вход</button></div>`;
+}
+
+function loginHubUser(id) {
+  localStorage.setItem('local_hub_user',String(id));
+  localStorage.setItem('dev_tg_id',String(id));
+  localStorage.removeItem('dev_view_character_id');
+  localStorage.removeItem('campaign_id');
+  location.href='/local/hub.html?user='+id;
 }
 
 function render() {
@@ -177,6 +166,7 @@ async function load() {
     state.serverInfo = infoData || null;
     render();
   } catch (error) {
+    $('loginStatus').textContent=error.message;
     $('characterBox').innerHTML = `<div class="active-box error">${esc(error.message)}</div>`;
   }
 }

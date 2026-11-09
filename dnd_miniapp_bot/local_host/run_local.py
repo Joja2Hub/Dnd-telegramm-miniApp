@@ -9,10 +9,11 @@ import subprocess
 import sys
 import json
 import time
+import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -27,6 +28,21 @@ os.chdir(ROOT)
 from app.api import create_app  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.db import Database  # noqa: E402
+from app.player_profiles import read_profile, write_profile, profile_stats, STAT_LABELS
+from app.image_utils import optimize_upload
+from app.api import _upload_root
+
+
+class ProfileShowcaseIn(BaseModel):
+    kind: Literal['achievements', 'stats', 'characters', 'avatars']
+    items: list[str] = Field(default_factory=list, max_length=12)
+
+
+class PlayerProfileIn(BaseModel):
+    name: str = Field(default='', max_length=60)
+    bio: str = Field(default='', max_length=400)
+    avatar_path: str = Field(default='', max_length=300)
+    showcases: list[ProfileShowcaseIn] = Field(default_factory=list, max_length=8)
 
 
 class LocalActiveCampaignIn(BaseModel):
@@ -201,9 +217,9 @@ def stop_port_listeners(port: int) -> None:
         time.sleep(0.25)
 
 
-def build_local_app(db: Database, settings: Settings, *, player_url: str | None = None) -> FastAPI:
+def build_local_app(db: Database, settings: Settings, *, player_url: str | None = None, state_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="DND Local Host")
-    local_state_path = LOCAL_ROOT / "local_host_state.json"
+    local_state_path = state_path or LOCAL_ROOT / "local_host_state.json"
 
     def read_local_state() -> dict:
         try:
@@ -261,6 +277,8 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
                 item["roles"].append("player")
 
         for item in users.values():
+            profile = read_profile(db, item['telegram_user_id'])
+            item['avatar_path'] = profile['avatar_path']
             names = item["master_campaign_names"] or item["character_names"]
             account = accounts.get(item["telegram_user_id"], {})
             account_name = str(account.get("first_name") or "")
@@ -270,6 +288,8 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
             elif names:
                 role = "Мастер" if "master" in item["roles"] else "Игрок"
                 item["display_name"] = f"{role}: {names[0]} · TG {item['telegram_user_id']}"
+            if profile['name']:
+                item['display_name'] = profile['name']
             item["character_names"] = list(dict.fromkeys(item["character_names"]))[:8]
             item["master_campaign_names"] = list(dict.fromkeys(item["master_campaign_names"]))[:8]
         return sorted(users.values(), key=lambda x: (0 if "master" in x["roles"] else 1, str(x["display_name"]).lower()))
@@ -346,6 +366,91 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
     @app.get("/local-api/users")
     async def local_users() -> dict:
         return {"users": list_local_users()}
+
+    @app.get("/local-api/hub/{user_id}")
+    async def local_player_hub(user_id: int) -> dict:
+        user = next((u for u in list_local_users() if u["telegram_user_id"] == user_id), None)
+        if not user:
+            raise HTTPException(404, "Пользователь не найден")
+        active_id = int(read_local_state().get("active_campaign_id") or 0)
+        games, characters = [], []
+        for campaign in list_campaigns():
+            own = [c for c in db.list_characters(int(campaign["id"])) if c.get("telegram_user_id") == user_id]
+            master = campaign.get("master_tg_id") == user_id
+            if not own and not master:
+                continue
+            games.append({"id": campaign["id"], "name": campaign["name"], "rule_type": campaign.get("rule_type", "fantasy"), "active": campaign["id"] == active_id, "master": master})
+            for ch in own:
+                characters.append({key: ch.get(key) for key in ("id", "name", "campaign_id", "avatar_path", "avatar_thumb_path", "current_hp", "current_max_hp", "ac")})
+        achievements = db.list_player_achievement_grants(user_id)
+        profile = read_profile(db, user_id)
+        avatars = [{'path': c['avatar_path'], 'name': c['name']} for c in characters if c.get('avatar_path')]
+        avatars += profile['uploads']
+        return {"user": user, "games": games, "characters": characters,
+                "achievements": achievements, "profile": profile, "avatars": avatars,
+                "stats": profile_stats(db, user_id, characters, games, achievements),
+                "balance": db.get_currency_balance(user_id)}
+
+    def require_local_actor(user_id, actor):
+        if actor != user_id:
+            raise HTTPException(403, 'Войди в свой профиль')
+        if not any(u['telegram_user_id'] == user_id for u in list_local_users()):
+            raise HTTPException(404, 'Пользователь не найден')
+
+    @app.get('/local-api/hub/{user_id}/public')
+    async def public_local_profile(user_id: int):
+        hub = await local_player_hub(user_id)
+        selected = {kind: set() for kind in ('achievements', 'characters', 'avatars', 'stats')}
+        for shelf in hub['profile']['showcases']:
+            selected[shelf['kind']].update(shelf['items'])
+        hub['achievements'] = [{'id': g['id'], 'achievement': g['achievement']} for g in hub['achievements'] if str(g['id']) in selected['achievements']]
+        hub['characters'] = [{k: c[k] for k in ('id', 'name', 'campaign_id', 'avatar_path', 'avatar_thumb_path')} for c in hub['characters'] if str(c['id']) in selected['characters']]
+        hub['avatars'] = [a for a in hub['avatars'] if a['path'] in selected['avatars']]
+        hub['stats'] = [s for s in hub['stats'] if s['id'] in selected['stats']]
+        hub['profile'] = {k: v for k, v in hub['profile'].items() if k != 'uploads'}
+        hub.pop('balance')
+        return hub
+
+    @app.patch('/local-api/hub/{user_id}/profile')
+    async def save_local_profile(user_id: int, data: PlayerProfileIn, x_local_user: int = Header(default=0)):
+        require_local_actor(user_id, x_local_user)
+        hub = await local_player_hub(user_id)
+        allowed = {'achievements': {str(g['id']) for g in hub['achievements']},
+                   'characters': {str(c['id']) for c in hub['characters']},
+                   'avatars': {a['path'] for a in hub['avatars']}, 'stats': set(STAT_LABELS)}
+        if data.avatar_path and data.avatar_path not in allowed['avatars']:
+            raise HTTPException(400, 'Выбери свою аватарку')
+        for shelf in data.showcases:
+            if any(item not in allowed[shelf.kind] for item in shelf.items):
+                raise HTTPException(400, 'Витрина содержит недоступный элемент')
+        profile = {**hub['profile'], **data.model_dump()}
+        write_profile(db, user_id, profile)
+        return {'profile': profile}
+
+    @app.post('/local-api/hub/{user_id}/avatar')
+    async def upload_profile_avatar(user_id: int, file: UploadFile = File(...), x_local_user: int = Header(default=0)):
+        require_local_actor(user_id, x_local_user)
+        profile = read_profile(db, user_id)
+        if len(profile['uploads']) >= 24:
+            raise HTTPException(400, 'В галерее уже 24 загруженные аватарки')
+        raw = await file.read(5 * 1024 * 1024 + 1)
+        try:
+            image = optimize_upload(raw, upload_root=_upload_root(settings), kind='avatar',
+                                    stem=f'profile_{user_id}_{uuid.uuid4().hex}', max_bytes=5 * 1024 * 1024)
+        except ValueError as error:
+            raise HTTPException(400, str(error))
+        profile['uploads'].append({'path': image.asset_path, 'name': 'Загруженная аватарка'})
+        write_profile(db, user_id, profile)
+        return {'profile': profile, 'avatar_path': image.asset_path}
+
+    @app.post('/local-api/hub/{user_id}/active-game')
+    async def activate_own_game(user_id: int, data: LocalActiveCampaignIn, x_local_user: int = Header(default=0)):
+        require_local_actor(user_id, x_local_user)
+        campaign = db.get_campaign(data.campaign_id)
+        if not campaign or int(campaign.get('master_tg_id') or 0) != user_id:
+            raise HTTPException(403, 'Только мастер этой игры может сделать её активной')
+        write_local_state({'active_campaign_id': data.campaign_id})
+        return {'active_campaign_id': data.campaign_id}
 
     @app.get("/local-api/active-campaign")
     async def local_active_campaign() -> dict:

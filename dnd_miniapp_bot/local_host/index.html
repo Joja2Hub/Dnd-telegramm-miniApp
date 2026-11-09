@@ -8,14 +8,18 @@
   <title>DND Local Host</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23161d27'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='38'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/local/styles.css?v=local-20260815-player-address">
+  <link rel="stylesheet" href="/local/hub.css?v=2">
+  <link rel="stylesheet" href="/local/profile.css?v=4">
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
+    <header class="local-login-bar"><h1>DND Mini App</h1><details class="login-menu"><summary>Войти</summary><div id="localLoginMenu" class="login-users"><p>Загрузка пользователей...</p></div></details></header>
+    <section class="local-login-welcome"><h2>Твои истории. Твои персонажи.</h2><p>Профили игроков, коллекции достижений и игры.</p><div id="loginStatus" role="status"></div></section>
+    <section class="hero" hidden>
       <div>
         <p class="eyebrow">ЛОКАЛЬНАЯ ИГРА</p>
         <h1>DND Mini App</h1>
-        <p class="lead">Выберите персонажа и продолжайте игру с телефона.</p>
+        <p class="lead">Персонажи, достижения и игры</p>
       </div>
       <span class="hero-actions">
         <button id="createGameShortcut" class="secondary quick-create-btn" type="button">＋ Новая игра</button>
@@ -27,14 +31,14 @@
       <div class="section-head">
         <div>
           <p class="section-kicker">АКТИВНАЯ КАМПАНИЯ</p>
-          <h2>Войти в игру</h2>
+          <h2>Выбор пользователя</h2>
         </div>
       </div>
       <div id="activeBox" class="active-box"></div>
       <div id="characterBox" class="character-box"></div>
     </section>
 
-    <details class="panel host-tools">
+    <details class="panel host-tools" hidden>
       <summary><span><b>Инструменты мастера</b><small>сменить кампанию или открыть панель мастера</small></span></summary>
       <div class="host-tools-body">
         <div class="host-campaign-block">
@@ -50,6 +54,6 @@
     </details>
   </main>
 
-  <script defer src="/local/app.js?v=local-20260815-player-address"></script>
+  <script defer src="/local/app.js?v=profile-20261028-v3"></script>
 </body>
 </html>

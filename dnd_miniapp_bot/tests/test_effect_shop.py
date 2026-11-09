@@ -43,6 +43,18 @@ class EffectShopTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.db.validate_effect_style(200,'wildfire',{'mode':'solid','colors':style['colors']})
         with self.assertRaises(ValueError):self.db.purchase_effect_style(201,'wildfire','custom')
         with self.assertRaises(ValueError):self.db.purchase_effect_style(200,'wildfire','preset:invalid')
+    def test_solid_and_gradient_presets_keep_separate_entitlements(self):
+        self.db.unlock_cosmetic_effect(200,'wildfire')
+        self.db.add_currency(200,240)
+        self.db.purchase_effect_style(200,'wildfire','preset:solid_purple')
+        solid=self.db.validate_effect_style(200,'wildfire',{'mode':'preset','preset':'solid_purple'})
+        self.assertEqual(len(set(solid['colors'])),1)
+        self.assertEqual(self.db.get_currency_balance(200),120)
+        with self.assertRaises(ValueError):
+            self.db.validate_effect_style(200,'wildfire',{'mode':'preset','preset':'purple'})
+        self.db.purchase_effect_style(200,'wildfire','preset:purple')
+        gradient=self.db.validate_effect_style(200,'wildfire',{'mode':'preset','preset':'purple'})
+        self.assertGreater(len(set(gradient['colors'])),1)
     def test_insufficient_funds_does_not_grant(self):
         self.db.unlock_cosmetic_effect(200,'wildfire')
         with self.assertRaises(ValueError):self.db.purchase_effect_style(200,'wildfire','custom')

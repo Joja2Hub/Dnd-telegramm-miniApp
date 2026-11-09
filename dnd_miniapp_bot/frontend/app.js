@@ -28,6 +28,8 @@ if (localStorage.getItem('ui_state_version') !== UI_STATE_VERSION) {
   localStorage.setItem('ui_state_version', UI_STATE_VERSION);
 }
 
+const HUB_SHOP_MODE = location.pathname.startsWith('/local-app') && new URLSearchParams(location.search).get('hub_shop')==='1';
+const HUB_CREATE_MODE = location.pathname.startsWith('/local-app') && new URLSearchParams(location.search).get('hub_create')==='1';
 function applyLocalLaunchParams() {
   const params = new URLSearchParams(window.location.search || '');
   const localTgId = params.get('local_tg_id') || '';
@@ -44,7 +46,7 @@ function applyLocalLaunchParams() {
   localStorage.setItem('local_host_mode', localCharacterId ? 'player' : 'host');
   if (localCharacterId) localStorage.setItem('dev_view_character_id', localCharacterId);
   else localStorage.removeItem('dev_view_character_id');
-  window.history.replaceState({}, document.title, window.location.pathname);
+  window.history.replaceState({}, document.title, window.location.pathname+(HUB_SHOP_MODE?'?hub_shop=1':HUB_CREATE_MODE?'?hub_create=1':''));
 }
 applyLocalLaunchParams();
 
@@ -3513,6 +3515,7 @@ function bindEffectActivation(root=document) {
 
 function bindDesktopInputFocusFix(root=document) {
   root.querySelectorAll('input, textarea, select').forEach(el => {
+    if (el.matches('input[type="range"], input[type="color"]')) return;
     if (el.dataset.focusFixBound === '1') return;
     el.dataset.focusFixBound = '1';
     el.addEventListener('pointerdown', () => {
@@ -3617,7 +3620,7 @@ function setupPullToRefresh() {
 async function init() {
   try {
     state.me = await api('/api/me');
-    if (!state.currentCampaignId && state.me.campaigns.length) state.currentCampaignId = state.me.campaigns[0].id;
+    if (!state.currentCampaignId && state.me.campaigns.length && !HUB_CREATE_MODE) state.currentCampaignId = state.me.campaigns[0].id;
     await render();
     startAutoRefresh();
     setupPullToRefresh();
@@ -3803,10 +3806,11 @@ function campaignContextHtml(campaign, role) {
 }
 
 function renderCampaignExitSettingsCard() {
-  const action = LOCAL_BROWSER_MODE ? "location.href='/local/'" : 'switchCampaign(0)';
-  const title = LOCAL_BROWSER_MODE ? 'Сменить персонажа' : 'Сменить кампанию';
+  const hubUser=Number(localStorage.getItem('local_hub_user')||state.me?.user?.id||0);
+  const action = LOCAL_BROWSER_MODE ? `location.href='/local/hub.html?user=${hubUser}'` : 'switchCampaign(0)';
+  const title = LOCAL_BROWSER_MODE ? 'Хаб игрока' : 'Сменить кампанию';
   const note = LOCAL_BROWSER_MODE
-    ? 'Вернуться на экран выбора персонажа этого локального сервера.'
+    ? 'Все персонажи, игры, достижения и магазин.'
     : 'Вернуться к списку доступных кампаний.';
   return `<section class="card settings-exit-card">
     <div><b>${title}</b><small>${note}</small></div>
@@ -3817,6 +3821,11 @@ function renderCampaignExitSettingsCard() {
 
 function renderCampaign() {
   rememberUiScroll();
+  if(HUB_SHOP_MODE && state.campaignState.role==='player') {
+    const ch=playerChar();
+    app(`<main class="campaign-screen"><header class="campaign-context-bar"><div><b>Магазин</b><small>${esc(ch?.name||'')} · ${Number(state.campaignState.currency_balance||0)} искр</small></div><button class="secondary" onclick="location.href='/local/hub.html?user=${Number(localStorage.getItem('local_hub_user')||state.me.user.id)}'">В хаб</button></header><div class="campaign-view">${ch?renderShopBlock(ch):'<p>Персонаж не найден</p>'}</div></main>`);
+    return;
+  }
   const c = state.campaignState.campaign;
   const role = state.campaignState.role;
   const visualInventoryEnabled = ['cyberpunk', 'fantasy'].includes(state.campaignState?.campaign?.rule_type);
@@ -4762,9 +4771,8 @@ async function openUserProfile(telegramId, focusCharacterId=0) {
     const grants = profile.achievement_grants || [];
     const camps = profile.campaigns || [];
     const ach = grants.slice(0, 18).map(g => `<button class="achievement-row-card profile-ach-row" onclick="openProfileAchievement(${Number(g.id)}, ${Number(telegramId)})"><span class="achievement-row-icon">${achIconHtml(g.achievement?.icon || '🏆', '', g.achievement?.icon_thumb || '')}</span><span><b>${esc(g.achievement?.title || 'Достижение')}</b></span></button>`).join('') || '<div class="muted">Достижений пока нет.</div>';
-    const charList = chars.map(ch => `<button type="button" class="profile-line profile-character-line ${Number(ch.id) === Number(main.id) ? 'selected' : ''}" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(telegramId)}, ${Number(ch.id)})">${avatarCircle(ch, 'xs')}<b>${esc(ch.name)}</b><small>HP ${esc(ch.current_hp)}/${esc(ch.current_max_hp)}</small></button>`).join('') || '<div class="muted">Персонажей нет.</div>';
-    const campList = camps.map(c => `<span class="tag-pill ${Number(main.campaign_id) === Number(c.id) ? 'selected' : ''}">${esc(c.emoji || '🎲')} ${esc(c.name)}</span>`).join('') || '<span class="muted">Кампаний нет.</span>';
-    showModal(`<div class="modal-card profile-modal"><button class="modal-close" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main, 'xxl')}<div><div class="name profile-name-line">${esc(profile.display_name || main.name || 'Профиль игрока')}</div><div class="muted">${profile.username ? `@${esc(profile.username)} · ` : ''}TG ${esc(profile.telegram_user_id)}</div>${main.name ? `<div class="muted">${esc(main.name)}</div>` : ''}</div></div><div class="profile-section"><div class="profile-section-title">🏆 Ачивки</div><div class="achievement-row-list">${ach}</div></div><div class="profile-section"><div class="profile-section-title">🧙 Персонажи</div><div class="stack">${charList}</div></div><div class="profile-section"><div class="profile-section-title">🗺️ Кампании</div><div class="chips">${campList}</div></div></div>`);
+    const campaign=camps.find(c=>Number(c.id)===Number(main.campaign_id));
+    showModal(`<div class="modal-card profile-modal character-profile-modal"><button class="modal-close" aria-label="Закрыть профиль" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main,'xxl')}<div><div class="name profile-name-line">${esc(main.name||'Персонаж')}</div><div class="muted">${esc(campaign?.name||state.campaignState?.campaign?.name||'')}</div><small>${esc(profile.display_name||'Игрок')}</small></div></div><div class="row character-profile-stats"><span class="pill">${hpText(main)}</span><span class="pill">КД ${esc(main.ac??'—')}</span>${injuryBadge(main)}</div><div class="profile-section"><div class="profile-section-title">Статусы</div><div class="chips">${(main.statuses||[]).map(s=>`<span class="tag-pill">${esc(s)}</span>`).join('')||'<span class="muted">Нет активных статусов</span>'}</div></div><div class="profile-section"><div class="profile-section-title">Достижения игрока</div><div class="achievement-row-list">${ach}</div></div>${LOCAL_BROWSER_MODE?`<a class="button secondary player-hub-link" href="/local/hub.html?user=${Number(telegramId)}&view=public">Профиль игрока</a>`:''}</div>`);
   } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -4838,6 +4846,7 @@ function renderCampaignSettingsCard() {
         <label>Система кампании<select id="campaignRuleType"><option value="fantasy" ${c.rule_type==='fantasy'?'selected':''}>Фэнтези</option><option value="cyberpunk" ${c.rule_type==='cyberpunk'?'selected':''}>Киберпанк</option></select></label>
       </div>
       <button class="ok" onclick="saveCampaignSettings()">Сохранить настройки кампании</button>
+      ${LOCAL_BROWSER_MODE?'<button class="secondary" onclick="makeLocalGameActive(this)">Сделать игру активной</button>':''}
     </div>` : '';
   return `<details class="card stack campaign-settings-card custom-collapse" ${sectionAttrs('campaign-info-settings')}>
     <summary><div class="unique-custom-head"><span>${esc(c.emoji || '🎛')}</span><div><b>${esc(c.name || 'Кампания')}</b><small>Информация о кампании, режим окна и переключение</small></div></div></summary>
@@ -4851,6 +4860,15 @@ function renderCampaignSettingsCard() {
       ${devViewPanel()}
     </div>
   </details>`;
+}
+async function makeLocalGameActive(button) {
+  button.disabled=true;
+  try {
+    const userId=Number(state.me?.user?.id||0);
+    const response=await fetch(`/local-api/hub/${userId}/active-game`,{method:'POST',headers:{'Content-Type':'application/json','X-Local-User':String(userId)},body:JSON.stringify({campaign_id:state.currentCampaignId})});
+    const result=await response.json();if(!response.ok)throw Error(result.detail||'Не удалось изменить активную игру');
+    button.textContent='Игра активна';showToast('Эта игра теперь активна на сервере','heal');
+  }catch(error){button.disabled=false;showToast(error.message,'error');}
 }
 async function saveCampaignSettings() {
   try {
@@ -6008,7 +6026,7 @@ function cosmeticChoiceCard(charId, c, available, selected) {
   const cls = frameClassFor(c.id);
   const cRarity = displayRarity(c);
   const isSelected = selected === c.id;
-  const demo = c.asset_path ? `<span class="frame-demo image-frame-demo"><img loading="lazy" src="${esc(cosmeticImgPath(c))}" alt=""></span>` : `<span class="frame-demo ${esc(cls)}">${esc(c.emoji || '✨')}</span>`;
+  const demo = framePreviewHtml(c,'',charId);
   if (!available) {
     return `<button type="button" class="frame-choice locked-choice rarity-${esc(cRarity)} ${esc(cls)}" onclick="showLockedCosmetic('${esc(c.id)}', ${Number(charId)})">${demo}<span class="lock-badge">🔒</span><b>${esc(c.name)}</b><small>${cosmeticMetaLabel(c)}</small></button>`;
   }
@@ -6056,7 +6074,7 @@ function shopItemsHtml(kind, items) {
 function shopItemCard(kind, item, unlocked) {
   const isUnique = displayRarity(item) === 'unique' || item.rarity === 'unique';
   let preview = '';
-  if (kind === 'frame') preview = item.asset_path ? `<span class="frame-demo image-frame-demo"><img loading="lazy" src="${esc(cosmeticImgPath(item))}" alt=""></span>` : `<span class="frame-demo ${esc(frameClassFor(item.id))}">${esc(item.emoji || '✨')}</span>`;
+  if (kind === 'frame') preview = framePreviewHtml(item);
   if (kind === 'effect') {
     const ch = playerChar();
     preview = effectPreviewHtml(item, '', false, ch?.id || null);
@@ -6124,7 +6142,9 @@ function shopActionButton(kind, item, charId=null) {
   return `<button class="ok" onclick="event.stopPropagation(); buyShopItem('${kind}','${esc(item.id)}', ${charId ? Number(charId) : 'null'})">Купить за ${priceLabel(item)}</button>`;
 }
 
-function framePreviewHtml(c, extraClass='') {
+function framePreviewHtml(c, extraClass='', charId=null) {
+  const ch=charId?findChar(Number(charId)):playerChar();
+  if(ch)return `<span class="effect-choice-preview frame-fit-preview ${esc(extraClass)}">${avatarCircle({...ch,custom_frame:c?.id||'',custom_effect:''},'md')}</span>`;
   if (!c) return `<span class="frame-demo plain ${esc(extraClass)}">○</span>`;
   return c.asset_path
     ? `<span class="frame-demo image-frame-demo ${esc(extraClass)}"><img loading="lazy" src="${esc(cosmeticImgPath(c))}" alt=""></span>`
@@ -6147,6 +6167,15 @@ function effectPreviewHtml(e, extraClass='', active=false, charId=null) {
   return `<div class="effect-choice-preview ${esc(extraClass)}"><span class="fx-avatar-shell md fx-preview-shell${activeClass} ${esc(cls)}" data-effect-id="${esc(id)}" data-effect-style="${esc(JSON.stringify(style||{}))}">${effectPreviewAvatar(charId)}</span></div>`;
 }
 
+let effectColorStop=0;
+function effectColorEditor(id,style) {
+  const colors=style.colors,stop=style.mode==='solid'?0:effectColorStop;
+  return `<div class="shop-inline-color-editor">${style.mode==='gradient'?`<div class="shop-color-stops" role="group" aria-label="Цвета градиента">${colors.map((c,i)=>`<button type="button" class="shop-color-stop" data-stop="${i}" aria-label="Цвет градиента ${i+1}" aria-pressed="${i===stop}" style="background:${esc(c)}" onclick="selectEffectColorStop('${esc(id)}',${i})">${i+1}</button>`).join('')}</div>`:''}<label>Выбрать цвет<input type="color" aria-label="Выбрать цвет" value="${esc(colors[stop])}" oninput="editEffectColor('${esc(id)}',${stop},this.value)"></label></div>`;
+}
+function selectEffectColorStop(id,index){
+  effectColorStop=index;
+  document.querySelector('.shop-inline-color-editor').outerHTML=effectColorEditor(id,effectStyleDrafts.get(id));
+}
 function effectStyleControls(item,charId) {
   if(!item.colorizable)return '';
   const ch=charId?findChar(Number(charId)):playerChar();
@@ -6156,17 +6185,17 @@ function effectStyleControls(item,charId) {
   if(style.radius_scale==null)style.radius_scale=ch?.effect_radii?.[item.id]??1;
   if(style.layer==null)style.layer=ch?.effect_layers?.[item.id]??'auto';
   const selected=style.mode==='preset'?'preset:'+style.preset:style.mode==='solid'?'custom':style.mode==='gradient'?'gradient':'original';
-  const options=[['original','Исходная · включена'],...(item.color_presets||[]).map(p=>['preset:'+p.id,`${p.name} · ${owned.includes('preset:'+p.id)?'открыто':item.style_prices.preset+' ✦'}`]),['custom',`Свой цвет · ${owned.includes('custom')?'открыто':item.style_prices.custom+' ✦'}`],['gradient',`Градиент · ${owned.includes('gradient')?'открыто':item.style_prices.gradient+' ✦'}`]];
   const colors=style.colors||item.renderer?.palette||['#b98aff','#647fba','#fff0d6'];
   const free=selected==='original'||owned.includes(selected);
-  const swatches=(item.color_presets||[]).map(p=>{
+  const swatches=kind=>(item.color_presets||[]).filter(p=>(new Set(p.colors).size===1?'solid':'gradient')===kind).map(p=>{
     const option='preset:'+p.id,available=owned.includes(option),label=`${p.name} · ${available?'открыто':item.style_prices.preset+' ✦'}`;
     return `<button type="button" class="shop-palette-swatch" title="${esc(label)}" aria-label="${esc(label)}" aria-pressed="${selected===option}" style="background:linear-gradient(135deg,${p.colors.map(esc).join(',')})" onclick="chooseEffectStyle('${esc(item.id)}','${esc(option)}',${charId||'null'})">${available?'<span>✓</span>':''}</button>`;
   }).join('');
   const radiusControl=`<div class="shop-radius-control"><label>Радиус <output id="effectRadiusValue">${Math.round(style.radius_scale*100)}%</output><input aria-label="Радиус эффекта" type="range" min="80" max="120" step="1" value="${Math.round(style.radius_scale*100)}" oninput="editEffectRadius('${esc(item.id)}',this.value)"></label><button type="button" title="Сбросить радиус" aria-label="Сбросить радиус" onclick="resetEffectRadius('${esc(item.id)}')">↺</button></div>`;
   const layerControl=`<label>Расположение<select aria-label="Расположение эффекта" onchange="editEffectLayer('${esc(item.id)}',this.value)">${[['auto','По замыслу эффекта'],['front','Перед всем'],['between','За рамкой, перед аватаркой'],['back','Полностью за всем']].map(([value,label])=>`<option value="${value}" ${style.layer===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
   const preview=radiusControl+layerControl+(selected!=='original'||item.renderer?.palette?`<div class="shop-current-palette" aria-label="Выбранная палитра" style="background:linear-gradient(${Number(style.angle??45)+90}deg,${(selected==='custom'?[colors[0],colors[0]]:colors).map(esc).join(',')})"></div>`:'');
-  return `<div class="shop-style-controls"><label>Окраска<select onchange="chooseEffectStyle('${esc(item.id)}',this.value,${charId||'null'})">${options.map(([id,label])=>`<option value="${id}" ${selected===id?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${preview}<div class="shop-palette-picker"><span>Готовые градиенты</span><div class="shop-palette-swatches" role="group" aria-label="Готовые градиенты">${swatches}</div></div>${['custom','gradient'].includes(selected)?`<div class="shop-color-inputs">${colors.map((color,i)=>`<input type="color" aria-label="Цвет ${i+1}" value="${esc(color)}" ${selected==='custom'&&i>0?'hidden':''} oninput="editEffectColor('${esc(item.id)}',${i},this.value)">`).join('')}</div>`:''}${selected==='gradient'?`<label>Направление<input type="range" min="0" max="360" step="5" value="${Number(style.angle??45)}" oninput="editEffectAngle('${esc(item.id)}',this.value)"></label>`:''}${!free?`<button onclick="buyEffectStyle('${esc(item.id)}','${esc(selected)}',${charId||'null'})" ${shopItemAvailable('effect',item)?'':'disabled'}>Открыть окраску за ${selected.startsWith('preset:')?item.style_prices.preset:item.style_prices[selected]} ✦</button>`:''}</div>`;
+  const customButton=(option,label)=>`<button type="button" class="shop-custom-palette" aria-pressed="${selected===option}" onclick="chooseEffectStyle('${esc(item.id)}','${option}',${charId||'null'})">${label}<small>${owned.includes(option)?'Открыто':item.style_prices[option]+' ✦'}</small></button>`;
+  return `<div class="shop-style-controls"><button type="button" class="secondary" aria-pressed="${selected==='original'}" onclick="chooseEffectStyle('${esc(item.id)}','original',${charId||'null'})">Исходная палитра</button><section class="shop-palette-picker"><h3>Палитра цветов</h3><div class="shop-palette-swatches" role="group" aria-label="Палитра цветов">${swatches('solid')}</div>${customButton('custom','Свой цвет')}</section><section class="shop-palette-picker"><h3>Палитра градиентов</h3><div class="shop-palette-swatches" role="group" aria-label="Палитра градиентов">${swatches('gradient')}</div>${customButton('gradient','Свой градиент')}</section>${['custom','gradient'].includes(selected)?effectColorEditor(item.id,{...style,colors}):''}${selected==='gradient'?`<label>Направление<input aria-label="Направление градиента" type="range" min="0" max="360" step="5" value="${Number(style.angle??45)}" oninput="editEffectAngle('${esc(item.id)}',this.value)"></label>`:''}${preview}${!free?`<button onclick="buyEffectStyle('${esc(item.id)}','${esc(selected)}',${charId||'null'})" ${shopItemAvailable('effect',item)?'':'disabled'}>Открыть палитру за ${selected.startsWith('preset:')?item.style_prices.preset:item.style_prices[selected]} ✦</button>`:''}</div>`;
 }
 let effectStylePreviewFrame=0;
 const pendingEffectStylePreviews=new Set();
@@ -6197,10 +6226,14 @@ function chooseEffectStyle(id,option,charId) {
   modal.querySelector('.shop-style-controls').outerHTML=effectStyleControls(item,charId);
   modal.querySelector('.modal-actions').innerHTML=shopActionButton('effect',item,charId)+'<button class="secondary" onclick="closeModal()">Назад</button>';
   bindDesktopInputFocusFix(modal);
-  modal.querySelector('.shop-style-controls select')?.focus({preventScroll:true});
+  if(['custom','gradient'].includes(option))modal.querySelector('.shop-inline-color-editor')?.scrollIntoView({block:'nearest'});
   refreshEffectStylePreview(id);
 }
-function editEffectColor(id,index,color){const s=effectStyleDrafts.get(id);s.colors=[...s.colors];s.colors[index]=color;if(s.mode==='solid')s.colors=[color,color,color];refreshEffectStylePreview(id);}
+function editEffectColor(id,index,color){
+  const s=effectStyleDrafts.get(id);s.colors=[...s.colors];s.colors[index]=color;if(s.mode==='solid')s.colors=[color,color,color];
+  document.querySelectorAll('.shop-color-stop').forEach(el=>el.style.background=s.colors[Number(el.dataset.stop)]);
+  refreshEffectStylePreview(id);
+}
 function editEffectAngle(id,value){effectStyleDrafts.get(id).angle=Number(value);refreshEffectStylePreview(id);}
 function editEffectRadius(id,value){
   effectStyleDrafts.get(id).radius_scale=Math.max(.8,Math.min(1.2,Number(value)/100));
@@ -6225,16 +6258,18 @@ function showCosmeticPreviewModal(kind, item, locked=false, charId=null) {
   if (kind === 'tag') return;
   const rarity = kind === 'frame' ? displayRarity(item) : (item.rarity || 'common');
   const controls=kind==='effect'?effectStyleControls(item,charId):'';
-  const preview = kind === 'frame' ? framePreviewHtml(item, 'modal-frame-preview-active') : effectPreviewHtml(item, 'modal-effect-preview-active', true, charId);
+  const preview = kind === 'frame' ? framePreviewHtml(item, 'modal-frame-preview-active',charId) : effectPreviewHtml(item, 'modal-effect-preview-active', true, charId);
   const titleIcon = kind === 'frame' ? '🖼️' : '✨';
   const title = `${locked ? '🔒 ' : ''}${titleIcon} ${esc(item.name || item.id)}`;
   const desc = esc(item.description || (kind === 'frame' ? 'Рамка для аватарки персонажа.' : 'Эффект проигрывается в предпросмотре и будет масштабироваться под размер аватарки.'));
   const shopPreview=!!document.querySelector('.customization-card,.shop-standalone-card,[data-shop-preview]');
   showModal(`<div class="modal-card compact unique-modal locked-custom-modal cosmetic-preview-modal" ${shopPreview?`data-shop-preview="1" data-shop-effect-id="${kind==='effect'?esc(item.id):''}"`:''}><button class="modal-close" onclick="closeModal()">×</button>
     <div class="name">${title}</div>
-    <div class="locked-preview-card rarity-${esc(rarity)} ${kind === 'effect' ? 'effect-card' : ''}">${preview}<b>${esc(item.name || item.id)}</b><small>${kind === 'frame' ? cosmeticMetaLabel(item) : effectMetaLabel(item)}</small></div>
+    <div class="cosmetic-preview-stage"><div class="locked-preview-card rarity-${esc(rarity)} ${kind === 'effect' ? 'effect-card' : ''}">${preview}<b>${esc(item.name || item.id)}</b><small>${kind === 'frame' ? cosmeticMetaLabel(item) : effectMetaLabel(item)}</small></div></div>
+    <div class="cosmetic-preview-body">
     <p class="muted centered-text">${desc}</p>
     ${controls}
+    </div>
     <div class="row modal-actions">${shopActionButton(kind, item, charId)}<button class="secondary" onclick="closeModal()">Назад</button></div>
   </div>`);
 }

@@ -33,6 +33,7 @@ PRESETS = [
         ('obsidian', 'Обсидиан', '#0f172a,#1e293b,#4c1d95'),
     ]
 ]
+PRESETS += [dict(id='solid_'+p['id'], name=p['name'], colors=[p['colors'][0]]*3, kind='solid') for p in list(PRESETS)]
 STYLE_PRICES = {'preset': 120, 'custom': 300, 'gradient': 500}
 LEGENDARY = {'wildfire', 'fire-ring', 'ref-summoning', 'ref-black-hole', 'ref-blue-portal', 'ref-future-interface', 'nebula-smoke', 'woven-spell', 'lunar-eclipse'}
 GROUPS = {
