@@ -20,6 +20,8 @@ data/backups/
 data/uploads/
 data1/
 backups/
+archive/
+references/
 uploads/
 local_host/*.json
 
@@ -64,6 +66,7 @@ desktop.ini
 *.swp
 *.swo
 tmp/
+output/
 
 # =========================
 # Local tunnel / process artifacts

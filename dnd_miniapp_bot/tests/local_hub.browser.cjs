@@ -2,11 +2,14 @@ const path=require('node:path'),os=require('node:os'),assert=require('node:asser
 const {chromium}=require(path.join(os.homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:8000/local/');await page.waitForSelector('#localLoginMenu');
+ await page.goto('http://127.0.0.1:8000/local/');await page.waitForSelector('#localLoginMenu',{state:'attached'});
  const users=await (await page.request.get('http://127.0.0.1:8000/local-api/users')).json();
  const user=users.users.find(u=>u.character_names.length&&!u.roles.includes('master'))||users.users.find(u=>u.character_names.length);
  assert.ok(user);await page.getByText('Войти',{exact:true}).click();await page.getByRole('button',{name:'Войти: '+user.display_name,exact:true}).click();
  await page.waitForSelector('.hub-nav');
+ assert.equal(await page.locator('.hub-header').count(),0);
+ assert.equal(await page.getByText('Сменить пользователя',{exact:true}).count(),0);
+ assert.equal(await page.locator('.hub-nav').getByRole('button',{name:'Мастер',exact:true}).count(),user.roles.includes('master')?1:0);
  await page.getByRole('button',{name:'Настроить профиль'}).click();await page.waitForSelector('#profileEditor');
  await page.getByRole('button',{name:'Отмена',exact:true}).click();
  for(const viewport of [{width:1440,height:1000},{width:390,height:844}]){
@@ -16,7 +19,30 @@ const {chromium}=require(path.join(os.homedir(),'.cache/codex-runtimes/codex-pri
  }
  await page.locator('.hub-character').first().click();await page.waitForSelector('.campaign-context-bar');
  await page.evaluate(()=>setTab('settings'));await page.locator('.settings-exit-action').click();await page.waitForSelector('.hub-nav');
- await page.getByRole('button',{name:'Магазин',exact:true}).click();await page.locator('.hub-character').first().click();await page.waitForSelector('.shop-standalone-card');
- assert.equal(await page.locator('.bottom-nav').count(),0);await page.getByRole('button',{name:'В хаб',exact:true}).click();await page.waitForSelector('.hub-nav');
- assert.deepEqual(errors,[]);console.log('Passed: local user selection, cross-campaign hub, desktop/mobile, character/settings return, shared shop and hub return.');
+ const labels=await page.locator('.hub-nav button').allTextContents();
+ assert.equal(labels.includes('Магазин'),false);assert.equal(labels.includes('Игры'),false);
+ assert.deepEqual(labels.filter(s=>s!=='Мастер'),['Профиль','Персонажи','Достижения','Инвентарь','Игроки']);
+ await page.getByRole('button',{name:'Персонажи',exact:true}).click();await page.getByRole('button',{name:'Модели',exact:true}).click();
+ await page.waitForSelector('.hub-model-grid img');
+ assert.ok(await page.locator('.hub-model-grid img').first().evaluate(el=>getComputedStyle(el).objectFit==='contain'&&el.getBoundingClientRect().height>=260));
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+ await page.screenshot({path:'tmp/hub-models-mobile.png',fullPage:true});
+ await page.evaluate(()=>localStorage.setItem('local_hub_user','464302752'));
+ await page.goto('http://127.0.0.1:8000/local/hub.html?user=464302752');await page.waitForSelector('.hub-nav');
+ await page.getByRole('button',{name:'Мастер',exact:true}).click();
+ const master=await page.evaluate(()=>({expected:hubData.games.filter(g=>g.master).length,actual:document.querySelectorAll('.hub-game').length}));
+ assert.equal(master.actual,master.expected);assert.ok(master.actual>0);
+ await page.evaluate(()=>{hubData.profile.showcases=[{kind:'avatars',items:[hubData.models[0].id]}];hubTab='profile';renderHub();});
+ assert.equal(await page.locator('.hub-showcase .hub-model-grid img').count(),1);
+ assert.ok(await page.locator('.hub-showcase .hub-model-grid img').evaluate(el=>getComputedStyle(el).objectFit==='contain'));
+ await page.evaluate(()=>{hubData.achievements=[{id:999999,achievement:{title:'Test achievement',description:'Full achievement description',icon:'✦'},created_at:'2026-11-09T12:00:00Z'}];hubTab='achievements';renderHub();});
+ await page.locator('.hub-achievement').click();await page.waitForSelector('.hub-achievement-dialog[open]');
+ assert.ok((await page.locator('.hub-achievement-dialog').innerText()).includes('Full achievement description'));
+ await page.getByRole('button',{name:'Закрыть',exact:true}).click();
+ await page.evaluate(()=>{hubData.profile.showcases=[{kind:'achievements',items:['999999']}];hubTab='profile';renderHub();});
+ await page.locator('.hub-showcase .hub-achievement').click();await page.waitForSelector('.hub-achievement-dialog[open]');
+ await page.keyboard.press('Escape');await page.waitForSelector('.hub-achievement-dialog',{state:'detached'});
+ await page.getByRole('button',{name:'Игроки',exact:true}).click();
+ assert.equal(await page.getByRole('link',{name:'Сменить пользователя',exact:true}).count(),1);
+ assert.deepEqual(errors,[]);console.log('Passed: local login, desktop/mobile navigation, master-only campaigns, full-height model gallery and opt-in profile model shelf. No live profile changes.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

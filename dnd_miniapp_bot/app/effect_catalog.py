@@ -161,10 +161,15 @@ class EffectShopMixin:
         with self.conn:
             if self._one('SELECT 1 FROM user_effect_styles WHERE telegram_user_id=? AND effect_id=? AND option_id=?',(int(user_id),effect_id,option)):
                 return {'message':'Окраска уже открыта'}
+            from .treasury import quote, consume, style_credit, consume_credit
+            credit=style_credit(self,user_id,option)
+            price,coupon=(0,None) if credit else quote(self,user_id,price)
             self.ensure_wallet(user_id)
             changed=self.conn.execute('UPDATE user_wallets SET balance=balance-? WHERE telegram_user_id=? AND balance>=?',(price,int(user_id),price))
             if changed.rowcount != 1:
                 raise ValueError('Недостаточно искр')
+            consume(self,coupon)
+            consume_credit(self,user_id,credit)
             self.conn.execute('INSERT INTO user_effect_styles VALUES (?,?,?)',(int(user_id),effect_id,option))
             from .db import utc_now
             self.conn.execute('INSERT INTO currency_transactions(telegram_user_id,amount,reason,source,created_at) VALUES (?,?,?,?,?)',(int(user_id),-price,'Окраска: '+effect_id+' / '+option,'effect-style',utc_now()))

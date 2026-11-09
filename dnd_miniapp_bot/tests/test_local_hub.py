@@ -29,6 +29,8 @@ class LocalHubTests(unittest.TestCase):
                     self.assertEqual(len(data['games']), 2)
                     self.assertTrue(all(ch['name'] == 'Mine' for ch in data['characters']))
                     self.assertEqual(data['balance'], 0)
+                    self.assertTrue(data['models'])
+                    self.assertTrue(all(m['id'] and m['path'] for m in data['models']))
                     self.assertEqual(client.get('/local-api/hub/999999').status_code, 404)
                     self.assertEqual(client.get('/local/hub.html').status_code, 200)
                     mine = data['characters'][0]['id']
@@ -67,11 +69,25 @@ class LocalHubTests(unittest.TestCase):
                     db.log(a['id'], mine, 'damage', 'Test', {'damage': 17})
                     stats = {s['id']: s['value'] for s in client.get('/local-api/hub/200').json()['stats']}
                     self.assertEqual((stats['spent'], stats['earned'], stats['damage']), (30, 100, 17))
+                    self.assertEqual(stats['largest_hit'],17)
+                    self.assertEqual(stats['hits'],1)
+                    self.assertIn('chests',stats)
+                    self.assertIn('models',stats)
                     activate = '/local-api/hub/200/active-game'
                     self.assertEqual(client.post(activate, json={'campaign_id':a['id']}, headers=headers).status_code, 403)
                     self.assertFalse(state_path.exists())
                     result = client.post('/local-api/hub/100/active-game', json={'campaign_id':a['id']}, headers={'X-Local-User':'100'})
                     self.assertEqual(result.status_code, 200)
                     self.assertEqual([g['id'] for g in client.get('/local-api/hub/200').json()['games'] if g['active']], [a['id']])
+                    sorted_chars=client.get('/local-api/hub/200').json()['characters']
+                    self.assertEqual(sorted_chars[0]['campaign_id'],a['id'])
+                    model=data['models'][0]['id']
+                    profile['showcases']=[{'kind':'avatars','items':[model]}]
+                    saved=client.patch(url,json=profile,headers=headers)
+                    self.assertEqual(saved.status_code,200,saved.text)
+                    public=client.get('/local-api/hub/200/public').json()
+                    self.assertEqual([m['id'] for m in public['models']],[model])
+                    profile['showcases'][0]['items']=['non-owned-model']
+                    self.assertEqual(client.patch(url,json=profile,headers=headers).status_code,400)
             finally:
                 db.conn.close()

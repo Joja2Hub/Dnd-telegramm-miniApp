@@ -4,7 +4,7 @@ const userId = params.get('user') || localStorage.getItem('local_hub_user');
 const viewerId = localStorage.getItem('local_hub_user');
 const publicView = params.get('view') === 'public' || String(userId) !== String(viewerId);
 const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const shelfNames = {achievements:'Витрина достижений', stats:'Статистика', characters:'Мои персонажи', avatars:'Коллекция аватаров'};
+const shelfNames = {achievements:'Витрина достижений', stats:'Статистика', characters:'Мои персонажи', avatars:'Коллекция моделей'};
 let hubData, hubTab = 'profile', selectedGame = 0, profileDraft = null;
 
 async function hubApi(path, options = {}) {
@@ -28,45 +28,61 @@ function enterHubCharacter(id, shop = false) {
 function openHubGame(id) { selectedGame = id; hubTab = 'games'; renderHub(); }
 function characterList(characters, shop = false) {
   return `<div class="hub-character-grid">${characters.map(c => {
-    const inner = `${portrait(c)}<span><b>${e(c.name)}</b><small>${e(hubData.games.find(g => g.id === c.campaign_id)?.name)}${publicView ? '' : ` · HP ${e(c.current_hp)}/${e(c.current_max_hp)}`}</small></span>`;
+    const inner = `${portrait(c)}<span><b>${e(c.name)}</b><small>${e(hubData.games.find(g => g.id === c.campaign_id)?.name)}${publicView ? '' : ` · HP ${e(c.current_hp)}/${e(c.current_max_hp)}`}</small>${c.active?'<small class="hub-live">Активная игра</small>':''}</span>`;
     return publicView ? `<article class="hub-character">${inner}</article>` : `<button class="hub-character secondary" onclick="enterHubCharacter(${c.id},${shop})">${inner}<span aria-hidden="true">→</span></button>`;
   }).join('') || '<p class="muted">Персонажей пока нет.</p>'}</div>`;
 }
 function achievementList(grants) {
   return `<div class="hub-achievements">${grants.map(g => {
     const a = g.achievement || {}, icon = a.icon_thumb || a.icon || '';
-    return `<article class="hub-achievement">${icon.startsWith('/') ? `<img src="${e(icon)}" alt="">` : '<span aria-hidden="true">✦</span>'}<div><b>${e(a.title || 'Достижение')}</b><p>${e(a.description || '')}</p></div></article>`;
+    return `<button type="button" class="hub-achievement" aria-haspopup="dialog" onclick="openHubAchievement(${Number(g.id)})">${icon.startsWith('/') ? `<img src="${e(icon)}" alt="">` : `<span aria-hidden="true">${e(icon||'✦')}</span>`}<span><b>${e(a.title || 'Достижение')}</b><span class="hub-achievement-excerpt">${e(a.description || '')}</span></span></button>`;
   }).join('') || '<p class="muted">Пока пусто.</p>'}</div>`;
 }
+function openHubAchievement(id){
+ const grant=hubData.achievements.find(g=>Number(g.id)===id);if(!grant)return;
+ const a=grant.achievement||{},icon=a.icon||a.icon_thumb||'',dialog=document.createElement('dialog');
+ dialog.className='hub-achievement-dialog';dialog.setAttribute('aria-label',a.title||'Достижение');
+ const date=grant.created_at?new Date(grant.created_at):null;
+ const rewards=[a.cosmetic_reward?.name,a.cosmetic_effect_reward?.name,a.inventory_model_reward?.name].filter(Boolean);
+ dialog.innerHTML=`${icon.startsWith('/')?`<img class="hub-achievement-art" src="${e(icon)}" alt="${e(a.title)}">`:`<div class="hub-achievement-symbol">${e(icon||'✦')}</div>`}<h2>${e(a.title||'Достижение')}</h2><p>${e(a.description||'Описание не указано.')}</p>${grant.master_comment?`<section><b>Комментарий мастера</b><p>${e(grant.master_comment)}</p></section>`:''}${rewards.length?`<p class="muted">Награды: ${rewards.map(e).join(', ')}</p>`:''}${a.currency_reward?`<p class="muted">Награда искрами: ${e(a.currency_reward)}</p>`:''}${date&&!Number.isNaN(date.getTime())?`<small>Получено: ${e(date.toLocaleDateString('ru-RU'))}</small>`:''}<button type="button" data-close-achievement>Закрыть</button>`;
+ document.body.append(dialog);dialog.showModal();
+ dialog.querySelector('[data-close-achievement]').onclick=()=>dialog.close();
+ dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
+ dialog.onclose=()=>dialog.remove();
+}
 function renderShelf(shelf) {
-  const d=hubData, collection=shelf.kind==='achievements'?d.achievements:shelf.kind==='characters'?d.characters:shelf.kind==='avatars'?d.avatars:d.stats;
-  const items=shelf.items.map(id=>collection.find(item=>String(shelf.kind==='avatars'?item.path:item.id)===String(id))).filter(Boolean);
+  const d=hubData, collection=shelf.kind==='achievements'?d.achievements:shelf.kind==='characters'?d.characters:shelf.kind==='avatars'?d.models:d.stats;
+  const items=shelf.items.map(id=>collection.find(item=>String(item.id)===String(id))).filter(Boolean);
   let body='';
   if(shelf.kind==='achievements')body=achievementList(items);
   if(shelf.kind==='characters')body=items.length?characterList(items):'<p class="muted">Витрина пока не заполнена.</p>';
-  if(shelf.kind==='avatars')body=`<div class="hub-avatar-grid">${items.map(a=>`<figure><img src="${e(a.path)}" alt="${e(a.name)}"><figcaption>${e(a.name)}</figcaption></figure>`).join('')||'<p class="muted">Пока пусто.</p>'}</div>`;
+  if(shelf.kind==='avatars')body=modelGallery(items);
   if(shelf.kind==='stats')body=`<div class="hub-stats">${items.map(s=>`<div><b>${Number(s.value).toLocaleString('ru-RU')}</b><span>${e(s.label)}</span></div>`).join('')||'<p class="muted">Пока пусто.</p>'}</div>`;
   return `<section class="hub-showcase"><h2>${shelfNames[shelf.kind]}</h2>${body}</section>`;
+}
+function modelGallery(models){
+ return `<div class="hub-model-grid">${models.map(m=>`<figure><img src="${e(m.path)}" alt="${e(m.name)}" loading="lazy"><figcaption>${e(m.name)}</figcaption></figure>`).join('')||'<p class="muted">Моделей пока нет.</p>'}</div>`;
 }
 function renderProfile() {
   const p=hubData.profile,name=p.name||hubData.user.display_name;
   return `<section class="profile-banner" aria-label="Баннер профиля"><span>DND</span></section><header class="profile-identity">${portrait({name,avatar_path:p.avatar_path})}<div><h1>${e(name)}</h1><p>${e(p.bio)}</p></div>${publicView?'':'<button class="secondary" onclick="editProfile()">Настроить профиль</button>'}</header>${publicView?'':`<div class="profile-actions"><a href="/local/hub.html?user=${userId}&view=public">Посмотреть глазами гостя</a></div>`}${p.showcases.map(renderShelf).join('')||'<p class="muted">Витрины пока не добавлены.</p>'}`;
 }
 function renderGames() {
-  return `<div class="hub-section-head"><h2>Игры</h2><a class="hub-game-link" href="/local-app/?local_tg_id=${userId}&hub_create=1">Новая игра</a></div>${[...hubData.games].sort((a,b)=>Number(b.active)-Number(a.active)).map(g=>`<section class="hub-game"><div><b>${e(g.name)}</b><small>${g.rule_type==='cyberpunk'?'Киберпанк':'Фэнтези'}${g.master?' · Мастер':''}</small></div>${g.active?'<span class="hub-live">Активная игра</span>':''}<button onclick="openHubGame(${g.id})">Персонажи</button>${g.master?`<a class="hub-game-link" href="/local-app/?local_tg_id=${userId}&campaign_id=${g.id}">Панель мастера</a>`:''}</section>`).join('')||'<p>Игр пока нет.</p>'}${selectedGame?`<h2>${e(hubData.games.find(g=>g.id===selectedGame)?.name)}</h2>${characterList(hubData.characters.filter(c=>c.campaign_id===selectedGame))}`:''}`;
+  return `<div class="hub-section-head"><h2>Мои игры · мастер</h2><a class="hub-game-link" href="/local-app/?local_tg_id=${userId}&hub_create=1">Новая игра</a></div>${hubData.games.filter(g=>g.master).sort((a,b)=>Number(b.active)-Number(a.active)).map(g=>`<section class="hub-game"><div><b>${e(g.name)}</b><small>${g.rule_type==='cyberpunk'?'Киберпанк':'Фэнтези'}</small></div>${g.active?'<span class="hub-live">Активная игра</span>':''}<a class="hub-game-link" href="/local-app/?local_tg_id=${userId}&campaign_id=${g.id}">Панель мастера</a></section>`).join('')}`;
 }
 function renderHub() {
   const d=hubData;
   let content=renderProfile();
-  if(hubTab==='characters')content=`<div class="hub-section-head"><h2>Мои персонажи</h2><button class="secondary" onclick="hubTab='avatars';renderHub()">Аватары</button></div>${characterList(d.characters)}`;
-  if(hubTab==='games')content=renderGames();
+  if(hubTab==='characters')content=`<div class="hub-section-head"><h2>Мои персонажи</h2><button class="secondary" onclick="hubTab='avatars';renderHub()">Модели</button></div>${characterList([...d.characters].sort((a,b)=>Number(b.active)-Number(a.active)))}`;
+  if(hubTab==='master')content=renderGames();
   if(hubTab==='achievements')content=`<h2>Все достижения · ${d.achievements.length}</h2>${achievementList(d.achievements)}`;
-  if(hubTab==='avatars')content=`<h2>Мои аватары</h2><label class="hub-upload">Загрузить аватарку<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange="uploadProfileAvatar(this)"></label><div class="hub-avatar-grid">${d.avatars.map((a,i)=>`<figure><img src="${e(a.path)}" alt="${e(a.name)}"><figcaption>${e(a.name)}</figcaption><button class="secondary" onclick="useHubAvatar(${i})">${d.profile.avatar_path===a.path?'Выбрана':'В профиль'}</button></figure>`).join('')}</div>`;
-  if(hubTab==='shop')content=`<h2>Магазин</h2><p class="hub-shop-label">Персонаж для примерки</p>${characterList(d.characters,true)}`;
-  if(hubTab==='players')content='<h2>Игроки</h2><div id="hubPlayers" role="status">Загрузка...</div>';
-  const nav=[['profile','Профиль'],['characters','Персонажи'],['games','Игры'],['achievements','Достижения'],['shop','Магазин'],['players','Игроки']];
-  hubRoot.innerHTML=`<header class="hub-header"><a class="hub-brand" href="/local/">DND</a><div>${publicView?`<a href="/local/hub.html?user=${e(viewerId||'')}">Мой профиль</a>`:`<b>${d.balance} ✦</b><a href="/local/">Сменить пользователя</a>`}</div></header>${publicView?'':`<nav class="hub-nav" aria-label="Разделы хаба">${nav.map(([id,label])=>`<button class="${hubTab===id?'selected':'secondary'}" aria-current="${hubTab===id?'page':'false'}" onclick="hubTab='${id}';selectedGame=0;renderHub()">${label}</button>`).join('')}</nav>`}<div id="hubStatus" role="status"></div><div class="hub-content">${content}</div>`;
+  if(hubTab==='avatars')content=`<div class="hub-section-head"><h2>Мои модели</h2><button class="secondary" onclick="hubTab='characters';renderHub()">Персонажи</button></div>${modelGallery(d.models)}`;
+  if(hubTab==='treasury'||hubTab==='inventory')content='<div id="hubTreasury"></div>';
+  if(hubTab==='players')content='<div class="hub-section-head"><h2>Игроки</h2><a class="hub-game-link" href="/local/">Сменить пользователя</a></div><div id="hubPlayers" role="status">Загрузка...</div>';
+  const nav=[['profile','Профиль'],['characters','Персонажи'],...(d.games.some(g=>g.master)?[['master','Мастер']]:[]),['achievements','Достижения'],['inventory','Инвентарь'],['players','Игроки']];
+  hubRoot.innerHTML=`${publicView?`<a class="hub-public-return" href="/local/hub.html?user=${e(viewerId||'')}">← Мой профиль</a>`:''}${publicView?'':`<nav class="hub-nav" aria-label="Разделы хаба">${nav.map(([id,label])=>`<button class="${hubTab===id?'selected':'secondary'}" aria-current="${hubTab===id?'page':'false'}" onclick="hubTab='${id}';selectedGame=0;renderHub()">${label}</button>`).join('')}</nav>`}<div id="hubStatus" role="status"></div><div class="hub-content">${content}</div>`;
   if(hubTab==='players'&&!publicView)loadPlayerDirectory();
+  if(['treasury','inventory'].includes(hubTab)&&!publicView)window.TreasuryView.mount(document.getElementById('hubTreasury'),{user:userId,tab:hubTab==='inventory'?'inventory':'chest',request:(path,opts={})=>hubApi(path,{...opts,headers:{'X-Dev-Telegram-Id':viewerId}}),onState:data=>{hubData.balance=data.balance;}});
 }
 function hubError(error){const status=document.getElementById('hubStatus');if(status){status.textContent=error.message;status.className='hub-error';}}
 async function loadPlayerDirectory(){try{const data=await hubApi('/local-api/users'),target=document.getElementById('hubPlayers');if(target)target.innerHTML=data.users.map(u=>`<a class="hub-directory-user" href="/local/hub.html?user=${u.telegram_user_id}&view=public">${portrait({name:u.display_name,avatar_path:u.avatar_path})}<b>${e(u.display_name)}</b></a>`).join('');}catch(error){hubError(error);}}
@@ -78,8 +94,8 @@ function renderProfileEditor(){
   window.scrollTo(0,scrollY);
 }
 function renderShelfEditor(shelf,index){
-  const collection=shelf.kind==='achievements'?hubData.achievements.map(g=>({id:String(g.id),name:g.achievement?.title})):shelf.kind==='characters'?hubData.characters.map(c=>({id:String(c.id),name:c.name})):shelf.kind==='avatars'?hubData.avatars.map(a=>({id:a.path,name:a.name})):hubData.stats.map(s=>({id:s.id,name:s.label}));
-  return `<section class="hub-shelf-editor"><header><b>${shelfNames[shelf.kind]}</b><div><button type="button" class="secondary" aria-label="Поднять витрину ${index+1}" onclick="moveShelf(${index},-1)" ${index===0?'disabled':''}>↑</button><button type="button" class="secondary" aria-label="Опустить витрину ${index+1}" onclick="moveShelf(${index},1)" ${index===profileDraft.showcases.length-1?'disabled':''}>↓</button><button type="button" class="secondary" aria-label="Удалить витрину ${index+1}" onclick="profileDraft.showcases.splice(${index},1);renderProfileEditor()">×</button></div></header><div class="hub-shelf-choices">${collection.map(item=>`<label><input type="checkbox" ${shelf.items.includes(item.id)?'checked':''} onchange="toggleShelfItem(${index},this.value,this.checked)" value="${e(item.id)}">${e(item.name)}</label>`).join('')||'<p class="muted">Пока нет доступных элементов.</p>'}</div><small>${shelf.items.length}/12</small></section>`;
+  const collection=shelf.kind==='achievements'?hubData.achievements.map(g=>({id:String(g.id),name:g.achievement?.title})):shelf.kind==='characters'?hubData.characters.map(c=>({id:String(c.id),name:c.name})):shelf.kind==='avatars'?hubData.models.map(a=>({id:a.id,name:a.name,path:a.path})):hubData.stats.map(s=>({id:s.id,name:s.label}));
+  return `<section class="hub-shelf-editor"><header><b>${shelfNames[shelf.kind]}</b><div><button type="button" class="secondary" aria-label="Поднять витрину ${index+1}" onclick="moveShelf(${index},-1)" ${index===0?'disabled':''}>↑</button><button type="button" class="secondary" aria-label="Опустить витрину ${index+1}" onclick="moveShelf(${index},1)" ${index===profileDraft.showcases.length-1?'disabled':''}>↓</button><button type="button" class="secondary" aria-label="Удалить витрину ${index+1}" onclick="profileDraft.showcases.splice(${index},1);renderProfileEditor()">×</button></div></header><div class="hub-shelf-choices">${collection.map(item=>`<label><input type="checkbox" ${shelf.items.includes(item.id)?'checked':''} onchange="toggleShelfItem(${index},this.value,this.checked)" value="${e(item.id)}">${item.path?`<img src="${e(item.path)}" alt="" loading="lazy">`:''}${e(item.name)}</label>`).join('')||'<p class="muted">Пока нет доступных элементов.</p>'}</div><small>${shelf.items.length}/12</small></section>`;
 }
 function addShelf(){if(profileDraft.showcases.length<8){profileDraft.showcases.push({kind:document.getElementById('newShelfKind').value,items:[]});renderProfileEditor();}}
 function moveShelf(index,direction){const next=index+direction;if(next<0||next>=profileDraft.showcases.length)return;[profileDraft.showcases[index],profileDraft.showcases[next]]=[profileDraft.showcases[next],profileDraft.showcases[index]];renderProfileEditor();}

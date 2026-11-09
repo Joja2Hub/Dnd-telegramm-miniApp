@@ -127,7 +127,7 @@ function achIconFullPath(a) { return isImageIcon(a?.icon || a?.icon_thumb || '')
 function effectById(id) { return cosmeticEffects().find(c => String(c.id) === String(id)); }
 function currencyBalance() { return Number(state.campaignState?.currency_balance || 0); }
 function priceOf(item) { return item?.price == null ? ({common:60, rare:180, epic:500, legendary:1300, unique:null}[item?.rarity || 'common'] ?? 25) : item.price; }
-function priceLabel(item) { const p = priceOf(item); return p == null || String(item?.rarity)==='unique' ? 'только за ачивку' : `✦ ${p}`; }
+function priceLabel(item) { if(String(item?.id||'').startsWith('treasury_'))return 'право на рамку'; const p = priceOf(item),discount=Number(state.campaignState?.treasury_discount_percent||0); return p == null || String(item?.rarity)==='unique' ? 'только за ачивку' : `✦ ${Math.ceil(p*(100-discount)/100)}${discount?' (−'+discount+'%)':''}`; }
 function cosmeticMetaLabel(item) { return `${rarityEmoji(displayRarity(item))} ${rarityRu(displayRarity(item))}`; }
 function effectMetaLabel(item) { return `${rarityEmoji(item?.rarity || 'common')} ${rarityRu(item?.rarity || 'common')}`; }
 function availableFirst(items, isAvailable) { return [...items].sort((a,b) => (isAvailable(b)?1:0) - (isAvailable(a)?1:0) || (Number(a.sort_order||0)-Number(b.sort_order||0)) || String(a.name||'').localeCompare(String(b.name||''), 'ru')); }
@@ -3559,6 +3559,9 @@ function bindAfterRender(root=document) {
   });
 
   bindDesktopInputFocusFix(root);
+  const treasuryRequest=(path,opts={})=>api(path,{...opts,body:opts.body?JSON.parse(opts.body):undefined});
+  root.querySelectorAll('[data-treasury-view]').forEach(el=>window.TreasuryView?.mount(el,{request:treasuryRequest,user:playerChar()?.telegram_user_id||state.me?.user?.id,onState:data=>{if(state.campaignState)Object.assign(state.campaignState,{currency_balance:data.balance,treasury_discount_percent:data.discount_percent||0,treasury_frame_credits:data.frame_credits||0,treasury_benefits:data.shop_benefits||{},effect_style_unlocks:data.effect_style_unlocks,unlocked_cosmetic_ids:data.unlocked_cosmetic_ids});}}));
+  root.querySelectorAll('[data-treasury-master]').forEach(el=>window.TreasuryView?.master(el,{request:treasuryRequest,campaign:state.currentCampaignId,players:allChars()}));
   bindEffectActivation(root);
   setupCanvasEffects(root);
   scheduleCanvasEffectsFrame();
@@ -4973,6 +4976,7 @@ function renderSparkManagementCard() {
     <div class="custom-collapse-body stack">
       <div class="spark-balance-hero"><div><span>Запас искр мастера</span><b>✦ ${esc(balance)}</b></div><small>Из этого запаса списываются ручные выдачи игрокам и награды искрами за достижения.</small></div>
       ${sparkGuideHtml()}
+      <details class="custom-section nested-shop"><summary><b>Ключи и сокровища</b></summary><div data-treasury-master></div></details>
       <details class="custom-section nested-shop" ${sectionAttrs('spark-my-history')}><summary><b>📜 Моя история выдачи</b></summary>${sparkHistoryHtml(sm.history || [])}</details>
       ${isAdmin ? `<details class="custom-section nested-shop" ${sectionAttrs('spark-admin')}><summary><b>👑 Главное управление запасами</b><small>Все мастера, их баланс и история</small></summary>${renderSparkAdminMasters(sm)}</details><details class="custom-section nested-shop" ${sectionAttrs('spark-admin-players')}><summary><b>🧙 Игроки и награды</b><small>Баланс искр, выданные достижения и ручная корректировка</small></summary>${renderSparkAdminPlayers(sm)}</details>` : ''}
     </div>
@@ -5980,6 +5984,7 @@ function renderPlayerSettings() {
       <div id="settingsOut"></div>
     </div>
     <div class="card stack customization-card"><div class="shop-standalone-head"><div><div class="name">🎨 Кастомизация</div><p class="muted">Нажми на любую рамку или эффект, чтобы открыть предпросмотр. Купленную косметику можно применить из окна предпросмотра.</p></div><span class="currency-pill">✦ ${currencyBalance()}</span></div>${customBlock}</div>
+    <details class="card stack"><summary>Сокровищница и личный инвентарь</summary><div data-treasury-view></div></details>
     ${renderCampaignSettingsCard()}
     ${renderCampaignExitSettingsCard()}
   </div>`;
@@ -6050,6 +6055,7 @@ function renderShopBlock(ch) {
   return `<div class="card stack shop-standalone-card">
     <div class="shop-standalone-head"><div><div class="name">🛒 Магазин косметики</div><div class="muted">Покупка рамок и эффектов за искры.</div></div><span class="currency-pill">✦ ${currencyBalance()}</span></div>
     <div class="shop-tabs">
+      <details class="custom-section nested-shop"><summary><b>Сокровищница</b></summary><div data-treasury-view></div></details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-frames')}><summary><b>🖼️ Рамки</b></summary>${shopItemsHtml('frame', cosmetics().filter(x=>x.category !== 'base'))}</details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-effects')}><summary><b>✨ Эффекты</b></summary>${shopItemsHtml('effect', cosmeticEffects().filter(x=>x.id !== 'effect_none' && x.category !== 'base' && isModernEffectId(x.id)))}</details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-history')}><summary><b>📜 История искр</b></summary>${currencyHistoryHtml()}</details>
@@ -6079,16 +6085,19 @@ function shopItemCard(kind, item, unlocked) {
     const ch = playerChar();
     preview = effectPreviewHtml(item, '', false, ch?.id || null);
   }
-  const action = unlocked ? '<span class="shop-status owned">куплено</span>' : isUnique ? '<span class="shop-status locked">только за ачивку</span>' : `<span class="shop-status price">${priceLabel(item)}</span>`;
+  const action = unlocked ? '<span class="shop-status owned">открыто</span>' : isUnique ? `<span class="shop-status locked">${String(item.id).startsWith('treasury_')?'право на рамку':'только за ачивку'}</span>` : `<span class="shop-status price">${priceLabel(item)}</span>`;
   return `<div class="frame-choice shop-buy-card rarity-${esc(displayRarity(item))}" role="button" tabindex="0" onclick="openShopPreview('${kind}','${esc(item.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openShopPreview('${kind}','${esc(item.id)}')}">${item.is_new?'<span class="shop-new-badge">NEW</span>':''}${preview}<b>${esc(item.name)}</b><small>${rarityEmoji(displayRarity(item))} ${esc(rarityRu(displayRarity(item)))}</small>${action}</div>`;
 }
 async function buyShopItem(kind, id, charId=null) {
   try {
-    const out = await api('/api/shop/purchase', {method:'POST', body:{item_type:kind, item_id:id}});
+    const option=kind==='effect'?effectPurchaseQuote(effectById(id)).option:'';
+    const out = await api('/api/shop/purchase', {method:'POST', body:{item_type:kind, item_id:id,option_id:option}});
+    state.campaignState.treasury_benefits=out.treasury_benefits;
     state.campaignState.unlocked_cosmetic_ids = out.unlocked_cosmetic_ids || state.campaignState.unlocked_cosmetic_ids;
     state.campaignState.unlocked_effect_ids = out.unlocked_effect_ids || state.campaignState.unlocked_effect_ids;
     state.campaignState.effect_style_unlocks=out.effect_style_unlocks||state.campaignState.effect_style_unlocks;
     state.campaignState.currency_balance = out.currency_balance;
+    state.campaignState.treasury_discount_percent=out.treasury_discount_percent||0;
     state.campaignState.currency_transactions = out.currency_transactions || state.campaignState.currency_transactions;
     showToast(out.message || 'Покупка выполнена', 'heal');
     renderCampaign();
@@ -6122,6 +6131,25 @@ async function applyShopItem(kind, id, charId=null) {
   if (kind === 'frame') return saveCustomFrame(Number(ch.id), String(id || ''));
   if (kind === 'effect') return saveCustomEffect(Number(ch.id), String(id || ''));
 }
+async function claimTreasuryFrame(id) {
+  try {
+    await api(`/api/treasury/frames/${id}/claim`,{method:'POST'});
+    await refreshAll();
+    showToast('Рамка открыта','heal');
+  } catch(e) { showToast(e.message,'error'); }
+}
+function effectPurchaseQuote(item){
+  const style=effectStyleDrafts.get(item.id)||{mode:'original'};
+  const option=style.mode==='preset'?'preset:'+style.preset:style.mode==='solid'?'custom':style.mode||'original';
+  const owned=shopItemAvailable('effect',item), styles=state.campaignState?.effect_style_unlocks?.[item.id]||[];
+  const benefits=state.campaignState?.treasury_benefits||{};
+  const preset=item.color_presets?.find(p=>'preset:'+p.id===option);
+  const creditType=preset?(new Set(preset.colors).size===1?'custom':'gradient'):option;
+  const free=creditType==='custom'&&benefits.colors>0||creditType==='gradient'&&benefits.gradients>0;
+  const palette=option==='original'||styles.includes(option)||free?0:Number(item.style_prices?.[option.startsWith('preset:')?'preset':option]||0);
+  const base=owned?0:Number(priceOf(item)||0),discount=Number(state.campaignState?.treasury_discount_percent||0);
+  return {option,base,palette,free,total:Math.ceil((base+palette)*(100-discount)/100),discount};
+}
 function shopActionButton(kind, item, charId=null) {
   if (!item || kind === 'tag') return '';
   const rarity = displayRarity(item);
@@ -6130,16 +6158,23 @@ function shopActionButton(kind, item, charId=null) {
     if(kind==='effect') {
       const style=effectStyleDrafts.get(item.id)||{mode:'original'};
       const option=style.mode==='preset'?'preset:'+style.preset:style.mode==='solid'?'custom':style.mode;
-      if(option!=='original'&&!(state.campaignState?.effect_style_unlocks?.[item.id]||[]).includes(option))return '<span class="shop-status locked">Сначала открой выбранную окраску</span>';
+      if(option!=='original'&&!(state.campaignState?.effect_style_unlocks?.[item.id]||[]).includes(option)){
+        const q=effectPurchaseQuote(item);
+        return `<button class="ok" onclick="buyShopItem('effect','${esc(item.id)}',${charId||'null'})">${q.total?'Открыть палитру за '+q.total+' ✦'+(q.discount?' · скидка '+q.discount+'%':''):'Открыть палитру бесплатно'}</button>`;
+      }
     }
     const selected = shopItemSelected(kind, item, charId);
     if (selected && kind!=='effect') return `<button class="ok" disabled>Применено</button>`;
     return `<button class="ok" onclick="event.stopPropagation(); applyShopItem('${kind}','${esc(item.id || '')}', ${charId ? Number(charId) : 'null'})">Применить</button>`;
   }
   if (rarity === 'unique' || item.rarity === 'unique' || item.purchasable === 0) {
+    if(kind==='frame'&&rarity==='unique'&&state.campaignState?.treasury_benefits?.frames>0)return `<button class="ok" onclick="event.stopPropagation(); claimTreasuryFrame('${esc(item.id)}')">Забрать бесплатно</button>`;
+    if(kind==='frame'&&String(item.id).startsWith('treasury_'))return state.campaignState?.treasury_frame_credits?`<button class="ok" onclick="event.stopPropagation(); claimTreasuryFrame('${esc(item.id)}')">Забрать бесплатно</button>`:'<span class="shop-status locked">Активируй право на рамку в инвентаре хаба</span>';
     return '<span class="shop-status locked">Можно получить только за достижение</span>';
   }
-  return `<button class="ok" onclick="event.stopPropagation(); buyShopItem('${kind}','${esc(item.id)}', ${charId ? Number(charId) : 'null'})">Купить за ${priceLabel(item)}</button>`;
+  const q=kind==='effect'?effectPurchaseQuote(item):null;
+  const label=q?`${q.option==='original'?'Купить эффект':'Купить эффект + палитру'} за ${q.total} ✦${q.free?' · палитра бесплатно':''}${q.discount?' · скидка '+q.discount+'%':''}`:`Купить за ${priceLabel(item)}`;
+  return `<button class="ok" onclick="event.stopPropagation(); buyShopItem('${kind}','${esc(item.id)}', ${charId ? Number(charId) : 'null'})">${label}</button>`;
 }
 
 function framePreviewHtml(c, extraClass='', charId=null) {
@@ -6178,6 +6213,11 @@ function selectEffectColorStop(id,index){
 }
 function effectStyleControls(item,charId) {
   if(!item.colorizable)return '';
+  const discount=Number(state.campaignState?.treasury_discount_percent||0);
+  item={...item,style_prices:Object.fromEntries(Object.entries(item.style_prices).map(([key,price])=>[key,Math.ceil(price*(100-discount)/100)]))};
+  const benefits=state.campaignState?.treasury_benefits||{};
+  if(benefits.colors>0)item.style_prices.custom=0;
+  if(benefits.gradients>0)item.style_prices.gradient=0;
   const ch=charId?findChar(Number(charId)):playerChar();
   if(effectStyleDraftOwner!==ch?.id){effectStyleDrafts.clear();effectStyleDraftOwner=ch?.id;}
   if(!effectStyleDrafts.has(item.id))effectStyleDrafts.set(item.id,ch?.custom_effect===item.id?{...(ch.effect_style||{mode:'original'})}:{mode:'original'});
@@ -6187,15 +6227,18 @@ function effectStyleControls(item,charId) {
   const selected=style.mode==='preset'?'preset:'+style.preset:style.mode==='solid'?'custom':style.mode==='gradient'?'gradient':'original';
   const colors=style.colors||item.renderer?.palette||['#b98aff','#647fba','#fff0d6'];
   const free=selected==='original'||owned.includes(selected);
+  const paletteCoupon=effectPurchaseQuote(effectById(item.id)).free;
+  const paletteCost=paletteCoupon?0:selected.startsWith('preset:')?item.style_prices.preset:item.style_prices[selected];
+  const paletteLabel=paletteCost?'Открыть палитру за '+paletteCost+' ✦'+(discount?' · скидка '+discount+'%':''):'Открыть палитру бесплатно';
   const swatches=kind=>(item.color_presets||[]).filter(p=>(new Set(p.colors).size===1?'solid':'gradient')===kind).map(p=>{
-    const option='preset:'+p.id,available=owned.includes(option),label=`${p.name} · ${available?'открыто':item.style_prices.preset+' ✦'}`;
+    const option='preset:'+p.id,available=owned.includes(option),coupon=new Set(p.colors).size===1?benefits.colors>0:benefits.gradients>0,label=`${p.name} · ${available?'открыто':coupon?'Бесплатно':item.style_prices.preset+' ✦'+(discount?' · скидка '+discount+'%':'')}`;
     return `<button type="button" class="shop-palette-swatch" title="${esc(label)}" aria-label="${esc(label)}" aria-pressed="${selected===option}" style="background:linear-gradient(135deg,${p.colors.map(esc).join(',')})" onclick="chooseEffectStyle('${esc(item.id)}','${esc(option)}',${charId||'null'})">${available?'<span>✓</span>':''}</button>`;
   }).join('');
   const radiusControl=`<div class="shop-radius-control"><label>Радиус <output id="effectRadiusValue">${Math.round(style.radius_scale*100)}%</output><input aria-label="Радиус эффекта" type="range" min="80" max="120" step="1" value="${Math.round(style.radius_scale*100)}" oninput="editEffectRadius('${esc(item.id)}',this.value)"></label><button type="button" title="Сбросить радиус" aria-label="Сбросить радиус" onclick="resetEffectRadius('${esc(item.id)}')">↺</button></div>`;
   const layerControl=`<label>Расположение<select aria-label="Расположение эффекта" onchange="editEffectLayer('${esc(item.id)}',this.value)">${[['auto','По замыслу эффекта'],['front','Перед всем'],['between','За рамкой, перед аватаркой'],['back','Полностью за всем']].map(([value,label])=>`<option value="${value}" ${style.layer===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
   const preview=radiusControl+layerControl+(selected!=='original'||item.renderer?.palette?`<div class="shop-current-palette" aria-label="Выбранная палитра" style="background:linear-gradient(${Number(style.angle??45)+90}deg,${(selected==='custom'?[colors[0],colors[0]]:colors).map(esc).join(',')})"></div>`:'');
-  const customButton=(option,label)=>`<button type="button" class="shop-custom-palette" aria-pressed="${selected===option}" onclick="chooseEffectStyle('${esc(item.id)}','${option}',${charId||'null'})">${label}<small>${owned.includes(option)?'Открыто':item.style_prices[option]+' ✦'}</small></button>`;
-  return `<div class="shop-style-controls"><button type="button" class="secondary" aria-pressed="${selected==='original'}" onclick="chooseEffectStyle('${esc(item.id)}','original',${charId||'null'})">Исходная палитра</button><section class="shop-palette-picker"><h3>Палитра цветов</h3><div class="shop-palette-swatches" role="group" aria-label="Палитра цветов">${swatches('solid')}</div>${customButton('custom','Свой цвет')}</section><section class="shop-palette-picker"><h3>Палитра градиентов</h3><div class="shop-palette-swatches" role="group" aria-label="Палитра градиентов">${swatches('gradient')}</div>${customButton('gradient','Свой градиент')}</section>${['custom','gradient'].includes(selected)?effectColorEditor(item.id,{...style,colors}):''}${selected==='gradient'?`<label>Направление<input aria-label="Направление градиента" type="range" min="0" max="360" step="5" value="${Number(style.angle??45)}" oninput="editEffectAngle('${esc(item.id)}',this.value)"></label>`:''}${preview}${!free?`<button onclick="buyEffectStyle('${esc(item.id)}','${esc(selected)}',${charId||'null'})" ${shopItemAvailable('effect',item)?'':'disabled'}>Открыть палитру за ${selected.startsWith('preset:')?item.style_prices.preset:item.style_prices[selected]} ✦</button>`:''}</div>`;
+  const customButton=(option,label)=>`<button type="button" class="shop-custom-palette" aria-pressed="${selected===option}" onclick="chooseEffectStyle('${esc(item.id)}','${option}',${charId||'null'})">${label}<small>${owned.includes(option)?'Открыто':!item.style_prices[option]?'Бесплатно':item.style_prices[option]+' ✦'+(discount?' · скидка '+discount+'%':'')}</small></button>`;
+  return `<div class="shop-style-controls"><button type="button" class="secondary" aria-pressed="${selected==='original'}" onclick="chooseEffectStyle('${esc(item.id)}','original',${charId||'null'})">Исходная палитра</button><section class="shop-palette-picker"><h3>Палитра цветов</h3><div class="shop-palette-swatches" role="group" aria-label="Палитра цветов">${swatches('solid')}</div>${customButton('custom','Свой цвет')}</section><section class="shop-palette-picker"><h3>Палитра градиентов</h3><div class="shop-palette-swatches" role="group" aria-label="Палитра градиентов">${swatches('gradient')}</div>${customButton('gradient','Свой градиент')}</section>${['custom','gradient'].includes(selected)?effectColorEditor(item.id,{...style,colors}):''}${selected==='gradient'?`<label>Направление<input aria-label="Направление градиента" type="range" min="0" max="360" step="5" value="${Number(style.angle??45)}" oninput="editEffectAngle('${esc(item.id)}',this.value)"></label>`:''}${preview}${!free?`<button onclick="buyEffectStyle('${esc(item.id)}','${esc(selected)}',${charId||'null'})" ${shopItemAvailable('effect',item)?'':'disabled'}>${paletteLabel}</button>`:''}</div>`;
 }
 let effectStylePreviewFrame=0;
 const pendingEffectStylePreviews=new Set();
@@ -6248,7 +6291,9 @@ function editEffectLayer(id,value){effectStyleDrafts.get(id).layer=value;refresh
 async function buyEffectStyle(id,option,charId){
   try {
     const out=await api('/api/shop/purchase',{method:'POST',body:{item_type:'effect_style',item_id:id,option_id:option}});
+    state.campaignState.treasury_benefits=out.treasury_benefits;
     Object.assign(state.campaignState,{effect_style_unlocks:out.effect_style_unlocks,currency_balance:out.currency_balance,currency_transactions:out.currency_transactions});
+    state.campaignState.treasury_discount_percent=out.treasury_discount_percent||0;
     showToast(out.message,'heal');renderCampaign();showCosmeticPreviewModal('effect',effectById(id),false,charId);
   }catch(e){showToast(e.message,'error');}
 }

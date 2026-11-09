@@ -137,14 +137,14 @@ def main():
             print(json.dumps({'name':NAME,'party':PARTY},ensure_ascii=False,indent=2))
             return
         stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup = ROOT / 'backups' / ('before_red_dragon_'+stamp+'.sqlite3')
-        backup.parent.mkdir(exist_ok=True)
+        backup = ROOT / 'data/backups/manual' / ('before_red_dragon_'+stamp+'.sqlite3')
+        backup.parent.mkdir(parents=True,exist_ok=True)
         with sqlite3.connect(backup) as target:
             db.conn.backup(target)
         assets = prepare_assets(path.parent / 'uploads')
         result = create_party(db, assets)
         assert db.conn.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
-        receipt = ROOT / 'backups' / ('red_dragon_created_'+stamp+'.json')
+        receipt = ROOT / 'data/backups/manual' / ('red_dragon_created_'+stamp+'.json')
         receipt.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
         print(json.dumps(result,ensure_ascii=False,indent=2))
         print('Backup:',backup)

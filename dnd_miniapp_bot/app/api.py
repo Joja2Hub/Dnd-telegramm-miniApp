@@ -788,6 +788,16 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
     )
 
     get_current_user = get_current_user_factory(settings)
+    from .treasury import register as register_treasury
+    from .treasury import quote as treasury_quote, benefits as treasury_benefits
+    async def treasury_actor(user:TelegramUser=Depends(get_current_user),x_dev_view_character_id:str|None=Header(default=None,alias='X-Dev-View-Character-Id')):
+        if x_dev_view_character_id:
+            ch=db.get_character(int(x_dev_view_character_id))
+            if ch:
+                viewed=_dev_impersonated_character(db,settings,int(ch['campaign_id']),user,x_dev_view_character_id)
+                if viewed and viewed.get('telegram_user_id'):return TelegramUser(id=int(viewed['telegram_user_id']))
+        return user
+    register_treasury(app,db,treasury_actor)
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
@@ -1055,6 +1065,9 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
             "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
+            "treasury_discount_percent": 100-treasury_quote(db,viewer_tg_id,100)[0],
+            "treasury_frame_credits": db._one("SELECT COUNT(*) n FROM treasury_items WHERE user_id=? AND status='frame_credit'",(viewer_tg_id,))['n'],
+            "treasury_benefits": treasury_benefits(db,viewer_tg_id),
             "currency_transactions": db.list_currency_transactions(viewer_tg_id, 20),
             "spark_management": db.spark_management_state(user.id, is_admin=_is_spark_admin(db, settings, user)) if actual_role == "master" else None,
             "achievement_templates": db.list_achievements(),
@@ -2121,6 +2134,9 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "unlocked_inventory_model_ids": db.list_unlocked_inventory_model_ids(viewer_tg_id),
             "unseen_inventory_model_ids": db.list_unseen_inventory_model_ids(viewer_tg_id),
             "currency_balance": db.get_currency_balance(viewer_tg_id),
+            "treasury_discount_percent": 100-treasury_quote(db,viewer_tg_id,100)[0],
+            "treasury_frame_credits": db._one("SELECT COUNT(*) n FROM treasury_items WHERE user_id=? AND status='frame_credit'",(viewer_tg_id,))['n'],
+            "treasury_benefits": treasury_benefits(db,viewer_tg_id),
             "currency_transactions": db.list_currency_transactions(viewer_tg_id, 20),
         }
 
@@ -2560,7 +2576,11 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                 if dev_character and dev_character.get("telegram_user_id"):
                     buyer_tg_id = int(dev_character["telegram_user_id"])
         try:
-            out = db.purchase_effect_style(buyer_tg_id,data.item_id,data.option_id) if data.item_type == 'effect_style' else db.purchase_cosmetic_item(buyer_tg_id, data.item_type, data.item_id)
+            from .treasury import atomic, purchase_effect_bundle
+            with atomic(db):
+                if data.item_type=='effect':out=purchase_effect_bundle(db,buyer_tg_id,data.item_id,data.option_id or 'original')
+                elif data.item_type=='effect_style':out=db.purchase_effect_style(buyer_tg_id,data.item_id,data.option_id)
+                else:out=db.purchase_cosmetic_item(buyer_tg_id, data.item_type, data.item_id)
         except Exception as e:
             raise HTTPException(400, str(e))
         return {
@@ -2569,6 +2589,8 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             "unlocked_effect_ids": db.list_unlocked_effect_ids(buyer_tg_id),
             "effect_style_unlocks": db.effect_style_state(buyer_tg_id),
             "currency_balance": db.get_currency_balance(buyer_tg_id),
+            "treasury_discount_percent": 100-treasury_quote(db,buyer_tg_id,100)[0],
+            "treasury_benefits": treasury_benefits(db,buyer_tg_id),
             "currency_transactions": db.list_currency_transactions(buyer_tg_id, 20),
         }
 

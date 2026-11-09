@@ -768,6 +768,8 @@ class Database(EffectShopMixin):
         self.init_effect_shop()
         self.seed_inventory_models()
         self.seed_tags()
+        from .treasury import init_schema as init_treasury
+        init_treasury(self)
         self.conn.commit()
 
     def _migrate(self) -> None:
@@ -3636,9 +3638,12 @@ class Database(EffectShopMixin):
         if rarity == "unique" or not int(item.get("purchasable") or 0):
             raise ValueError("Уникальную косметику нельзя купить")
         price = int(item.get("price") or default_price_for_item(item) or 0)
+        from .treasury import quote, consume
+        price,coupon=quote(self,int(telegram_user_id),price)
         balance = self.get_currency_balance(int(telegram_user_id))
         if balance < price:
             raise ValueError(f"Недостаточно искр: не хватает {price - balance} ✦")
+        consume(self,coupon)
         self.add_currency(int(telegram_user_id), -price, reason=f"Покупка: {item.get('name')}", source='shop', source_id=None)
         unlock()
         return {"message": "Покупка выполнена", "balance": self.get_currency_balance(int(telegram_user_id))}

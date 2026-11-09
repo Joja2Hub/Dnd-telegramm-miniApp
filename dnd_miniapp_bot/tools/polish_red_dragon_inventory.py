@@ -18,8 +18,8 @@ def main():
             JOIN campaigns g ON g.id=c.campaign_id WHERE g.name=?''', (NAME,))
         if not rows:
             raise RuntimeError('Campaign inventory not found')
-        backup = ROOT / 'backups' / ('before_red_dragon_inventory_polish_'+datetime.now().strftime('%Y%m%d_%H%M%S')+'.sqlite3')
-        backup.parent.mkdir(exist_ok=True)
+        backup = ROOT / 'data/backups/manual' / ('before_red_dragon_inventory_polish_'+datetime.now().strftime('%Y%m%d_%H%M%S')+'.sqlite3')
+        backup.parent.mkdir(parents=True,exist_ok=True)
         with sqlite3.connect(backup) as target:
             db.conn.backup(target)
         with db.conn:

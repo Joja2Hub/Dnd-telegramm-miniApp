@@ -268,7 +268,9 @@ $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ProjectDir
 $ServerPort = Get-ServerPort
 
-$ServerLogPath = Join-Path $ProjectDir "server_runtime.log"
+$LogsDir = Join-Path $ProjectDir "logs"
+[IO.Directory]::CreateDirectory($LogsDir) | Out-Null
+$ServerLogPath = Join-Path $LogsDir "server_runtime.log"
 $ShutdownFlagPath = Join-Path $ProjectDir "data\shutdown_requested.flag"
 $CloudflaredPidPath = Join-Path $ProjectDir "data\cloudflared.pid"
 $BotPidPath = Join-Path $ProjectDir "data\dnd_bot.pid"
@@ -308,7 +310,7 @@ Get-Process cloudflared -ErrorAction SilentlyContinue | ForEach-Object {
 
 Stop-PortListeners $ServerPort
 
-$LogPath = Join-Path $ProjectDir "cloudflared_url.log"
+$LogPath = Join-Path $LogsDir "cloudflared_url.log"
 if (Test-Path $LogPath) {
     Remove-Item $LogPath -Force
 }
@@ -506,10 +508,10 @@ try {
         if (Test-Path $ServerLogPath) {
             Get-Content $ServerLogPath -Tail 80
         } else {
-            Write-Host "server_runtime.log was not created."
+            Write-Host "logs/server_runtime.log was not created."
         }
         Write-Host ""
-        Write-Host "Send me the text above or server_runtime.log." -ForegroundColor Yellow
+        Write-Host "Send me the text above or logs/server_runtime.log." -ForegroundColor Yellow
     }
 
     if ($expectedShutdown) {

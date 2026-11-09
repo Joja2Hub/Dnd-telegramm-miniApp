@@ -381,13 +381,25 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
                 continue
             games.append({"id": campaign["id"], "name": campaign["name"], "rule_type": campaign.get("rule_type", "fantasy"), "active": campaign["id"] == active_id, "master": master})
             for ch in own:
-                characters.append({key: ch.get(key) for key in ("id", "name", "campaign_id", "avatar_path", "avatar_thumb_path", "current_hp", "current_max_hp", "ac")})
+                characters.append({**{key: ch.get(key) for key in ("id", "name", "campaign_id", "avatar_path", "avatar_thumb_path", "current_hp", "current_max_hp", "ac", "selected_inventory_model_id")},'active':campaign['id']==active_id})
+        characters.sort(key=lambda ch:(not ch['active'],ch['id']))
         achievements = db.list_player_achievement_grants(user_id)
         profile = read_profile(db, user_id)
         avatars = [{'path': c['avatar_path'], 'name': c['name']} for c in characters if c.get('avatar_path')]
         avatars += profile['uploads']
+        unlocked=set(db.list_unlocked_inventory_model_ids(user_id))
+        models=[{'id':m['id'],'path':m['asset_path'],'name':m['name']} for m in db.list_inventory_models() if m['id'] in unlocked and m.get('asset_path')]
+        # Old avatar shelves contained portrait paths, not inventory models.
+        for shelf in profile['showcases']:
+            if shelf['kind']=='avatars':
+                converted=[]
+                for item in shelf['items']:
+                    if item in unlocked:converted.append(item);continue
+                    ch=next((c for c in characters if c.get('avatar_path')==item),None)
+                    if ch and ch.get('selected_inventory_model_id') in unlocked:converted.append(ch['selected_inventory_model_id'])
+                shelf['items']=list(dict.fromkeys(converted))
         return {"user": user, "games": games, "characters": characters,
-                "achievements": achievements, "profile": profile, "avatars": avatars,
+                "achievements": achievements, "profile": profile, "avatars": avatars,"models":models,
                 "stats": profile_stats(db, user_id, characters, games, achievements),
                 "balance": db.get_currency_balance(user_id)}
 
@@ -405,7 +417,8 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
             selected[shelf['kind']].update(shelf['items'])
         hub['achievements'] = [{'id': g['id'], 'achievement': g['achievement']} for g in hub['achievements'] if str(g['id']) in selected['achievements']]
         hub['characters'] = [{k: c[k] for k in ('id', 'name', 'campaign_id', 'avatar_path', 'avatar_thumb_path')} for c in hub['characters'] if str(c['id']) in selected['characters']]
-        hub['avatars'] = [a for a in hub['avatars'] if a['path'] in selected['avatars']]
+        hub['models'] = [m for m in hub['models'] if m['id'] in selected['avatars']]
+        hub['avatars'] = [a for a in hub['avatars'] if a['path']==hub['profile']['avatar_path']]
         hub['stats'] = [s for s in hub['stats'] if s['id'] in selected['stats']]
         hub['profile'] = {k: v for k, v in hub['profile'].items() if k != 'uploads'}
         hub.pop('balance')
@@ -417,8 +430,8 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
         hub = await local_player_hub(user_id)
         allowed = {'achievements': {str(g['id']) for g in hub['achievements']},
                    'characters': {str(c['id']) for c in hub['characters']},
-                   'avatars': {a['path'] for a in hub['avatars']}, 'stats': set(STAT_LABELS)}
-        if data.avatar_path and data.avatar_path not in allowed['avatars']:
+                   'avatars': {m['id'] for m in hub['models']}, 'stats': set(STAT_LABELS)}
+        if data.avatar_path and data.avatar_path not in {a['path'] for a in hub['avatars']}:
             raise HTTPException(400, 'Выбери свою аватарку')
         for shelf in data.showcases:
             if any(item not in allowed[shelf.kind] for item in shelf.items):

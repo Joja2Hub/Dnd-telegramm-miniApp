@@ -13,8 +13,8 @@ if __name__=='__main__':
     path=Path(Settings().db_path).resolve()
     if not path.is_file():
         raise SystemExit('Database not found; no changes made.')
-    backup=ROOT/'backups'/('before_effect_shop_'+datetime.now().strftime('%Y%m%d_%H%M%S')+'.sqlite3')
-    backup.parent.mkdir(exist_ok=True)
+    backup=ROOT/'data/backups/manual'/('before_effect_shop_'+datetime.now().strftime('%Y%m%d_%H%M%S')+'.sqlite3')
+    backup.parent.mkdir(parents=True,exist_ok=True)
     with sqlite3.connect(path) as source,sqlite3.connect(backup) as target:
         source.backup(target)
     db=Database(str(path))
