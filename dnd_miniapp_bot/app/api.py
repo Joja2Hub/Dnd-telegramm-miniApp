@@ -636,6 +636,7 @@ def _public_character(ch: dict[str, Any]) -> dict[str, Any]:
         "name": ch.get("name"),
         "color": ch.get("color", "#72a7ff"),
         "avatar_path": ch.get("avatar_path", ""),
+        "party_banner_path": ch.get("party_banner_path", ""),
         "custom_frame": ch.get("custom_frame", ""),
         "custom_effect": ch.get("custom_effect", ""),
         "effect_style": ch.get("effect_style", {}),

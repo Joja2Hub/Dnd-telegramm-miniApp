@@ -1667,7 +1667,9 @@ class Database(EffectShopMixin):
         return self.update_character_fields(character_id, statuses_json=json.dumps(statuses, ensure_ascii=False))
 
     def _hydrate_character(self, row: dict[str, Any]) -> dict[str, Any]:
+        from .profile_banners import party_banner_path
         row = dict(row)
+        row["party_banner_path"] = party_banner_path(row.get("custom_banner_id"))
         row["statuses"] = json.loads(row.pop("statuses_json") or "[]")
         row["injuries"] = self.list_injuries(int(row["id"]))
         row["current_max_hp"] = max(0, int(row["max_hp_base"]) - int(row["max_hp_penalty"]))

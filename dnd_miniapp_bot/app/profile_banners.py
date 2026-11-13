@@ -553,6 +553,9 @@ BANNERS += [
 def allowed_banner_paths():
     return {''} | {b['path'] for b in BANNERS} | {path for b in BANNERS for path in b['aliases']}
 
+def party_banner_path(banner_id):
+    return next((b['thumb_path'] for b in BANNERS if b['id'] == banner_id), '')
+
 for banner in BANNERS:
     banner['price']={'Стихии':600,'Классы':650,'Биомы':500,'Текстуры':350,'Города':700,'Магия':600,'Киберпанк · Узоры':400,'Киберпанк · Локации':650,'Киберпанк · Сеть':600,'Тёмное фэнтези':600,'Бездна и демоны':650,'Драконы и чудовища':700}[banner['category']]
 
@@ -595,7 +598,8 @@ def equip(db,user,banner_id,character_id=None):
     if banner_id and (not banner or not db._one('SELECT 1 FROM user_banner_unlocks WHERE user_id=? AND banner_id=?',(user,banner_id))):raise ValueError('Сначала открой этот баннер в магазине')
     if character_id is not None:
         if not db.conn.execute('UPDATE characters SET custom_banner_id=? WHERE id=? AND telegram_user_id=?',(banner_id,character_id,user)).rowcount:raise ValueError('Выбери своего персонажа')
-        return {'message':'Баннер персонажа применён','character_id':character_id,'banner_path':banner['path'] if banner else ''}
+        return {'message':'Баннер персонажа применён','character_id':character_id,'banner_path':banner['path'] if banner else '',
+                'party_banner_path':party_banner_path(banner_id)}
     profile=read_profile(db,user);profile['banner_path']=banner['path'] if banner else ''
     write_profile(db,user,profile)
     return {'message':'Баннер применён','banner_path':profile['banner_path']}

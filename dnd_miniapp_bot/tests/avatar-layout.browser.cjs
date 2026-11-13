@@ -1,12 +1,19 @@
 const path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
-const {chromium}=require(path.join(os.homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
+let playwright;try{playwright=require(path.join(os.homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));}catch{playwright=require('../tmp/browser-check/node_modules/playwright');}
+const {chromium}=playwright;
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:8000/local-app/?local_tg_id=464302752&campaign_id=3&local_character_id=10');
  await page.waitForFunction(()=>typeof state!=='undefined'&&state.campaignState?.player_character);
+ await page.evaluate(()=>{
+  state.campaignState.team_characters[0].party_banner_path='/assets/profile-banners/snake-scales-thumb.webp';
+  state.campaignState.team_characters[1].party_banner_path='/assets/profile-banners/pitvin-lights-thumb.webp';
+ });
  for(const width of [390,320]){
   await page.setViewportSize({width,height:844});await page.evaluate(()=>setTab('party'));await page.waitForSelector('.party-main');
   const x=await page.locator('.party-main').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().x));
+  await page.locator('.party-banner img').evaluateAll(imgs=>Promise.all(imgs.map(img=>img.decode())));
+  assert.ok(await page.locator('.party-card-with-banner .party-avatar-slot .avatar').count()>=2);
   assert.ok(Math.max(...x)-Math.min(...x)<=1,'Party names must align');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
   await page.screenshot({path:'tmp/party-alignment-'+width+'.png',fullPage:true});

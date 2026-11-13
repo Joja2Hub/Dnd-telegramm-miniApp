@@ -4813,7 +4813,7 @@ async function openProfileAchievement(grantId, telegramId) {
 function renderParty() {
   const team = state.campaignState?.team_characters || [];
   if (!team.length) return '<div class="card muted">В отряде пока никого нет.</div>';
-  return `<div class="card stack"><div class="name">🧭 Отряд</div><div class="muted">Нажми на персонажа, чтобы открыть профиль игрока.</div><div class="party-grid">${team.map(ch => `<button class="party-card party-card-button" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(ch.telegram_user_id || 0)}, ${Number(ch.id || 0)})"><span class="party-avatar-slot">${avatarCircle(ch, 'md')}</span><div class="party-main"><b>${esc(ch.name)}</b><span class="${hpClass(ch)}">${hpText(ch)}</span></div><span class="badge ${ch.injury_count ? 'danger':'ok'}">травмы: ${ch.injury_count || 'нет'}</span></button>`).join('')}</div></div>`;
+  return `<div class="card stack"><div class="name">🧭 Отряд</div><div class="muted">Нажми на персонажа, чтобы открыть профиль игрока.</div><div class="party-grid">${team.map(ch => `<button class="party-card party-card-button${ch.party_banner_path?' party-card-with-banner':''}" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(ch.telegram_user_id || 0)}, ${Number(ch.id || 0)})">${ch.party_banner_path?`<span class="party-banner" aria-hidden="true"><img src="${esc(ch.party_banner_path)}" alt="" decoding="async"></span>`:''}<span class="party-avatar-slot">${avatarCircle(ch, 'md')}</span><div class="party-main"><b>${esc(ch.name)}</b><span class="${hpClass(ch)}">${hpText(ch)}</span></div><span class="badge ${ch.injury_count ? 'danger':'ok'}">травмы: ${ch.injury_count || 'нет'}</span></button>`).join('')}</div></div>`;
 }
 
 function isActualMasterOfCurrentCampaign() {
@@ -6095,7 +6095,17 @@ async function buyShopBanner(id){
  try{const out=await api('/api/shop/purchase',{method:'POST',body:{item_type:'banner',item_id:id}});Object.assign(state.campaignState,{currency_balance:out.currency_balance,currency_transactions:out.currency_transactions,treasury_discount_percent:out.treasury_discount_percent,treasury_benefits:out.treasury_benefits});bannerShopData=await api('/api/shop/banners');renderCampaign();showBannerPreview(id);showToast(out.message,'heal');}catch(error){showToast(error.message,'error');}
 }
 async function applyShopBanner(id){
- try{await api(`/api/shop/banners/${id}/equip`,{method:'POST',body:{character_id:playerChar()?.id}});bannerShopData=await api('/api/shop/banners');if(playerChar())playerChar().custom_banner_id=id==='default'?'':id;renderCampaign();if(id==='default')closeModal();else showBannerPreview(id);showToast('Баннер применён','heal');}catch(error){showToast(error.message,'error');}
+ try{
+  const ch=playerChar();
+  if(!ch)return;
+  const out=await api(`/api/shop/banners/${id}/equip`,{method:'POST',body:{character_id:ch.id}});
+  const fields={custom_banner_id:id==='default'?'':id,party_banner_path:out.party_banner_path||''};
+  Object.assign(ch,fields);
+  const teammate=state.campaignState?.team_characters?.find(c=>Number(c.id)===Number(ch.id));
+  if(teammate)Object.assign(teammate,fields);
+  bannerShopData=await api('/api/shop/banners');
+  renderCampaign();if(id==='default')closeModal();else showBannerPreview(id);showToast('Баннер применён','heal');
+ }catch(error){showToast(error.message,'error');}
 }
 const shopCategories={effect:'all',frame:'all'};
 const effectStyleDrafts=new Map();

@@ -71,3 +71,10 @@ class BannerShopTests(unittest.TestCase):
         self.assertEqual(self.db.get_user_profile(200)['characters'][0]['banner_path'],banners.BANNERS[0]['path'])
         self.assertEqual(self.client.post('/api/shop/banners/ember/equip',json={'character_id':second['id']},headers=self.headers).status_code,400)
         self.assertEqual(self.db.get_character(second['id'])['custom_banner_id'],'')
+        thumb=banners.BANNERS[0]['thumb_path']
+        self.assertEqual(response.json()['party_banner_path'],thumb)
+        state=self.client.get(f"/api/campaigns/{game['id']}/state",headers={'X-Dev-Telegram-Id':'300'})
+        self.assertEqual(state.status_code,200,state.text)
+        self.assertEqual({ch['id']:ch['party_banner_path'] for ch in state.json()['team_characters']},{first['id']:thumb,second['id']:''})
+        reset=self.client.post('/api/shop/banners/default/equip',json={'character_id':first['id']},headers=self.headers)
+        self.assertEqual(reset.json()['party_banner_path'],'')
