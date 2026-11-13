@@ -89,5 +89,27 @@ class LocalHubTests(unittest.TestCase):
                     self.assertEqual([m['id'] for m in public['models']],[model])
                     profile['showcases'][0]['items']=['non-owned-model']
                     self.assertEqual(client.patch(url,json=profile,headers=headers).status_code,400)
+                    profile['showcases'][0]['items']=[model]
+                    banner_data=client.get('/api/shop/banners',headers={'X-Dev-Telegram-Id':'200'}).json()['banners']
+                    self.assertEqual(len(banner_data),66)
+                    banner=banner_data[0]['path']
+                    profile['banner_path']=banner
+                    self.assertEqual(client.patch(url,json=profile,headers=headers).status_code,400)
+                    db.add_currency(200,1000)
+                    self.assertEqual(client.post('/api/shop/purchase',json={'item_type':'banner','item_id':banner_data[0]['id']},headers={'X-Dev-Telegram-Id':'200'}).status_code,200)
+                    self.assertEqual(client.post('/api/shop/banners/'+banner_data[0]['id']+'/equip',headers={'X-Dev-Telegram-Id':'200'}).status_code,200)
+                    self.assertEqual(client.get('/local-api/hub/200/public').json()['profile']['banner_path'],banner)
+                    self.assertEqual(client.patch(url,json=profile,headers={'X-Local-User':'300'}).status_code,403)
+                    profile.pop('banner_path')
+                    self.assertEqual(client.patch(url,json=profile,headers=headers).status_code,200)
+                    self.assertEqual(client.get('/local-api/hub/200').json()['profile']['banner_path'],banner)
+                    profile['banner_path']='https://example.com/not-a-banner.png'
+                    self.assertEqual(client.patch(url,json=profile,headers=headers).status_code,400)
+                    profile.pop('banner_path')
+                    self.assertEqual(client.post('/api/shop/banners/default/equip',headers={'X-Dev-Telegram-Id':'200'}).status_code,200)
+                    self.assertEqual(client.get('/local-api/hub/200').json()['profile']['banner_path'],'')
+                    for entry in banner_data:
+                        self.assertEqual(client.get(entry['path']).status_code,200)
+                        self.assertEqual(client.get(entry['thumb_path']).status_code,200)
             finally:
                 db.conn.close()

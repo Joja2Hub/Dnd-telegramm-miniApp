@@ -3560,8 +3560,9 @@ function bindAfterRender(root=document) {
 
   bindDesktopInputFocusFix(root);
   const treasuryRequest=(path,opts={})=>api(path,{...opts,body:opts.body?JSON.parse(opts.body):undefined});
-  root.querySelectorAll('[data-treasury-view]').forEach(el=>window.TreasuryView?.mount(el,{request:treasuryRequest,user:playerChar()?.telegram_user_id||state.me?.user?.id,onState:data=>{if(state.campaignState)Object.assign(state.campaignState,{currency_balance:data.balance,treasury_discount_percent:data.discount_percent||0,treasury_frame_credits:data.frame_credits||0,treasury_benefits:data.shop_benefits||{},effect_style_unlocks:data.effect_style_unlocks,unlocked_cosmetic_ids:data.unlocked_cosmetic_ids});}}));
-  root.querySelectorAll('[data-treasury-master]').forEach(el=>window.TreasuryView?.master(el,{request:treasuryRequest,campaign:state.currentCampaignId,players:allChars()}));
+  root.querySelectorAll('[data-treasury-view]').forEach(el=>window.TreasuryView?.mount(el,{request:treasuryRequest,caseType:isCyberpunkCampaign()?'cyberpunk':'fantasy',user:playerChar()?.telegram_user_id||state.me?.user?.id,onState:data=>{if(state.campaignState)Object.assign(state.campaignState,{currency_balance:data.balance,treasury_discount_percent:data.discount_percent||0,treasury_frame_credits:data.frame_credits||0,treasury_benefits:data.shop_benefits||{},effect_style_unlocks:data.effect_style_unlocks,unlocked_cosmetic_ids:data.unlocked_cosmetic_ids});}}));
+  root.querySelectorAll('[data-treasury-master]').forEach(el=>window.TreasuryView?.master(el,{request:treasuryRequest,caseType:isCyberpunkCampaign()?'cyberpunk':'fantasy',campaign:state.currentCampaignId,players:allChars()}));
+  root.querySelectorAll('[data-banner-shop]').forEach(el=>mountBannerShop(el));
   bindEffectActivation(root);
   setupCanvasEffects(root);
   scheduleCanvasEffectsFrame();
@@ -4775,7 +4776,15 @@ async function openUserProfile(telegramId, focusCharacterId=0) {
     const camps = profile.campaigns || [];
     const ach = grants.slice(0, 18).map(g => `<button class="achievement-row-card profile-ach-row" onclick="openProfileAchievement(${Number(g.id)}, ${Number(telegramId)})"><span class="achievement-row-icon">${achIconHtml(g.achievement?.icon || '🏆', '', g.achievement?.icon_thumb || '')}</span><span><b>${esc(g.achievement?.title || 'Достижение')}</b></span></button>`).join('') || '<div class="muted">Достижений пока нет.</div>';
     const campaign=camps.find(c=>Number(c.id)===Number(main.campaign_id));
-    showModal(`<div class="modal-card profile-modal character-profile-modal"><button class="modal-close" aria-label="Закрыть профиль" onclick="closeModal()">×</button><div class="profile-hero-big">${avatarCircle(main,'xxl')}<div><div class="name profile-name-line">${esc(main.name||'Персонаж')}</div><div class="muted">${esc(campaign?.name||state.campaignState?.campaign?.name||'')}</div><small>${esc(profile.display_name||'Игрок')}</small></div></div><div class="row character-profile-stats"><span class="pill">${hpText(main)}</span><span class="pill">КД ${esc(main.ac??'—')}</span>${injuryBadge(main)}</div><div class="profile-section"><div class="profile-section-title">Статусы</div><div class="chips">${(main.statuses||[]).map(s=>`<span class="tag-pill">${esc(s)}</span>`).join('')||'<span class="muted">Нет активных статусов</span>'}</div></div><div class="profile-section"><div class="profile-section-title">Достижения игрока</div><div class="achievement-row-list">${ach}</div></div>${LOCAL_BROWSER_MODE?`<a class="button secondary player-hub-link" href="/local/hub.html?user=${Number(telegramId)}&view=public">Профиль игрока</a>`:''}</div>`);
+    const banner=main.banner_path??profile.account_profile?.banner_path??'';
+    showModal(`<div class="modal-card profile-modal character-profile-modal"><button class="modal-close" aria-label="Закрыть профиль" onclick="closeModal()">×</button>
+      <div class="character-profile-cover">${banner?`<img src="${esc(banner)}" alt="" fetchpriority="high">`:''}</div>
+      <div class="character-preview-identity"><div class="profile-preview-avatar">${avatarCircle(main,'lg')}</div><div><div class="name profile-name-line">${esc(main.name||'Персонаж')}</div><div class="muted">${esc(campaign?.name||state.campaignState?.campaign?.name||'')}</div><small>${esc(profile.account_profile?.name||profile.display_name||'Игрок')}</small></div></div>
+      <div class="character-preview-content">${profile.account_profile?.bio?`<p class="character-profile-bio">${esc(profile.account_profile.bio)}</p>`:''}
+      <div class="row character-profile-stats"><span class="pill">${hpText(main)}</span><span class="pill">КД ${esc(main.ac??'—')}</span>${injuryBadge(main)}</div>
+      <section class="profile-section"><div class="profile-section-title">Статусы</div><div class="chips">${(main.statuses||[]).map(s=>`<span class="tag-pill">${esc(s)}</span>`).join('')||'<span class="muted">Нет активных статусов</span>'}</div></section>
+      <section class="profile-section"><div class="profile-section-title">Достижения игрока</div><div class="achievement-row-list">${ach}</div></section></div>
+      ${LOCAL_BROWSER_MODE?`<footer class="character-preview-footer"><a class="button secondary player-hub-link" href="/local/hub.html?user=${Number(telegramId)}&view=public">Открыть профиль игрока</a></footer>`:''}</div>`);
   } catch(e) { showToast(e.message, 'error'); }
 }
 
@@ -4804,7 +4813,7 @@ async function openProfileAchievement(grantId, telegramId) {
 function renderParty() {
   const team = state.campaignState?.team_characters || [];
   if (!team.length) return '<div class="card muted">В отряде пока никого нет.</div>';
-  return `<div class="card stack"><div class="name">🧭 Отряд</div><div class="muted">Нажми на персонажа, чтобы открыть профиль игрока.</div><div class="party-grid">${team.map(ch => `<button class="party-card party-card-button" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(ch.telegram_user_id || 0)}, ${Number(ch.id || 0)})">${avatarCircle(ch, 'md')}<div class="party-main"><b>${esc(ch.name)}</b><span class="${hpClass(ch)}">${hpText(ch)}</span></div><span class="badge ${ch.injury_count ? 'danger':'ok'}">травмы: ${ch.injury_count || 'нет'}</span></button>`).join('')}</div></div>`;
+  return `<div class="card stack"><div class="name">🧭 Отряд</div><div class="muted">Нажми на персонажа, чтобы открыть профиль игрока.</div><div class="party-grid">${team.map(ch => `<button class="party-card party-card-button" style="--char-color:${esc(ch.color || '#72a7ff')}" onclick="openUserProfile(${Number(ch.telegram_user_id || 0)}, ${Number(ch.id || 0)})"><span class="party-avatar-slot">${avatarCircle(ch, 'md')}</span><div class="party-main"><b>${esc(ch.name)}</b><span class="${hpClass(ch)}">${hpText(ch)}</span></div><span class="badge ${ch.injury_count ? 'danger':'ok'}">травмы: ${ch.injury_count || 'нет'}</span></button>`).join('')}</div></div>`;
 }
 
 function isActualMasterOfCurrentCampaign() {
@@ -4976,7 +4985,7 @@ function renderSparkManagementCard() {
     <div class="custom-collapse-body stack">
       <div class="spark-balance-hero"><div><span>Запас искр мастера</span><b>✦ ${esc(balance)}</b></div><small>Из этого запаса списываются ручные выдачи игрокам и награды искрами за достижения.</small></div>
       ${sparkGuideHtml()}
-      <details class="custom-section nested-shop"><summary><b>Ключи и сокровища</b></summary><div data-treasury-master></div></details>
+      <details class="custom-section nested-shop"><summary><b>${isCyberpunkCampaign()?'Щепки и награды':'Ключи и сокровища'}</b></summary><div data-treasury-master></div></details>
       <details class="custom-section nested-shop" ${sectionAttrs('spark-my-history')}><summary><b>📜 Моя история выдачи</b></summary>${sparkHistoryHtml(sm.history || [])}</details>
       ${isAdmin ? `<details class="custom-section nested-shop" ${sectionAttrs('spark-admin')}><summary><b>👑 Главное управление запасами</b><small>Все мастера, их баланс и история</small></summary>${renderSparkAdminMasters(sm)}</details><details class="custom-section nested-shop" ${sectionAttrs('spark-admin-players')}><summary><b>🧙 Игроки и награды</b><small>Баланс искр, выданные достижения и ручная корректировка</small></summary>${renderSparkAdminPlayers(sm)}</details>` : ''}
     </div>
@@ -6024,6 +6033,7 @@ function renderUniqueCustomizationBlock(ch) {
       <summary><div class="unique-custom-head"><span>✨</span><div><b>Эффекты рамок</b><small>Дополняют рамку и не заменяют её.</small></div></div></summary>
       <div class="custom-collapse-body">${effectHtml}</div>
     </details>
+    <details class="custom-section custom-collapse" ${sectionAttrs('player-custom-banners')}><summary><div class="unique-custom-head"><span>▧</span><div><b>Баннеры</b><small>Коллекция и магазин</small></div></div></summary><div class="custom-collapse-body"><div data-banner-shop></div></div></details>
   </div>`;
 }
 
@@ -6057,6 +6067,7 @@ function renderShopBlock(ch) {
     <div class="shop-tabs">
       <details class="custom-section nested-shop"><summary><b>Сокровищница</b></summary><div data-treasury-view></div></details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-frames')}><summary><b>🖼️ Рамки</b></summary>${shopItemsHtml('frame', cosmetics().filter(x=>x.category !== 'base'))}</details>
+      <details class="custom-section nested-shop" ${sectionAttrs('shop-banners')}><summary><b>Баннеры профиля</b></summary><div data-banner-shop></div></details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-effects')}><summary><b>✨ Эффекты</b></summary>${shopItemsHtml('effect', cosmeticEffects().filter(x=>x.id !== 'effect_none' && x.category !== 'base' && isModernEffectId(x.id)))}</details>
       <details class="custom-section nested-shop" ${sectionAttrs('shop-history')}><summary><b>📜 История искр</b></summary>${currencyHistoryHtml()}</details>
     </div>
@@ -6064,6 +6075,28 @@ function renderShopBlock(ch) {
 }
 
 const SHOP_EFFECT_GROUPS={fire:'Огонь',energy:'Энергия и электричество',cosmos:'Космос и астрал',magic:'Чары и мистика',light:'Свет и сияние',nature:'Природа',smoke:'Дым и туман',weather:'Погода',scifi:'Sci-Fi и голограммы'};
+let bannerShopData=null,bannerShopCategory='Все';
+async function mountBannerShop(root){
+ if(root.dataset.mounted)return;root.dataset.mounted='1';
+ try{bannerShopData=await api('/api/shop/banners');if(root.isConnected)root.innerHTML=bannerShopHtml();}catch(error){root.textContent=error.message;delete root.dataset.mounted;}
+}
+function bannerShopHtml(){
+ const all=bannerShopData?.banners||[],categories=['Все',...new Set(all.map(b=>b.category))];
+ const characterBanner=bannerShopData?.characters?.find(c=>Number(c.id)===Number(playerChar()?.id))?.custom_banner_id;
+ return `<label class="shop-category-control">Категория<select onchange="bannerShopCategory=this.value;document.querySelector('[data-banner-shop]').innerHTML=bannerShopHtml()">${categories.map(c=>`<option ${c===bannerShopCategory?'selected':''}>${esc(c)}</option>`).join('')}</select></label><div class="banner-shop-grid">${all.filter(b=>bannerShopCategory==='Все'||b.category===bannerShopCategory).map(b=>`<button type="button" class="banner-shop-choice secondary" onclick="showBannerPreview('${esc(b.id)}')"><img src="${esc(b.thumb_path)}" alt="" loading="lazy"><b>${esc(b.name)}</b><small>${characterBanner===b.id?'У персонажа':b.owned?'Открыт':b.final_price+' ✦'+(b.final_price<b.price?' · скидка':'')}</small></button>`).join('')}</div><button class="secondary" onclick="applyShopBanner('default')">Стандартный баннер</button>`;
+}
+function showBannerPreview(id){
+ const b=bannerShopData?.banners.find(b=>b.id===id);if(!b)return;
+ const ch=playerChar()||{};
+ const selected=bannerShopData.characters?.find(c=>Number(c.id)===Number(ch.id))?.custom_banner_id===b.id;
+ showModal(`<div class="modal-card banner-preview-modal"><button class="modal-close" aria-label="Закрыть" onclick="closeModal()">×</button><div class="character-profile-cover"><img src="${esc(b.path)}" alt="${esc(b.name)}"></div><div class="character-preview-identity"><div class="profile-preview-avatar">${avatarCircle(ch,'lg')}</div><div><div class="name">${esc(ch.name||'Профиль игрока')}</div><small>${esc(b.name)}</small></div></div><div class="banner-preview-actions">${b.owned?`<button class="ok" onclick="applyShopBanner('${esc(b.id)}')" ${selected?'disabled':''}>${selected?'Применён персонажу':'Применить персонажу'}</button>`:`<button class="ok" onclick="buyShopBanner('${esc(b.id)}')">Купить за ${b.final_price} ✦${b.final_price<b.price?' · скидка':''}</button>`}<button class="secondary" onclick="closeModal()">Назад</button></div></div>`);
+}
+async function buyShopBanner(id){
+ try{const out=await api('/api/shop/purchase',{method:'POST',body:{item_type:'banner',item_id:id}});Object.assign(state.campaignState,{currency_balance:out.currency_balance,currency_transactions:out.currency_transactions,treasury_discount_percent:out.treasury_discount_percent,treasury_benefits:out.treasury_benefits});bannerShopData=await api('/api/shop/banners');renderCampaign();showBannerPreview(id);showToast(out.message,'heal');}catch(error){showToast(error.message,'error');}
+}
+async function applyShopBanner(id){
+ try{await api(`/api/shop/banners/${id}/equip`,{method:'POST',body:{character_id:playerChar()?.id}});bannerShopData=await api('/api/shop/banners');if(playerChar())playerChar().custom_banner_id=id==='default'?'':id;renderCampaign();if(id==='default')closeModal();else showBannerPreview(id);showToast('Баннер применён','heal');}catch(error){showToast(error.message,'error');}
+}
 const shopCategories={effect:'all',frame:'all'};
 const effectStyleDrafts=new Map();
 let effectStyleDraftOwner=null;
@@ -7700,7 +7733,7 @@ function injuryIcon(loc){ return {head:'🧠',torso:'🫁',arm_r:'💪',arm_l:'�
 
 async function masterStabilize(injuryId){ try{ const out=await api(`/api/injuries/${injuryId}/stabilize`, {method:'POST'}); alert(out.message); closeModal(); await render(); }catch(e){alert(e.message);} }
 async function masterHealInjury(injuryId){ try{ const out=await api(`/api/injuries/${injuryId}/heal`, {method:'POST'}); alert(out.message); closeModal(); await render(); }catch(e){alert(e.message);} }
-function showModal(html){ closeModal(); const wrap=document.createElement('div'); wrap.id='modal'; wrap.className='modal-backdrop'; wrap.innerHTML=html; document.body.appendChild(wrap); document.body.classList.toggle('shop-preview-open',!!wrap.querySelector('[data-shop-preview]')); bindAfterRender(wrap); }
-function closeModal(){ const m=document.getElementById('modal'); if(m) m.remove(); document.body.classList.remove('shop-preview-open'); pruneCanvasEffects();syncCanvasEffectsActivity();scheduleCanvasEffectsFrame();endFileInteraction(); }
+function showModal(html){ closeModal(); const wrap=document.createElement('div'); wrap.id='modal'; wrap.className='modal-backdrop'; wrap.innerHTML=html; document.body.appendChild(wrap); document.body.classList.toggle('shop-preview-open',!!wrap.querySelector('[data-shop-preview]')); document.body.classList.toggle('character-profile-open',!!wrap.querySelector('.character-profile-modal,.banner-preview-modal')); bindAfterRender(wrap); }
+function closeModal(){ const m=document.getElementById('modal'); if(m) m.remove(); document.body.classList.remove('shop-preview-open','character-profile-open'); pruneCanvasEffects();syncCanvasEffectsActivity();scheduleCanvasEffectsFrame();endFileInteraction(); }
 
 init();

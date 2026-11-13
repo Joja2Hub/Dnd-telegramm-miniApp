@@ -29,6 +29,39 @@ class TreasuryTests(unittest.TestCase):
         self.assertEqual(self.db.get_currency_balance(200),50);self.assertEqual(t.state(self.db,200)['keys'],0)
         with self.assertRaises(ValueError):t.open_chest(self.db,200,'other-request')
         self.assertEqual(len(t.state(self.db,200)['history']),1)
+    def test_cyberpunk_opening_and_handover(self):
+        game=self.db.create_campaign('Cyberpunk',100,rule_type='cyberpunk')
+        ch=self.db.create_character(game['id'],'Runner',20,12)
+        self.db.link_character(ch['id'],200)
+        t.grant_keys(self.db,100,self.game['id'],200,1)
+        with self.assertRaisesRegex(ValueError,'Нет щепок'):
+            t.open_chest(self.db,200,'cyber-empty',case_type='cyberpunk')
+        t.grant_keys(self.db,100,game['id'],200,10)
+        prize=next(r for r in t.CYBER_POOL['rare'] if r.get('choice_type')=='implant')
+        with patch.object(t,'draw',return_value={**prize,'rarity':'rare'}) as draw:
+            for i in range(10):
+                opened=t.open_chest(self.db,200,f'cyber-{i}',case_type='cyberpunk')
+            draw.assert_called_with('normal',True,case_type='cyberpunk')
+            self.assertTrue(t.open_chest(self.db,200,'cyber-9',case_type='cyberpunk')['replayed'])
+        state=t.state(self.db,200)
+        self.assertEqual((state['keys'],state['until_guarantee']), (1,10))
+        self.assertEqual((state['cyberpunk']['keys'],state['cyberpunk']['until_guarantee']), (0,10))
+        self.assertEqual(opened['reward']['case_type'],'cyberpunk')
+        item=state['items'][0]['id']
+        with self.assertRaisesRegex(ValueError,'киберпанк-игры'):
+            t.use_item(self.db,200,item,self.ch['id'])
+        t.use_item(self.db,200,item,ch['id'],selection={'name':'Оптика'})
+        self.assertEqual(t.pending(self.db,100,game['id'])[0]['reward']['name'],'Оптика +1')
+    def test_cyberpunk_pool_currency_and_chip_rewards(self):
+        amounts={r['amount'] for pool in t.CYBER_POOL.values() for r in pool if r.get('currency')=='crypto'}
+        self.assertEqual((min(amounts),max(amounts)),(500,10000))
+        self.assertFalse(any(r.get('currency')=='gold' for pool in t.CYBER_POOL.values() for r in pool))
+        t.add_keys(self.db,200,1,'boost','cyberpunk')
+        self.db.conn.commit()
+        with patch.object(t,'draw',return_value=dict(kind='keys',name='Щепки ×2',icon='*',rarity='rare',amount=2,key_type='normal')):
+            t.open_chest(self.db,200,'cyber-boost',case_type='cyberpunk')
+        state=t.state(self.db,200)
+        self.assertEqual((state['keys'],state['cyberpunk']['keys'],state['cyberpunk']['boosts']),(0,2,0))
     def test_master_and_owner_guards(self):
         with self.assertRaises(ValueError):t.grant_keys(self.db,200,self.game['id'],200,1)
         with self.assertRaises(ValueError):t.grant_keys(self.db,100,self.game['id'],999,1)

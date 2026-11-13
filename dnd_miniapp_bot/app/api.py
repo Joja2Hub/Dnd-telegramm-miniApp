@@ -185,9 +185,12 @@ class AchievementGrantManyIn(BaseModel):
 
 
 class ShopPurchaseIn(BaseModel):
-    item_type: Literal["frame", "effect", "effect_style"]
+    item_type: Literal["frame", "effect", "effect_style", "banner"]
     item_id: str = Field(min_length=1, max_length=80)
     option_id: str = Field(default='', max_length=80)
+
+class BannerEquipIn(BaseModel):
+    character_id:int|None=None
 
 
 class CurrencyGrantIn(BaseModel):
@@ -798,6 +801,18 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
                 if viewed and viewed.get('telegram_user_id'):return TelegramUser(id=int(viewed['telegram_user_id']))
         return user
     register_treasury(app,db,treasury_actor)
+    @app.get('/api/shop/banners')
+    async def banner_shop(user=Depends(treasury_actor)):
+        from .profile_banners import shop_state
+        return shop_state(db,user.id)
+
+    @app.post('/api/shop/banners/{banner_id}/equip')
+    async def equip_banner(banner_id:str,data:BannerEquipIn|None=None,user=Depends(treasury_actor)):
+        from .profile_banners import equip
+        from .treasury import atomic
+        try:
+            with atomic(db):return equip(db,user.id,'' if banner_id=='default' else banner_id,data.character_id if data else None)
+        except ValueError as error:raise HTTPException(400,str(error))
 
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
@@ -2579,6 +2594,9 @@ def create_app(db: Database, settings: Settings, bot: Any | None = None) -> Fast
             from .treasury import atomic, purchase_effect_bundle
             with atomic(db):
                 if data.item_type=='effect':out=purchase_effect_bundle(db,buyer_tg_id,data.item_id,data.option_id or 'original')
+                elif data.item_type=='banner':
+                    from .profile_banners import purchase
+                    out=purchase(db,buyer_tg_id,data.item_id)
                 elif data.item_type=='effect_style':out=db.purchase_effect_style(buyer_tg_id,data.item_id,data.option_id)
                 else:out=db.purchase_cosmetic_item(buyer_tg_id, data.item_type, data.item_id)
         except Exception as e:

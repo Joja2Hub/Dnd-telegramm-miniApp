@@ -18,7 +18,7 @@ STAT_LABELS = {
 def read_profile(db, user_id):
     row = db._one('SELECT profile_json FROM player_profiles WHERE telegram_user_id=?', (user_id,))
     data = json.loads(row['profile_json']) if row else {}
-    return {'name': '', 'bio': '', 'avatar_path': '', 'uploads': [],
+    return {'name': '', 'bio': '', 'avatar_path': '', 'banner_path': '', 'uploads': [],
             'showcases': [{'kind': 'achievements', 'items': []}, {'kind': 'characters', 'items': []}], **data}
 
 

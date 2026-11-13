@@ -1,0 +1,474 @@
+[
+  {
+    "id": "ember",
+    "name": "Сердце пламени",
+    "category": "Стихии",
+    "prompt": "Use case: stylized-concept. Asset type: finished wide horizontal fantasy RPG profile banner, panoramic 3:1 ratio, edge-to-edge artwork, no mockup. A close cinematic sweep of living orange and copper flames flowing horizontally across dark volcanic rock, bright finely detailed flame tongues, glowing embers very sparse, rich crimson recesses, no smoke wall. Clearly FIRE, elegant and vivid, not a simple gradient. Premium painterly fantasy game concept art, sophisticated natural texture, strong readable composition even when cropped to center on mobile. No people, no faces, no text, no letters, no logo, no UI, no border. Important visual content distributed across the full width, not confined to edges.",
+    "source": "exec-0b5cf5db-8c8e-46a5-870d-e6f349603e8f.png"
+  },
+  {
+    "id": "tide",
+    "name": "Глубокий прилив",
+    "category": "Стихии",
+    "prompt": "Use case: stylized-concept. Asset type: finished wide horizontal fantasy RPG profile banner, panoramic 3:1 ratio, edge-to-edge artwork, no mockup. A dramatic turquoise ocean wave seen side-on, curling translucent water with silver foam filaments sweeping horizontally, deep teal depths, detailed glasslike water and softly lit spray. No boat or beach objects. Premium painterly fantasy game concept art, sophisticated natural texture, strong readable composition even when cropped to center on mobile. No people, no faces, no text, no letters, no logo, no UI, no border. Important visual content distributed across the full width, not confined to edges.",
+    "source": "exec-a754f746-691c-4746-8ba9-05c312dad886.png"
+  },
+  {
+    "id": "storm",
+    "name": "Грозовой фронт",
+    "category": "Стихии",
+    "prompt": "Use case: stylized-concept. Asset type: finished wide horizontal fantasy RPG profile banner, panoramic 3:1 ratio, edge-to-edge artwork, no mockup. An expansive dramatic storm sky with branching white-blue lightning across sculpted charcoal clouds and subtle violet cloud interiors, a distant horizon low in frame. Clearly electric elemental energy, luminous but not neon oversaturated. Premium painterly fantasy game concept art, sophisticated natural texture, strong readable composition even when cropped to center on mobile. No people, no faces, no text, no letters, no logo, no UI, no border. Important visual content distributed across the full width, not confined to edges.",
+    "source": "exec-390e6a85-ab73-43be-9824-89106fe27e4d.png"
+  },
+  {
+    "id": "arcane",
+    "name": "Обсерватория мага",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset type: finished wide horizontal fantasy RPG profile banner, panoramic 3:1 ratio, edge-to-edge artwork, no mockup. A wizard's stone observatory desk at night, open ancient books with NO readable writing, glass crystal prisms, violet magical mist and a softly glowing astrolabe under an arched window onto a starry sky. Wide horizontal cinematic still life; the central open book and floating violet light remain visible under a center crop. Violet, silver and cool turquoise accents, warm tiny candle accents. No wizard or other people. Premium painterly fantasy game concept art with beautiful material textures and restrained cinematic lighting. Readable at small banner size, visually rich but not cluttered. No text, no letters, no logo, no UI, no border.",
+    "source": "exec-dc0d60e7-dcd8-4017-9366-dfe9391e081f.png"
+  },
+  {
+    "id": "oath",
+    "name": "Свет клятвы",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset type: finished wide horizontal fantasy RPG profile banner, panoramic 3:1 ratio, edge-to-edge artwork, no mockup. An unoccupied fantasy paladin sanctuary: a finely engraved silver sword planted upright beside a worn white and gold shield, on pale stone steps, shafts of warm sunlight through high stained-glass windows. White lilies and a few blue cloth folds, quiet sacred atmosphere, dignified but not ostentatious. Sword and shield placed together near center for mobile crop, architectural depth across full panoramic width. No people, no specific real religious symbols. Premium painterly fantasy game concept art with beautiful material textures and restrained cinematic lighting. Readable at small banner size, visually rich but not cluttered. No text, no letters, no logo, no UI, no border.",
+    "source": "exec-acb7282c-31c4-4113-b7a6-c32f2462077e.png"
+  },
+  {
+    "id": "bard",
+    "name": "Последний аккорд",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset type: finished wide horizontal fantasy RPG profile banner, panoramic 3:1 ratio, edge-to-edge artwork, no mockup. An elegant worn wooden lute resting diagonally on a dark burgundy velvet-covered tavern window bench, delicate strings clearly rendered, scattered blank parchment and a small silver flute nearby, warm candlelight and a soft view of a medieval street at blue hour beyond. Warm gold, burgundy, muted blue; lush intimate fantasy still life, main lute centered, no floating music-note symbols, no people. Premium painterly fantasy game concept art with beautiful material textures and restrained cinematic lighting. Readable at small banner size, visually rich but not cluttered. No text, no letters, no logo, no UI, no border.",
+    "source": "exec-c7e5d44a-b2e3-4094-8f7d-8f3be56db4a8.png"
+  },
+  {
+    "id": "forest",
+    "name": "Древний лес",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset type: finished panoramic 3:1 horizontal fantasy RPG profile banner, edge-to-edge image, no mockup. An ancient temperate forest at dawn, massive moss-covered roots and trunks framing a winding clear creek across the center, ferns and small white wildflowers, luminous green canopy and pale sunbeams through delicate ground mist. Calm lush believable woodland, moss textures and water reflections, no buildings. Premium hand-painted fantasy game environment concept art, natural lighting, realistic material textures, rich controlled colors. Main landscape readable across full width and in central mobile crop. No people, faces, text, letters, logo, UI or border.",
+    "source": "exec-cd7ceb55-b208-496a-bec9-b47b0f176867.png"
+  },
+  {
+    "id": "desert",
+    "name": "Пески забытого царства",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset type: finished panoramic 3:1 horizontal fantasy RPG profile banner, edge-to-edge image, no mockup. Immense rolling desert dunes at sunset with wind-carved fine sand ripples in foreground, a small distant ruined sandstone arch near the middle horizon, dusty rose and amber ridges, pale turquoise sky. Wide clear atmospheric landscape, rich sense of scale, not monochromatic orange, no people or camels. Premium hand-painted fantasy game environment concept art, natural lighting, realistic material textures, rich controlled colors. Main landscape readable across full width and in central mobile crop. No people, faces, text, letters, logo, UI or border.",
+    "source": "exec-68041994-0eb5-48f7-8e7a-122de94ce32a.png"
+  },
+  {
+    "id": "frost",
+    "name": "Северное сияние",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset type: finished panoramic 3:1 horizontal fantasy RPG profile banner, edge-to-edge image, no mockup. A crystalline alpine lake beneath rugged snowy mountain peaks at blue hour, pale turquoise aurora ribbons reflected in still water, frost-covered spruce on the edges, deep emerald and violet sky with sparse stars, crisp silver-blue snow and ice. A serene detailed northern biome panorama, no buildings. Premium hand-painted fantasy game environment concept art, natural lighting, realistic material textures, rich controlled colors. Main landscape readable across full width and in central mobile crop. No people, faces, text, letters, logo, UI or border.",
+    "source": "exec-7cdda900-1293-4d80-a89a-237aa9363787.png"
+  },
+  {
+    "id": "snake-scales",
+    "name": "Змеиная чешуя",
+    "category": "Текстуры",
+    "source": "ksael-green-scales.png",
+    "aliases": [
+      "/assets/profile-banners/ksael-green-scales.png"
+    ],
+    "prompt": "Original green snake scale banner; see docs/ksael-banner.md."
+  },
+  {
+    "id": "baldurs-gate",
+    "name": "Врата Балдура · Серая гавань",
+    "category": "Города",
+    "prompt": "Use case: stylized-concept. Asset: premium D&D RPG profile background, finished horizontal panoramic 3:1 banner. Evocative artistic interpretation of BALDUR'S GATE in the Forgotten Realms: dense medieval stone port city rising in a crescent from the wide Chionthar river, crowded slate roofs, imposing walls separating the elevated Upper City, Gray Harbor full of small sailing ships and wooden quays. A grand panorama at overcast golden dawn, warm windows contrasting misty blue-gray river and stone. Keep recognizable layered harbor-city silhouette near center. Not an exact map or reproduction of existing artwork. Painterly high-end fantasy environment concept art, rich material detail, coherent sophisticated composition, edge-to-edge scenery. Legible at small size and beautiful under central mobile crop. No foreground characters or faces, no typography, no labels, no logos, no borders, no UI.",
+    "source": "exec-304ec70c-85a6-4cd9-ac5c-f39d5d807345.png"
+  },
+  {
+    "id": "calimport",
+    "name": "Калимпорт · город куполов",
+    "category": "Города",
+    "prompt": "Use case: stylized-concept. Asset: premium D&D RPG profile background, finished horizontal panoramic 3:1 banner. Evocative artistic interpretation of CALIMPORT in Calimshan, Forgotten Realms: immense southern coastal fantasy metropolis, elegant sand-colored domes and slender minarets, arcaded terraces, vivid turquoise glazed tiles, palms and a distant busy blue harbor. Sunlit architectural panorama from a rooftop at late afternoon, cool cyan shadows and golden sandstone, many graceful arches. City not empty desert. Main domes centered. Not an exact map or copy of artwork. Painterly high-end fantasy environment concept art, rich material detail, coherent sophisticated composition, edge-to-edge scenery. Legible at small size and beautiful under central mobile crop. No foreground characters or faces, no typography, no labels, no logos, no borders, no UI.",
+    "source": "exec-8cc8bf33-2a8d-453e-a013-1d2da7bcd628.png"
+  },
+  {
+    "id": "suzail",
+    "name": "Сузейл · королевская столица",
+    "category": "Города",
+    "prompt": "Use case: stylized-concept. Asset: premium D&D RPG profile background, finished horizontal panoramic 3:1 banner. Evocative artistic interpretation of SUZAIL, royal capital of Cormyr in the Forgotten Realms: prosperous orderly harbor city of stone and timber buildings around a spacious waterfront, elegant royal palace rising behind green formal gardens, graceful towers and deep purple banners with no text. Clear crisp spring morning light, silver-gray roofs, lilac and plum accents, lush trees and blue harbor water. Main palace and harbor near center. Not an exact map or reproduction of existing art. Painterly high-end fantasy environment concept art, rich material detail, coherent sophisticated composition, edge-to-edge scenery. Legible at small size and beautiful under central mobile crop. No foreground characters or faces, no typography, no labels, no logos, no borders, no UI.",
+    "source": "exec-d54cdd60-8c28-4f90-beac-e142cbd3f6df.png"
+  },
+  {
+    "id": "swamp",
+    "name": "Туманные топи",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal 3:1 D&D profile banner. A vast ancient fantasy wetland with twisted cypress trunks, hanging moss, still pools reflecting jade-green marsh light, a subtle winding boardwalk fading into silver morning mist. Small patches of amber reeds and water lilies. Atmospheric but readable, nuanced gray-green palette, no monsters or people. Premium painterly fantasy environment art, beautiful material detail, natural composition, edge-to-edge scenery. Make the central crop on mobile equally beautiful and readable. No labels, letters, text, logo, border or UI. No foreground characters.",
+    "source": "exec-fa74319e-b8cc-4323-85f8-9a18c6342a8b.png"
+  },
+  {
+    "id": "jungle",
+    "name": "Затерянные джунгли",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal 3:1 D&D profile banner. Lush tropical jungle canopy opening around a stepped ancient stone ruin nearly reclaimed by vines, a turquoise waterfall and river at center, enormous fern leaves and bright scattered orchids framing the edges. Fresh sunlit emerald foliage and clear humid air, spectacular depth, no people. Premium painterly fantasy environment art, beautiful material detail, natural composition, edge-to-edge scenery. Make the central crop on mobile equally beautiful and readable. No labels, letters, text, logo, border or UI. No foreground characters.",
+    "source": "exec-0a9a4957-3f9d-4f09-a61f-b5d40ecbe438.png"
+  },
+  {
+    "id": "underdark",
+    "name": "Сады Подземья",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal 3:1 D&D profile banner. A colossal underground cavern with a subterranean river winding between enormous bioluminescent mushroom groves, turquoise and lavender gills, jagged dark stalactites above and tiny amber mineral reflections. Deep but luminous, organic alien fantasy ecosystem, varied mushroom shapes, no city, no monsters, no giant glowing orb. Premium painterly fantasy environment art, beautiful material detail, natural composition, edge-to-edge scenery. Make the central crop on mobile equally beautiful and readable. No labels, letters, text, logo, border or UI. No foreground characters.",
+    "source": "exec-f17cfda9-3c95-4d4e-958a-2b852eb185ae.png"
+  },
+  {
+    "id": "autumn",
+    "name": "Золотая долина",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal 3:1 D&D profile banner. A wide highland valley in brilliant autumn, amber birch and copper-red maple woodland around a winding clear blue river, a distant low stone bridge and soft violet hills, crisp late afternoon sunlight. Elegant vibrant natural landscape, subtle falling leaves near edges only, no people, no castle. Premium painterly fantasy environment art, beautiful material detail, natural composition, edge-to-edge scenery. Make the central crop on mobile equally beautiful and readable. No labels, letters, text, logo, border or UI. No foreground characters.",
+    "source": "exec-247cd77e-2e02-4b24-94e1-68f6f1d48b4d.png"
+  },
+  {
+    "id": "rogue",
+    "name": "Тень плута",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium panoramic horizontal 3:1 D&D profile banner. A master rogue's quiet rooftop hideout above a rain-wet medieval city at blue midnight. A pair of finely made daggers, lockpicks and a folded dark green leather cloak rest on the central stone parapet. Thin silver moonlight across steel and emerald fabric, amber windows below, intriguing shadows but clear tactile details. No person, no hands, no skulls, no text. Luxurious hand-painted fantasy game concept art, thoughtful composition, crisp focal object near center, atmospheric depth across width. Works as an edge-to-edge small banner and under central mobile crop. No typography, logo, border, UI or foreground characters.",
+    "source": "exec-fedf9227-db38-4b1e-b48b-a199b41f2556.png"
+  },
+  {
+    "id": "ranger",
+    "name": "Тропа следопыта",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium panoramic horizontal 3:1 D&D profile banner. An elegant yew longbow with a quiver of feathered arrows and a weathered forest-green cloak resting beside a mossy rock at the edge of a vast pine wilderness. Central bow and arrows frame a distant deer trail and mountain lake at clear dawn. Muted pine greens, silver mist and warm russet leather. No person, no hands. Luxurious hand-painted fantasy game concept art, thoughtful composition, crisp focal object near center, atmospheric depth across width. Works as an edge-to-edge small banner and under central mobile crop. No typography, logo, border, UI or foreground characters.",
+    "source": "exec-73c60315-7d50-402a-a640-944ff0e4a011.png"
+  },
+  {
+    "id": "druid",
+    "name": "Круг друида",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium panoramic horizontal 3:1 D&D profile banner. A small ancient druid stone circle in a woodland glade, a gnarled oak staff leaning against the central lichen-covered standing stone, fresh fern fronds, roots, tiny white blossoms and a few subtle fireflies. Blue dusk meets gentle golden light inside the circle. Organic living magic suggested by delicate leaf-like light traces, no runic letters or giant magical ring, no people. Luxurious hand-painted fantasy game concept art, thoughtful composition, crisp focal object near center, atmospheric depth across width. Works as an edge-to-edge small banner and under central mobile crop. No typography, logo, border, UI or foreground characters.",
+    "source": "exec-f49c4c8e-dae6-46af-931a-cce20d48492b.png"
+  },
+  {
+    "id": "artificer",
+    "name": "Мастерская изобретателя",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium panoramic horizontal 3:1 D&D profile banner. A fantasy artificer's workbench: intricate brass and steel clockwork mechanisms, a half-assembled small mechanical bird, precision tools, sapphire power crystal and dark leather gloves on a scratched walnut bench. A small forge glows far behind, cool window light illuminates central machinery. Fine believable engineering details, no modern computers, no people, no letters. Luxurious hand-painted fantasy game concept art, thoughtful composition, crisp focal object near center, atmospheric depth across width. Works as an edge-to-edge small banner and under central mobile crop. No typography, logo, border, UI or foreground characters.",
+    "source": "exec-802cdab9-0d8e-4402-a078-313357e68dc8.png"
+  },
+  {
+    "id": "astral",
+    "name": "Астральное море",
+    "category": "Магия",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal 3:1 D&D profile banner. A breathtaking astral plane panorama: translucent violet and pale cyan nebula clouds flowing around ancient floating stone fragments above a still mirrorlike starfield, delicate silver threads of psychic light, enormous depth and fine luminous dust, no black hole, no central planet or glowing sphere. Rich and serene rather than chaotic, clear central nebula sculpting. Beautiful painterly high-fantasy art with distinctive composition and finely judged light, clear readable focal zone near center for a mobile crop, edge-to-edge full scene. No typography, logo, border or UI.",
+    "source": "exec-143433fe-4f00-4613-a68f-e11b3b3f9bb7.png"
+  },
+  {
+    "id": "cryomancy",
+    "name": "Сердце ледяных чар",
+    "category": "Магия",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal 3:1 D&D profile banner. A sculptural cluster of translucent ice crystals growing from an ancient dark stone pedestal in a snowy cavern, delicate frost spreading in branching fernlike patterns across the foreground, pale blue magical vapor and subtle prismatic light inside ice. Crystalline highlights, deep turquoise shadows and silver-white texture, elegant cold magic, no people. Beautiful painterly high-fantasy art with distinctive composition and finely judged light, clear readable focal zone near center for a mobile crop, edge-to-edge full scene. No typography, logo, border or UI.",
+    "source": "exec-81c221f5-931c-4694-915a-e686c930f750.png"
+  },
+  {
+    "id": "necromancy",
+    "name": "Шёпот некроманта",
+    "category": "Магия",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal 3:1 D&D profile banner. A solemn abandoned gothic stone crypt with an ancient closed black grimoire on a central altar, ghostly pale jade and mint spectral mist slipping between carved stone ribs, dim violet recesses, a few slender green ghost-flame candles. Sophisticated eerie necromantic magic, no blood, no gore, no visible corpse, no skeleton, no readable writing, no people. Beautiful painterly high-fantasy art with distinctive composition and finely judged light, clear readable focal zone near center for a mobile crop, edge-to-edge full scene. No typography, logo, border or UI.",
+    "source": "exec-f440aae0-28d5-40b9-a088-fd44ba2ff606.png"
+  },
+  {
+    "id": "fey-magic",
+    "name": "Фейское переплетение",
+    "category": "Магия",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal 3:1 D&D profile banner. An enchanted moonlit glade where delicate magenta, lavender and warm gold ribbons of wild fey magic weave between flowering branches over a clear pool, iridescent drifting petals and a few small luminous butterflies, distant impossible floating garden terraces. Detailed organic fantasy painting, elegant airy movement, luminous but restrained, no people, no giant magic circle. Beautiful painterly high-fantasy art with distinctive composition and finely judged light, clear readable focal zone near center for a mobile crop, edge-to-edge full scene. No typography, logo, border or UI.",
+    "source": "exec-f74882a4-eede-4546-9460-90b5812ac9ec.png"
+  },
+  {
+    "id": "cp-corporate",
+    "name": "Корпоративный протокол",
+    "category": "Киберпанк · Узоры",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 cyberpunk player profile banner. A sophisticated fictional megacorporation identity surface: matte pearl-white ceramic plates and brushed silver titanium, precise layered diagonal inlays, tiny restrained cobalt-blue light seams. Architectural geometric rhythm across the entire width, extremely premium clean hard-surface industrial design. No logo, no letters, no badge, no UI. Edge-to-edge detailed bitmap artwork, controlled cinematic product lighting, balanced composition that remains attractive under a central mobile crop. No people, no faces, no typography, no readable text, no border, no mockup.",
+    "source": "exec-a11eab25-e2b6-4648-a1ad-aa8c9de840ef.png"
+  },
+  {
+    "id": "cp-black-red",
+    "name": "Чёрный контракт",
+    "category": "Киберпанк · Узоры",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 cyberpunk player profile banner. Deep graphite carbon-fiber armor panels with asymmetric angular scarlet-red glass inlays and razor-thin illuminated red seams. Fine physical microtexture and subdued specular reflection, luxurious ominous corporate security design. Bold readable large-scale geometry, not a dense circuit board, no logo or lettering. Edge-to-edge detailed bitmap artwork, controlled cinematic product lighting, balanced composition that remains attractive under a central mobile crop. No people, no faces, no typography, no readable text, no border, no mockup.",
+    "source": "exec-2f57249e-2e63-4fda-b3e8-f19298a2fccc.png"
+  },
+  {
+    "id": "cp-circuit",
+    "name": "Нефритовая сеть",
+    "category": "Киберпанк · Узоры",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 cyberpunk player profile banner. A beautiful macro electronic substrate: dark jade-green ceramic circuit surface with elegant copper-gold traces, sparse translucent glass data channels and subtle mint illumination. Balanced flowing technical linework, physical layered depth and tactile materials, no numbers, no symbols, no text, no interface. Edge-to-edge detailed bitmap artwork, controlled cinematic product lighting, balanced composition that remains attractive under a central mobile crop. No people, no faces, no typography, no readable text, no border, no mockup.",
+    "source": "exec-197467da-953e-4eba-af90-12ed51a37d83.png"
+  },
+  {
+    "id": "cp-iridescent",
+    "name": "Хромовый перелив",
+    "category": "Киберпанк · Узоры",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 cyberpunk player profile banner. An abstract luxury cyberpunk material surface of interlocking curved brushed titanium ribbons, subtle iridescent petrol-blue, violet and champagne reflections across silver chrome. Gentle sculptural flow and tiny machining grain, expensive restrained physical texture, not a flat gradient, no spheres, no logos or text. Edge-to-edge detailed bitmap artwork, controlled cinematic product lighting, balanced composition that remains attractive under a central mobile crop. No people, no faces, no typography, no readable text, no border, no mockup.",
+    "source": "exec-83847150-bf9d-49f0-a362-f6ad699fae4f.png"
+  },
+  {
+    "id": "cp-alley",
+    "name": "После дождя",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished cinematic horizontal panoramic 3:1 cyberpunk RPG profile banner. A narrow lived-in cyberpunk back alley after rain, battered concrete walls, external cables, steam from a street grate, small red and teal light fixtures reflected in puddles, a distant delivery scooter, architecture receding into depth. Street-level intimate composition, richly detailed believable grime, no readable signs or letters, no people. Premium illustrated game environment concept art, realistic material textures, strong deliberate composition readable at banner size and under a central mobile crop. Full edge-to-edge scene, no typography, no logo, no border, no UI or mockup.",
+    "source": "exec-dccd613e-6227-44e1-bd43-4614d941be9a.png"
+  },
+  {
+    "id": "cp-slums",
+    "name": "Нижние этажи",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished cinematic horizontal panoramic 3:1 cyberpunk RPG profile banner. A sprawling improvised cyberpunk slum built from stacked shipping containers and concrete micro-apartments beneath enormous elevated highways. Hanging laundry, tangled utility lines, warm improvised lights, rooftop gardens and tarpaulins, a hazy industrial skyline beyond. Overcast pale daylight with rust-red and faded yellow accents, humane lived-in detail, no people, no text. Premium illustrated game environment concept art, realistic material textures, strong deliberate composition readable at banner size and under a central mobile crop. Full edge-to-edge scene, no typography, no logo, no border, no UI or mockup.",
+    "source": "exec-c1aa5bdf-eef0-496d-9f62-58d4e6171a56.png"
+  },
+  {
+    "id": "cp-downtown",
+    "name": "Стеклянный центр",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished cinematic horizontal panoramic 3:1 cyberpunk RPG profile banner. A monumental near-future corporate downtown panorama at clear blue hour: towering glass skyscrapers, sleek elevated transit lines, luminous white plazas and reflective wet boulevards, restrained cyan and warm gold architectural illumination, dense layered depth. Clean powerful urban scale, no giant holographic faces, no readable billboards, no foreground people. Premium illustrated game environment concept art, realistic material textures, strong deliberate composition readable at banner size and under a central mobile crop. Full edge-to-edge scene, no typography, no logo, no border, no UI or mockup.",
+    "source": "exec-86882020-da7b-4d5a-9805-7c1f8e4cf6b9.png"
+  },
+  {
+    "id": "cp-club",
+    "name": "За закрытой дверью",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished cinematic horizontal panoramic 3:1 cyberpunk RPG profile banner. Interior of an exclusive underground cyberpunk nightclub before opening: a long polished black bar, low sculptural booths, ruby-red ceiling light strips and violet-blue stage lighting, a subtle volume of haze revealing carefully shaped light beams, reflective chrome fixtures and dark stone. Sophisticated architectural composition, no crowd, no people, no readable signs. Premium illustrated game environment concept art, realistic material textures, strong deliberate composition readable at banner size and under a central mobile crop. Full edge-to-edge scene, no typography, no logo, no border, no UI or mockup.",
+    "source": "exec-50e3658c-9659-43fb-9358-2c9969460a9f.png"
+  },
+  {
+    "id": "cp-office",
+    "name": "Выше облаков",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal panoramic 3:1 cyberpunk RPG player-profile banner. A powerful corporate executive's private office high in a near-future skyscraper: a broad dark stone and walnut desk, sculptural leather chair, restrained smoked glass, one small bonsai, floor-to-ceiling windows overlooking clouds and a dense futuristic skyline at sunrise. Cool silver, deep green and warm natural wood, immaculate but subtly intimidating. No executives, no people, no logos, no readable text. Detailed cinematic illustrated game environment, strong meaningful composition and believable materials, legible when displayed small and cropped centrally on mobile. Edge-to-edge artwork, no typography, border, UI or mockup.",
+    "source": "exec-bbe39e47-81a1-4418-b3cc-3653ab396996.png"
+  },
+  {
+    "id": "cp-netrunner",
+    "name": "Убежище нетраннера",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal panoramic 3:1 cyberpunk RPG player-profile banner. A resourceful cyberpunk netrunner's intimate workshop: a wall of mismatched compact monitors showing only abstract non-text network diagrams, fiber-optic cables, a rugged custom deck centered on a metal desk, disassembled cybernetic components and tiny amber status lights. Indigo and turquoise screen light with warm practical worklamp, believable focused technical space, no person, no numbers or letters. Detailed cinematic illustrated game environment, strong meaningful composition and believable materials, legible when displayed small and cropped centrally on mobile. Edge-to-edge artwork, no typography, border, UI or mockup.",
+    "source": "exec-51d1e837-3186-49e9-b8eb-5b5dd7732950.png"
+  },
+  {
+    "id": "cp-market",
+    "name": "Ночной рынок",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal panoramic 3:1 cyberpunk RPG player-profile banner. A bustling-looking but unoccupied futuristic night-market lane between dense apartment blocks: improvised food stalls with chrome counters, colorful fabric awnings, glowing geometric light boxes without writing, hanging paper lanterns, thin steam drifting from cooking pots and rain reflections. Warm amber and red contrasted with emerald light, deep inviting street perspective. No foreground people, no text or logos. Detailed cinematic illustrated game environment, strong meaningful composition and believable materials, legible when displayed small and cropped centrally on mobile. Edge-to-edge artwork, no typography, border, UI or mockup.",
+    "source": "exec-4eb73d68-b81f-475c-abfa-01984abb4cc3.png"
+  },
+  {
+    "id": "cp-badlands",
+    "name": "Последняя заправка",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Asset: finished premium horizontal panoramic 3:1 cyberpunk RPG player-profile banner. A lonely cyberpunk roadside fuel and charging station in arid badlands at dusk, worn futuristic fuel pumps, a patched low service garage, an old modified off-road car parked beside it, distant wind turbines and the faint city skyline at the far horizon. Dusty mauve desert, pale orange sky and small cyan strip lights, poetic quiet nomad atmosphere, no people, no readable writing or logos. Detailed cinematic illustrated game environment, strong meaningful composition and believable materials, legible when displayed small and cropped centrally on mobile. Edge-to-edge artwork, no typography, border, UI or mockup.",
+    "source": "exec-93911303-26b8-4b38-be2e-7ef23b9f0bf6.png"
+  },
+  {
+    "id": "cp-yellow",
+    "name": "Жёлтый сигнал",
+    "category": "Киберпанк · Узоры",
+    "prompt": "Use case: stylized-concept. Asset: finished premium panoramic 3:1 cyberpunk profile banner. An uncompromising black-and-warning-yellow cyberpunk industrial composition. Large matte black armor plates, worn saturated yellow paint bands, bold diagonal hazard stripes, finely scratched carbon composite and tiny cool cyan electronic details. Graphic, aggressive, beautifully balanced asymmetric physical surface. Yellow and black dominate, not red or purple. No text, no logo, no symbol badges. Cinematic illustrated game artwork, strong horizontal composition and meaningful central crop for mobile, no borders, no mockup, no UI, no foreground characters. Restrained high-contrast lighting, detailed materials rather than excessive visual noise.",
+    "source": "exec-4dcb2d1f-f8a6-442f-9a94-f7ea28d7800f.png"
+  },
+  {
+    "id": "cp-netspace",
+    "name": "Глубокая Сеть",
+    "category": "Киберпанк · Сеть",
+    "prompt": "Use case: stylized-concept. Asset: finished premium panoramic 3:1 cyberpunk profile banner. An immersive abstract cyberspace environment: immense dark data architecture and receding wireframe structures, cyan and amber light-paths suspended over a black reflective plane, translucent geometric layers suggesting impossible depth, delicate packets of light flowing through distant conduits. Atmospheric mysterious netrunner perspective, sparse powerful composition, not a flat circuit texture, no literal computer monitors, no faces or letters. Cinematic illustrated game artwork, strong horizontal composition and meaningful central crop for mobile, no borders, no mockup, no UI, no foreground characters. Restrained high-contrast lighting, detailed materials rather than excessive visual noise.",
+    "source": "exec-4fbdffe5-ea14-407a-8ac2-06656e093c44.png"
+  },
+  {
+    "id": "cp-blackwall",
+    "name": "Чёрный заслон",
+    "category": "Киберпанк · Сеть",
+    "prompt": "Use case: stylized-concept. Asset: finished premium panoramic 3:1 cyberpunk profile banner. A striking artistic interpretation of the Cyberpunk BLACKWALL: a vast nearly black vertical digital barrier split by thin malignant scarlet data fissures and irregular red light curtains, dense void beyond, tiny jagged corrupted fragments drifting near the barrier. A lone central breach suggested by concentrated crimson interference, terrifying scale without monsters or figures. Very dark charcoal and deep red, crisp selective highlights, no orange flames, no letters or UI. Cinematic illustrated game artwork, strong horizontal composition and meaningful central crop for mobile, no borders, no mockup, no UI, no foreground characters. Restrained high-contrast lighting, detailed materials rather than excessive visual noise.",
+    "source": "exec-90d6b42e-5b6c-46ad-a45c-717ae17d9437.png"
+  },
+  {
+    "id": "dark-moor",
+    "name": "Пустошь забытых клятв",
+    "category": "Тёмное фэнтези",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 dark-fantasy D&D profile banner. An immense bleak moor under a heavy overcast sky, a ruined medieval watchtower half-lost in low gray mist, black peat pools and wet brown grasses, a broken old stone road winding toward the center. A single very small warm lantern near a roadside shrine. Quiet oppressive atmosphere, muted slate, ash, faded olive, almost monochromatic but clear terrain detail. No vivid greens, no colorful sky, no people. Beautiful somber painterly environment art, sophisticated restrained low-saturation palette, readable details and focal silhouette in the central mobile crop. Atmospheric darkness, NOT a featureless black image. No typography, labels, logo, border, UI or mockup.",
+    "source": "exec-22aae663-50e7-4885-9dcd-2683666a7c6d.png"
+  },
+  {
+    "id": "dark-castle",
+    "name": "Замок без короля",
+    "category": "Тёмное фэнтези",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 dark-fantasy D&D profile banner. An abandoned gothic fortress on a steep dark cliff in cold rain, severe broken towers and black wet stone, leafless trees and a narrow crumbling bridge over a mist-filled ravine. Small restrained pale candle lights in two windows only. Low-saturation cold gray, charcoal and weathered moss tones, subtle layered atmospheric depth. Menacing architectural panorama, no glowing crystals, no bright magic, no people. Beautiful somber painterly environment art, sophisticated restrained low-saturation palette, readable details and focal silhouette in the central mobile crop. Atmospheric darkness, NOT a featureless black image. No typography, labels, logo, border, UI or mockup.",
+    "source": "exec-f7c33627-bcfb-4dcb-9f98-e5c41bf49a39.png"
+  },
+  {
+    "id": "dark-coast",
+    "name": "Берег последнего огня",
+    "category": "Тёмное фэнтези",
+    "prompt": "Use case: stylized-concept. Asset: finished horizontal panoramic 3:1 dark-fantasy D&D profile banner. A desolate dark fantasy coast beneath a heavy storm sky, an old stone lighthouse on a rocky promontory, black gray waves breaking below and the distant silhouette of a damaged sailing ship. A narrow dim amber lighthouse beam and tiny warm shore fire are the only bright accents. Desaturated steel-blue, charcoal and muted umber; salt-weathered stone, restrained cinematic light, no people. Beautiful somber painterly environment art, sophisticated restrained low-saturation palette, readable details and focal silhouette in the central mobile crop. Atmospheric darkness, NOT a featureless black image. No typography, labels, logo, border, UI or mockup.",
+    "source": "exec-c4dd8369-3f6d-4fd2-9268-2d2f84da9eeb.png"
+  },
+  {
+    "id": "infernal-forge",
+    "name": "Кузня преисподней",
+    "category": "Бездна и демоны",
+    "prompt": "Use case: stylized-concept. Asset: premium finished horizontal panoramic 3:1 dark-fantasy D&D profile banner. A colossal infernal forge carved into black volcanic rock, horn-like wrought-iron buttresses and demonic reliefs surrounding a deep central furnace, immense chains crossing shadowed vaulted space. A narrow pool of banked crimson embers and dull molten metal is the only strong light, with dim reflected copper on scorched iron. Terrifying ancient scale, mostly charcoal and soot, not a wall of bright orange fire. No bodies, no gore, no figures, no words. Beautiful mature atmospheric painted concept art, readable material detail and central silhouette in small mobile crop. Deliberately low saturation and localized highlights, no overexposed neon, no colorful glow wash. Edge-to-edge composition, no logo, border, UI or mockup.",
+    "source": "exec-1c6d174a-7ac2-47c5-8437-99906eae749d.png"
+  },
+  {
+    "id": "abyss-seal",
+    "name": "Печать Бездны",
+    "category": "Бездна и демоны",
+    "prompt": "Use case: stylized-concept. Asset: premium finished horizontal panoramic 3:1 dark-fantasy D&D profile banner. A mysterious demonic seal engraved into a massive cracked obsidian door deep underground. Elegant original horned geometric sigil recessed in black stone, fine dark-red molten light within a few carved grooves, enormous weathered chains at the sides, drifting cold ash and almost imperceptible smoky shapes beyond the doorway. Restrained black, iron gray, dark wine red, haunting elegant occult aesthetic. No pentagram copied from real religion, no gore, no text, no characters. Beautiful mature atmospheric painted concept art, readable material detail and central silhouette in small mobile crop. Deliberately low saturation and localized highlights, no overexposed neon, no colorful glow wash. Edge-to-edge composition, no logo, border, UI or mockup.",
+    "source": "exec-228da627-fe27-426a-b769-476259916690.png"
+  },
+  {
+    "id": "sunken-cathedral",
+    "name": "Затонувший собор",
+    "category": "Тёмное фэнтези",
+    "prompt": "Use case: stylized-concept. Asset: premium finished horizontal panoramic 3:1 dark-fantasy D&D profile banner. The roofless nave of an ancient gothic cathedral half-submerged in dark still water, broken pointed arches reflected across the surface, slick stone columns, sparse dead reeds and dim green-gray daylight filtering through mist. A tiny cold pale light deep beyond the central arch suggests a forgotten presence, not a bright portal. Somber low-saturation moss-gray and slate palette, rich stone detail, quiet haunting beauty, no people, no monsters, no colorful magic. Beautiful mature atmospheric painted concept art, readable material detail and central silhouette in small mobile crop. Deliberately low saturation and localized highlights, no overexposed neon, no colorful glow wash. Edge-to-edge composition, no logo, border, UI or mockup.",
+    "source": "exec-db59cb81-046d-4285-955b-c682df521b8e.png"
+  },
+  {
+    "id": "fighter",
+    "name": "Зал боевых знамён",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. An ancient martial armory hall, battered steel longsword and round shield on a central stone rack, faded burgundy campaign banners, weathered armor, cold window daylight and small warm brazier. Disciplined fighter identity, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-ecba591a-6237-4969-910a-e133ccc5673a.png"
+  },
+  {
+    "id": "barbarian",
+    "name": "Клятва северного клана",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A rugged barbarian clan gathering place on a wind-scoured mountain ridge: enormous worn greataxe embedded in a split ancient oak stump, fur cloak, carved antler totems, distant snow peaks under overcast sky. Muted iron gray and dried russet, raw physical materials. No people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-b00a9e91-68b4-4a26-9956-e85725241c21.png"
+  },
+  {
+    "id": "cleric",
+    "name": "Тихая молитва",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. Interior of a humble ancient cleric sanctuary: silver sun-shaped sacred medallion and worn prayer book upon a stone altar, candles reflected in tarnished brass, tall austere stained glass letting a narrow shaft of pale daylight fall across the altar. Quiet sacred atmosphere, muted ivory charcoal and old gold. No readable writing, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-55b06686-cd96-4289-9a41-01ad1c4190ed.png"
+  },
+  {
+    "id": "monk",
+    "name": "Безмолвие горного храма",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A secluded mountain monastery courtyard after rain, central weathered bronze meditation bell, stone training circle, simple wooden staff leaning against a pillar, mist-filled mountain ranges beyond an open gate, restrained sage gray and dark cedar. Quiet contemplative composition, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-479711dd-b2d6-4d16-a39d-1c35221b619a.png"
+  },
+  {
+    "id": "sorcerer",
+    "name": "Пробуждение крови",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. An ancient cracked crystalline stone hovering inches above a dark basalt pedestal, subtle branching amethyst energy within its core like veins, fragments suspended nearby, distant cavern walls with mineral strata. Innate sorcerous power rather than books or wizard tools. Desaturated charcoal, smoky plum and small silver highlights. No people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-10804a29-3f57-4cbe-be62-7b943e3593df.png"
+  },
+  {
+    "id": "warlock",
+    "name": "Цена договора",
+    "category": "Классы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A warlock pact chamber: closed black leather grimoire bound by fine silver chains on a worn stone table, a single dark wax seal, an immense shadowy otherworldly eye subtly suggested in the distant architectural arch, restrained dim teal light and muted wine tones. Mysterious not gory, no readable text, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-be59d99e-590c-42f7-8125-fa45a34629b6.png"
+  },
+  {
+    "id": "dragon-ruins",
+    "name": "Хранитель разрушенного престола",
+    "category": "Драконы и чудовища",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. An immense ancient dark red dragon resting among the ruined terraces of a mountain citadel, head and folded wing clearly readable near the center, weathered scales, horned silhouette, distant gray mountains, tiny ember glow beneath its throat. Full creature feels physically grounded and majestic, not cartoonish, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-e9d3a724-b176-4787-a7b7-c9b8e4481cd1.png"
+  },
+  {
+    "id": "dragon-frost",
+    "name": "Спящий подо льдом",
+    "category": "Драконы и чудовища",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A great pale ice dragon curled around the central frozen stone arch of a glacial cavern, elegant long horns, layered frosted scales and folded wings, faint cold daylight through translucent ice, muted pearl gray and steel turquoise. Strong legible central head silhouette, no blinding blue glow, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-740bc73b-c6a6-42dc-ac69-942c210c8782.png"
+  },
+  {
+    "id": "beholder-vault",
+    "name": "Взгляд из глубины",
+    "category": "Драконы и чудовища",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A terrifying beholder floating at the center of an ancient subterranean vault, single enormous central eye and distinct sinuous eyestalks, leathery mottled umber skin, heavy stone pillars receding into darkness. Narrow muted amber light reveals anatomy without excessive detail or gore, haunting composed D&D monster portrait environment. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-a4fe6f0c-1f10-4e3f-99e7-ebd014603939.png"
+  },
+  {
+    "id": "kraken-depths",
+    "name": "Хозяин чёрных вод",
+    "category": "Драконы и чудовища",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A massive kraken beneath a stormy dark sea, enormous curling tentacles rise around a distant abandoned sailing ship, wet black green skin, layered sea spray, one dim golden eye half-visible just below central waterline. Grand panoramic scale, sober maritime oil-painting mood, muted steel green and charcoal, no people or gore. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-b512a556-bc3b-4ee1-be03-e738d071d5d7.png"
+  },
+  {
+    "id": "colossus-graveyard",
+    "name": "Кладбище колоссов",
+    "category": "Тёмное фэнтези",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A haunting valley scattered with the immense moss-covered stone bodies of fallen ancient golems, a broken gigantic stone hand reaching from wet grass near the center, mist threading through ruined carved heads and distant hills. Muted lichen green, gray stone and overcast silver sky. No living characters. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-d00879b6-af41-4a5f-8e39-537d86bfcd3c.png"
+  },
+  {
+    "id": "wandering-caravan",
+    "name": "Последний привал",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. An intimate fantasy traveling caravan camp beside a lonely mountain road at dusk: beautifully weathered wooden covered wagons, a small sheltered campfire, rolled blankets and brass kettle, distant mountain pass beneath soft cloud. Quiet believable adventure atmosphere, subdued dusk violet, dark green and a tiny warm orange accent, no people. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-9c5499b7-760a-4641-a7c8-2473d81fd900.png"
+  },
+  {
+    "id": "buried-library",
+    "name": "Библиотека под корнями",
+    "category": "Магия",
+    "prompt": "Use case: stylized-concept. Asset: premium finished panoramic 3:1 fantasy RPG profile banner. A forgotten underground library woven through enormous ancient tree roots, curved stone shelves of aged books, a central reading desk illuminated by a single soft lantern, shallow dark water reflecting arches, tiny mushrooms not glowing. Muted moss gray and old parchment, rich tangible textures, mysterious quiet atmosphere, no people, no readable text. Sophisticated painterly game concept art, restrained low-saturation palette, detailed readable subject and atmospheric depth, not a featureless dark image. Important subject inside central 65 percent for mobile crop. Edge-to-edge artwork, no typography, logo, border, UI, mockup, collage or neon color wash.",
+    "source": "exec-a074757c-0d84-481d-b43e-3ab603608fb4.png"
+  },
+  {
+    "id": "calimshan-palace",
+    "name": "Дворцовая ночь в Калимшане",
+    "category": "Города",
+    "prompt": "Use case: stylized-concept. Preview-only fantasy/cyberpunk RPG profile banner, panoramic 3:1 edge-to-edge illustration. Mature premium painterly environment concept art, carefully composed dramatic scene with tactile materials, restrained low saturation and selective highlights; keep important focal subject central for mobile crop. No text, letters, logos, UI, borders or collage. An opulent fantasy palace ballroom in Calimshan: layered horseshoe arches, carved stone lattice windows, a reflecting pool courtyard beyond, low tables and abandoned musical instruments after a performance. A discreet half-open side door reveals a narrow stair descending to a dungeon. Subdued brass and midnight indigo, candlelit suspense, no people, no bright gold saturation.",
+    "scenario_source": "Дамское днд/Часть 1/Сценайри.docx",
+    "source": "exec-f756ca7f-4bfd-4eb0-b97f-c3c12d1727ba.png"
+  },
+  {
+    "id": "atm-getaway",
+    "name": "Банкомат на буксире",
+    "category": "Киберпанк · Локации",
+    "prompt": "Use case: stylized-concept. Preview-only fantasy/cyberpunk RPG profile banner, panoramic 3:1 edge-to-edge illustration. Mature premium painterly environment concept art, carefully composed dramatic scene with tactile materials, restrained low saturation and selective highlights; keep important focal subject central for mobile crop. No text, letters, logos, UI, borders or collage. An absurd but cinematically serious cyberpunk heist scene at night: a battered getaway car dragging a heavy ATM on a taut winch cable through a rain-slick neighborhood street. An empty torn wall recess outside a tiny convenience store behind, distant blue-red police lights around the bend, sparks under the machine. Grounded plausible mechanical connection, no gore, no visible faces, muted asphalt gray with selective amber and cyan reflections.",
+    "scenario_source": "Cyberpunk Ваншот/Сценарий.docx",
+    "source": "exec-83e6fa6e-0e39-451b-ba1c-356f399d1e5e.png"
+  },
+  {
+    "id": "pitvin-lights",
+    "name": "Огни Питвина",
+    "category": "Города",
+    "prompt": "Use case: stylized-concept. Finished preview-only panoramic 3:1 fantasy RPG profile banner. Premium atmospheric painterly game environment art, sophisticated low-saturation colors, detailed believable materials, legible focal composition and layered depth. Not overly dark, no neon or oversaturation. Edge-to-edge image, no writing, logos, labels, border, UI or collage. A rebuilt humble coastal village called Pitvin at blue-gray dusk: salt-weathered timber and pale stone houses on a sheltered bay, fishing nets hanging to dry, narrow wooden piers with small moored boats, a modest tavern lit with warm lamps. Sea-elven carved wood details subtly mixed with practical human architecture. Mist obscures distant islands; old worn seawall hints at a past tsunami without obvious destruction. Quiet inviting yet melancholy, muted teal gray and sparse amber. No foreground people.",
+    "scenario_source": "Сценарий Шалы: восстановленное приморское поселение Питвин, народ смешанных вод.",
+    "source": "exec-39ec5d0b-9ba0-4e45-ad95-b8b343ee8462.png"
+  },
+  {
+    "id": "moonwood-goblins",
+    "name": "Гоблинские леса Мунвуда",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Finished preview-only panoramic 3:1 fantasy RPG profile banner. Premium atmospheric painterly game environment art, sophisticated low-saturation colors, detailed believable materials, legible focal composition and layered depth. Not overly dark, no neon or oversaturation. Edge-to-edge image, no writing, logos, labels, border, UI or collage. A deep ancient temperate forest occupied by goblins: huge mossy oak trunks, tangled roots and ferns around a winding muddy forest road, small crude lookout platforms and rope bridges cleverly hidden high in the branches, a low irregular sharpened-log barricade near the central bend. A few tiny goblin sentry silhouettes barely visible among trees, no close-up characters. Cool canopy-filtered daylight, muted rich green and wet bark brown, mysterious lived-in woodland, no mushroom cavern or glowing magic.",
+    "scenario_source": "Сценарий Рыцарского похода: лес Мунвуд, гоблинская линия обороны.",
+    "source": "exec-4fe5806c-a943-4640-a01d-62ac997c8ace.png"
+  },
+  {
+    "id": "moon-wormwood",
+    "name": "Лунная полынь у озера",
+    "category": "Биомы",
+    "prompt": "Use case: stylized-concept. Finished preview-only panoramic 3:1 fantasy RPG profile banner. Premium atmospheric painterly game environment art, sophisticated low-saturation colors, detailed believable materials, legible focal composition and layered depth. Not overly dark, no neon or oversaturation. Edge-to-edge image, no writing, logos, labels, border, UI or collage. An intimate dark-fantasy lakeshore herb-gathering scene at early dawn: delicate silver-leaved wormwood growing between wet rocks beside perfectly still dark water, a wicker herbalist basket and worn small sickle resting on shore. Mist drifts across the lake, distant crooked birches and a lonely path. Pale moon faintly reflected in water, subdued sage silver and gray lavender, tactile plants not bioluminescent, no people.",
+    "scenario_source": "Дорнкхейм: поручение травницы Элис Ровен собрать лунную полынь у озера.",
+    "source": "exec-e2ad0df9-aee0-4d05-8bf2-4b0bfbf963a2.png"
+  },
+  {
+    "id": "cave-king-crown",
+    "name": "Корона пещерного короля",
+    "category": "Магия",
+    "prompt": "Use case: stylized-concept. Finished preview-only panoramic 3:1 fantasy RPG profile banner. Premium atmospheric painterly game environment art, sophisticated low-saturation colors, detailed believable materials, legible focal composition and layered depth. Not overly dark, no neon or oversaturation. Edge-to-edge image, no writing, logos, labels, border, UI or collage. A forgotten subterranean drow tomb: a cracked dark stone sarcophagus bears an ancient sinister cave-king crown made of blackened silver and rough deep-violet mineral points. Elegant worn spiderlike architectural curves and severe carved stone around the chamber; thin pale shaft of light catches the crown while the background falls into cool shadow. A small goblin handprint in dust near the lid subtly suggests a recent intruder. Restrained charcoal, tarnished silver and dark plum, no visible corpse or gore.",
+    "scenario_source": "Сценарий: заброшенная гробница дроу и корона пещерного короля.",
+    "source": "exec-e858c2eb-9c3d-4cd9-a0f1-1e408d21d3b5.png"
+  },
+  {
+    "id": "dark-dreams-castle",
+    "name": "Замок Тёмных Снов над Миринджаром",
+    "category": "Тёмное фэнтези",
+    "prompt": "Use case: stylized-concept. Finished preview-only panoramic 3:1 fantasy RPG profile banner. Premium atmospheric painterly game environment art, sophisticated low-saturation colors, detailed believable materials, legible focal composition and layered depth. Not overly dark, no neon or oversaturation. Edge-to-edge image, no writing, logos, labels, border, UI or collage. A menacing wizard castle overlooking the modest fortified town of Mirinjar at the edge of night. Severe dark towers stand above rooftops half-buried in low fog. Above the castle a few impossibly faint architectural reflections seem to hang in clouds, suggesting dreams leaking into the sky rather than a literal portal. Sparse cold lavender window lights, muted slate, dirty pearl and dark wine, restrained unsettling surrealism. No giant eyes, faces or text.",
+    "scenario_source": "Дамское ДНД, часть 2: Миринджар и Замок Тёмных Снов, маги влияют через сновидения.",
+    "source": "exec-d9a0be32-3c10-4476-a0d0-20d5fd20b47b.png"
+  }
+]

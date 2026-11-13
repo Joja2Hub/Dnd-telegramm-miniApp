@@ -29,6 +29,7 @@ from app.api import create_app  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.db import Database  # noqa: E402
 from app.player_profiles import read_profile, write_profile, profile_stats, STAT_LABELS
+from app.profile_banners import BANNERS,owned_paths
 from app.image_utils import optimize_upload
 from app.api import _upload_root
 
@@ -42,6 +43,7 @@ class PlayerProfileIn(BaseModel):
     name: str = Field(default='', max_length=60)
     bio: str = Field(default='', max_length=400)
     avatar_path: str = Field(default='', max_length=300)
+    banner_path: str | None = Field(default=None, max_length=300)
     showcases: list[ProfileShowcaseIn] = Field(default_factory=list, max_length=8)
 
 
@@ -398,8 +400,10 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
                     ch=next((c for c in characters if c.get('avatar_path')==item),None)
                     if ch and ch.get('selected_inventory_model_id') in unlocked:converted.append(ch['selected_inventory_model_id'])
                 shelf['items']=list(dict.fromkeys(converted))
+        banner_paths=owned_paths(db,user_id)
         return {"user": user, "games": games, "characters": characters,
                 "achievements": achievements, "profile": profile, "avatars": avatars,"models":models,
+                "profile_banners":[b for b in BANNERS if b['path'] in banner_paths],
                 "stats": profile_stats(db, user_id, characters, games, achievements),
                 "balance": db.get_currency_balance(user_id)}
 
@@ -422,6 +426,7 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
         hub['stats'] = [s for s in hub['stats'] if s['id'] in selected['stats']]
         hub['profile'] = {k: v for k, v in hub['profile'].items() if k != 'uploads'}
         hub.pop('balance')
+        hub.pop('profile_banners',None)
         return hub
 
     @app.patch('/local-api/hub/{user_id}/profile')
@@ -433,10 +438,14 @@ def build_local_app(db: Database, settings: Settings, *, player_url: str | None 
                    'avatars': {m['id'] for m in hub['models']}, 'stats': set(STAT_LABELS)}
         if data.avatar_path and data.avatar_path not in {a['path'] for a in hub['avatars']}:
             raise HTTPException(400, 'Выбери свою аватарку')
+        if data.banner_path is not None and data.banner_path not in owned_paths(db,user_id):
+            raise HTTPException(400, 'Сначала купи этот баннер в магазине')
         for shelf in data.showcases:
             if any(item not in allowed[shelf.kind] for item in shelf.items):
                 raise HTTPException(400, 'Витрина содержит недоступный элемент')
-        profile = {**hub['profile'], **data.model_dump()}
+        changes=data.model_dump()
+        if changes['banner_path'] is None:changes.pop('banner_path')
+        profile = {**hub['profile'], **changes}
         write_profile(db, user_id, profile)
         return {'profile': profile}
 

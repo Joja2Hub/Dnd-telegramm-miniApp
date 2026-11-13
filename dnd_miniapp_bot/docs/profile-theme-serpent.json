@@ -1,0 +1,10 @@
+{
+  "id": "serpent-sanctuary",
+  "name": "Змеиное святилище",
+  "prototype_user_id": 464302752,
+  "generator": "built-in image_gen",
+  "asset": "frontend/assets/profile-backgrounds/serpent-sanctuary.webp",
+  "source": "exec-94748d9b-5ac9-42a8-8034-15c8ef55a731.png",
+  "prompt": "Use case: stylized-concept. Asset: full-page vertical 2:3 fantasy player profile background, not a banner or mockup. An ancient secluded serpent sanctuary in a misty jungle at night. Tall weathered carved stone serpents integrated into columns at the far left and right edges, dark emerald leaves and hanging roots around the outer margins, a few delicate pale jade lamps recessed in stone, wet charcoal stone and rich tactile aged details. The central 55 percent of the image is a quiet continuous deep green-black atmospheric stone and mist area with very low detail and no bright objects, intentionally reserved behind readable profile content. Elegant mysterious yuan-ti aesthetic, muted malachite and charcoal, localized soft jade highlights, premium hand-painted fantasy environment art, sophisticated not neon, no characters, no letters, no UI, no border, no logo, no giant snake face in center. Beautiful usable dark background with clear sculptural edges and restrained depth.",
+  "scope": "Account profile only, private and public views. Existing banner, avatar, showcases and purchases preserved."
+}

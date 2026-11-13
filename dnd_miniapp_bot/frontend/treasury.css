@@ -7,3 +7,32 @@
 .treasury-flash{animation-duration:.38s}.treasury-reward-modal{animation-duration:.2s}
 .treasury-reward-modal.treasury-under-flash{animation:none;transform:none}.treasury-reward-modal>.treasury-flash{position:fixed;inset:0;border-radius:inherit;z-index:10}
 .treasury-item>.treasury-actions{flex:none}.treasury-item>.treasury-actions button{font:inherit;font-size:13px;line-height:20px;min-height:44px;padding:10px 12px;white-space:nowrap;overflow-wrap:normal;word-break:normal}.treasury-tabs button{font-size:14px;line-height:20px;min-height:44px;padding:10px 8px}.treasury-head h2{font-size:22px}.treasury-head small{font-size:13px;line-height:1.6}@media(max-width:600px){.treasury-item>.treasury-actions{grid-column:1/-1;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:8px;margin:0}.treasury-item>.treasury-actions button{min-width:0;padding-inline:8px;font-size:13px}.treasury-item{gap:10px 12px;padding:16px 0}}
+.treasury-case-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.treasury-case-switch button{min-height:44px;font-size:14px}
+.treasury-case-switch button[data-case="cyberpunk"][aria-pressed="true"],.treasury-cyber button[data-open]{background:#174032;border:1px solid #75c29a;color:#e5fff0}
+.treasury-opening.treasury-cyber{border-block-color:#70ad8f45;background:#0c1917}
+.treasury-laptop{display:block;width:min(380px,100%);height:auto;filter:drop-shadow(0 12px 15px #0007)}
+.chip-progress{stroke-dasharray:207;stroke-dashoffset:207}
+.treasury-cyber.opening .chip-progress{animation:chipRead var(--opening-duration,850ms) linear both}
+.treasury-cyber.treasury-settled .chip-progress{stroke-dashoffset:0}
+.treasury-cyber.opening .chip-terminal{animation:chipSignal .42s ease-in-out infinite alternate}
+.treasury-cyber.opening .treasury-chip{animation:chipInsert .25s ease-out both}
+.treasury-cyber .treasury-radiance{background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 45%,#78cba6) 0%,transparent 68%)}
+.treasury-cyber .treasury-radiance::after{display:none}
+.chip-code{visibility:hidden}
+.treasury-cyber .chip-screen{transition:fill .2s ease,stroke .2s ease}
+.treasury-cyber:is(.opening,.treasury-settled) .chip-screen{fill:color-mix(in srgb,var(--loot-color) 30%,#09101a);stroke:var(--loot-color);filter:drop-shadow(0 0 7px color-mix(in srgb,var(--loot-color) 70%,transparent))}
+.treasury-cyber:is(.opening,.treasury-settled) .chip-terminal{fill:color-mix(in srgb,var(--loot-color) 65%,white)}
+.treasury-cyber:is(.opening,.treasury-settled) .chip-progress{stroke:var(--loot-color)}
+.treasury-cyber.opening .chip-code{visibility:visible;animation:chipType calc(var(--opening-duration,850ms) / 3) steps(20,end) calc(var(--opening-duration,850ms) / 3 * var(--line)) both}
+.treasury-cyber.treasury-settled .chip-code{visibility:visible}
+@keyframes chipType{from{clip-path:inset(0 100% 0 0) fill-box}to{clip-path:inset(0) fill-box}}
+.treasury-matrix-flash{--flash-x:50%;--flash-y:45%;display:grid;grid-template-columns:repeat(18,minmax(0,1fr));justify-items:center;overflow:hidden;background:radial-gradient(circle at var(--flash-x) var(--flash-y),#fff 0%,var(--loot-color) 7%,color-mix(in srgb,var(--loot-color) 66%,#0a1021) 29%,transparent 78%);color:color-mix(in srgb,var(--loot-color) 72%,white);text-shadow:0 0 12px var(--loot-color);animation:chipFlash .38s ease-out both}
+@keyframes chipFlash{0%{clip-path:circle(0 at var(--flash-x) var(--flash-y));opacity:.9}32%{opacity:.88}100%{clip-path:circle(145vmax at var(--flash-x) var(--flash-y));opacity:0}}
+.treasury-matrix-flash span{writing-mode:vertical-rl;text-orientation:upright;font:600 15px/1 monospace;letter-spacing:12px;animation:chipRain .65s linear var(--delay) both}
+@keyframes chipRead{to{stroke-dashoffset:0}}
+@keyframes chipSignal{from{opacity:.68}to{opacity:1}}
+@keyframes chipInsert{to{transform:translate(-10px,-3px)}}
+@keyframes chipRain{from{transform:translateY(-170px)}to{transform:translateY(90vh)}}
+@media(prefers-reduced-motion:reduce){.treasury-cyber.opening .chip-code{animation:none}}
+@media(prefers-reduced-motion:reduce){.treasury-cyber.opening .chip-terminal,.treasury-cyber.opening .treasury-chip,.treasury-cyber.opening .chip-progress{animation:none}.treasury-cyber.opening .chip-progress{stroke-dashoffset:0}.treasury-matrix-flash{display:none}}

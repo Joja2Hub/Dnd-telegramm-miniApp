@@ -82,6 +82,49 @@ for tier, amounts, gold in [('common',[15,25,35,50],[5]),('uncommon',[60,75,100]
 for tier, amount, enhanced in [('uncommon',1,False),('rare',2,False),('epic',3,False),('epic',1,True),('legendary',2,True)]:
     POOL[tier].append(reward(('Буст открытия' if enhanced else 'Ключи')+' ×'+str(amount),'✨' if enhanced else '🗝️','keys',amount=amount,key_type='boost' if enhanced else 'normal'))
 
+CYBER_GEAR = {
+    'common': [
+        ('Полевой медпакет', '🩹', 'Расходник для первой помощи по правилам кампании.'),
+        ('Ремкомплект имплантов', '🧰', 'Расходники для обслуживания, не повышают уровень импланта.'),
+        ('Портативный аккумулятор', '🔋', 'Резервное питание для совместимого устройства.'),
+        ('Неоновая нашивка', '🧥', 'Меняет рисунок подсветки, не даёт игровых бонусов.'),
+    ],
+    'uncommon': [
+        ('Умные линзы', '👓', 'Приближение и фильтр бликов; не дают ночного зрения автоматически.'),
+        ('Карманный проектор «Фантом»', '📽️', 'Показывает статичные голограммы, не создаёт боевого двойника.'),
+        ('Набор техника', '🧰', 'Полевой комплект для диагностики электроники и имплантов.'),
+        ('Маячок «Крошка»', '📡', 'Одноразовая метка для отслеживания в пределах сцены, условия задаёт мастер.'),
+    ],
+    'rare': [
+        ('Дрон-разведчик «Мотылёк»', '📷', 'Малый дрон с камерой, без вооружения.'),
+        ('Набор полевой кибермедицины', '🩺', 'Комплект стабилизации и диагностики; эффект определяют правила игры.'),
+        ('Изолированный терминал «Кокон»', '💻', 'Автономное устройство для чтения игровых носителей и хранения улик.'),
+    ],
+    'epic': [
+        ('Плащ «Призма»', '🧥', 'Подстраивает расцветку под окружение, не делает владельца невидимым.'),
+        ('Дрон поддержки «Стриж»', '📡', 'Переносит мелкое снаряжение и передаёт видео; параметры согласует мастер.'),
+        ('Кибердека «Глухой контур»', '💻', 'Редкая платформа для игровых скриптов; характеристики задаёт мастер.'),
+    ],
+    'legendary': [
+        ('Прототип «Двойник»', '📽️', 'Проецирует краткую иллюзию силуэта. Частоту и ограничения согласует мастер.'),
+        ('Дека «Нулевая ночь»', '💻', 'Прототип с модульной памятью; не даёт автоматического доступа к сетям.'),
+    ],
+}
+CYBER_POOL = {}
+for tier, amounts in zip(CYBER_GEAR, ([500, 750], [1000, 1500], [2500, 3500], [5000, 7500], [10000])):
+    CYBER_POOL[tier] = [
+        {**r, 'name': r['name'].replace('Ключи', 'Щепки')}
+        for r in POOL[tier] if r['kind'] != 'game'
+    ] + [
+        reward(f'{n:,} крипты'.replace(',', ' '), '💳', currency='crypto', amount=n,
+               note='Игровая крипта. Передаётся выбранному персонажу через мастера.')
+        for n in amounts
+    ] + [reward(name, icon, note=note) for name, icon, note in CYBER_GEAR[tier]]
+for tier, bonus in [('rare', 1), ('epic', 2), ('legendary', 3)]:
+    CYBER_POOL[tier].append(reward(f'Улучшение импланта +{bonus}', '🦾', choice_type='implant', bonus=bonus,
+                                  note='Выбери установленный имплант. Совместимость и эффект улучшения утверждает мастер.'))
+
+
 def enrich(value):
     value=dict(value)
     name=value['name']
@@ -120,6 +163,13 @@ def init_schema(db):
         if column not in {r['name'] for r in db._many('PRAGMA table_info('+table+')')}:
             db.conn.execute('ALTER TABLE '+table+' ADD COLUMN '+column+' '+definition)
     db.conn.execute('CREATE TABLE IF NOT EXISTS treasury_rerolls(id INTEGER PRIMARY KEY,opening_id INTEGER NOT NULL,old_reward TEXT NOT NULL,new_reward TEXT NOT NULL,created_at TEXT NOT NULL)')
+    for table, column, definition in (
+        ('treasury_keys', 'chips', 'INTEGER NOT NULL DEFAULT 0 CHECK(chips>=0)'),
+        ('treasury_keys', 'chip_boosts', 'INTEGER NOT NULL DEFAULT 0 CHECK(chip_boosts>=0)'),
+        ('treasury_openings', 'case_type', "TEXT NOT NULL DEFAULT 'fantasy'"),
+    ):
+        if column not in {r['name'] for r in db._many('PRAGMA table_info('+table+')')}:
+            db.conn.execute('ALTER TABLE '+table+' ADD COLUMN '+column+' '+definition)
     for id,name,css,price in FRAMES:
         db.conn.execute("INSERT OR IGNORE INTO cosmetics(id,name,description,rarity,category,css_class,price,purchasable) VALUES (?,?,?,'unique','unique',?,?,0)",
                         (id,name,'Коллекция сокровищницы. Право выкупа выпадает из сундука.',css,price))
@@ -156,14 +206,16 @@ def state(db,user):
         identity=json.dumps(item['reward'],sort_keys=True,ensure_ascii=False) if item['status']=='available' else str(item['id'])
         if identity not in stacks: stacks[identity]={**item,'count':0}
         stacks[identity]['count']+=1
-    count=db._one('SELECT COUNT(*) n FROM treasury_openings WHERE user_id=?',(user,))['n']
+    count=db._one("SELECT COUNT(*) n FROM treasury_openings WHERE user_id=? AND case_type='fantasy'",(user,))['n']
+    cyber_count=db._one("SELECT COUNT(*) n FROM treasury_openings WHERE user_id=? AND case_type='cyberpunk'",(user,))['n']
     return dict(keys=key['balance'] if key else 0,boosts=key['enhanced_balance'] if key else 0,items=items,stacks=list(stacks.values()),until_guarantee=10-count%10,guarantee_ready=count%10==9,
+        cyberpunk=dict(keys=key['chips'] if key else 0,boosts=key['chip_boosts'] if key else 0,until_guarantee=10-cyber_count%10,guarantee_ready=cyber_count%10==9),
         frame_credits=sum(i['status']=='frame_credit' for i in items),
         discount_percent=max((i['reward']['percent'] for i in items if i['status']=='active'),default=0),shop_benefits=benefits(db,user),
         effect_style_unlocks=db.effect_style_state(user),unlocked_cosmetic_ids=db.list_unlocked_cosmetic_ids(user),
         characters=db._many('SELECT c.id,c.name,g.name campaign,g.rule_type FROM characters c JOIN campaigns g ON g.id=c.campaign_id WHERE c.telegram_user_id=?',(user,)),
         effects=[dict(id=e['id'],name=e['name']) for e in db.list_cosmetic_effects() if e['id']!='effect_none' and db.has_effect_unlocked(user,e['id'])],
-        history=[dict(id=r['id'],reward=enrich(json.loads(r['reward_json'])),can_reroll=bool(r['can_reroll'] and not r['rerolled'] and any(i['id']==r['item_id'] and i['status']=='available' for i in items)),guaranteed=bool(r['guaranteed']),created_at=r['created_at']) for r in db._many('SELECT * FROM treasury_openings WHERE user_id=? ORDER BY id DESC LIMIT 30',(user,))],
+        history=[dict(id=r['id'],case_type=r['case_type'],reward=enrich(json.loads(r['reward_json'])),can_reroll=bool(r['can_reroll'] and not r['rerolled'] and any(i['id']==r['item_id'] and i['status']=='available' for i in items)),guaranteed=bool(r['guaranteed']),created_at=r['created_at']) for r in db._many('SELECT * FROM treasury_openings WHERE user_id=? ORDER BY id DESC LIMIT 30',(user,))],
         rarities=[dict(id=id,name=name,chance=chance) for id,name,chance in RARITIES],
         frames=[dict(id=f['id'],name=f['name'],price=0) for f in db.list_cosmetics() if f.get('rarity')=='unique'],balance=db.get_currency_balance(user))
 
@@ -174,20 +226,26 @@ def grant_keys(db,master,campaign,user,amount,comment='',key_type='normal'):
     if not 1<=amount<=100: raise ValueError('Можно выдать от 1 до 100 ключей')
     if key_type not in ('normal','boost','enhanced'): raise ValueError('Неизвестный вид награды')
     with atomic(db):
-        add_keys(db,user,amount,key_type)
+        add_keys(db,user,amount,key_type,game['rule_type'])
         db.conn.execute('INSERT INTO treasury_key_grants(user_id,master_id,campaign_id,amount,comment,created_at,key_type) VALUES (?,?,?,?,?,?,?)',(user,master,campaign,amount,comment,now(),key_type))
 
-def add_keys(db,user,amount,key_type):
-    column='enhanced_balance' if key_type in ('boost','enhanced') else 'balance'
+def key_column(case_type, boosted):
+    if case_type == 'cyberpunk':
+        return 'chip_boosts' if boosted else 'chips'
+    return 'enhanced_balance' if boosted else 'balance'
+
+def add_keys(db,user,amount,key_type,case_type='fantasy'):
+    column=key_column(case_type,key_type in ('boost','enhanced'))
     db.conn.execute('INSERT INTO treasury_keys(user_id,'+column+') VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET '+column+'='+column+'+excluded.'+column,(user,amount))
 
-def draw(key_type='normal',guaranteed=False,exclude=None):
+def draw(key_type='normal',guaranteed=False,exclude=None,case_type='fantasy'):
     roll=secrets.randbelow(100)
     for rarity,_,chance in PITY if guaranteed else ENHANCED if key_type in ('boost','enhanced') else RARITIES:
         if roll<chance: break
         roll-=chance
     category=secrets.randbelow(100)
-    pool=[r for r in POOL[rarity] if (r['kind']=='sparks' if category<40 else r.get('currency')=='gold' if category<45 else r['kind']!='sparks' and r.get('currency')!='gold')]
+    catalog,currency=(CYBER_POOL,'crypto') if case_type=='cyberpunk' else (POOL,'gold')
+    pool=[r for r in catalog[rarity] if (r['kind']=='sparks' if category<40 else r.get('currency')==currency if category<45 else r['kind']!='sparks' and r.get('currency')!=currency)]
     alternatives=[r for r in pool if r['name']!=exclude]
     return enrich({**secrets.choice(alternatives or pool),'rarity':rarity})
 
@@ -196,26 +254,30 @@ def deliver(db,user,selected):
         db.add_currency(user,selected['amount'],reason='Сокровищница',source='treasury')
         return None
     if selected['kind']=='keys':
-        add_keys(db,user,selected['amount'],selected['key_type'])
+        add_keys(db,user,selected['amount'],selected['key_type'],selected.get('case_type','fantasy'))
         return None
     return db.conn.execute('INSERT INTO treasury_items(user_id,reward_json,created_at) VALUES (?,?,?)',(user,json.dumps(selected,ensure_ascii=False),now())).lastrowid
 
-def open_chest(db,user,request_id,key_type='normal'):
+def open_chest(db,user,request_id,key_type='normal',case_type='fantasy'):
+    if case_type not in ('fantasy','cyberpunk'):raise ValueError('Неизвестный тип кейса')
     with atomic(db):
         old=db._one('SELECT * FROM treasury_openings WHERE user_id=? AND request_id=?',(user,request_id))
-        if old:return dict(reward=enrich(json.loads(old['reward_json'])),opening_id=old['id'],replayed=True)
+        if old:
+            if old['case_type']!=case_type:raise ValueError('Запрос уже использован для другого кейса')
+            return dict(reward=enrich(json.loads(old['reward_json'])),opening_id=old['id'],replayed=True)
         wallet=db._one('SELECT * FROM treasury_keys WHERE user_id=?',(user,))
-        key_type='boost' if wallet and wallet['enhanced_balance']>0 else 'normal'
-        column='enhanced_balance' if key_type=='boost' else 'balance'
-        if not db.conn.execute('UPDATE treasury_keys SET '+column+'='+column+'-1 WHERE user_id=? AND '+column+'>0',(user,)).rowcount:raise ValueError('Нет ключей')
-        count=db._one('SELECT COUNT(*) n FROM treasury_openings WHERE user_id=?',(user,))['n']
+        key_type='boost' if wallet and wallet[key_column(case_type,True)]>0 else 'normal'
+        column=key_column(case_type,key_type=='boost')
+        if not db.conn.execute('UPDATE treasury_keys SET '+column+'='+column+'-1 WHERE user_id=? AND '+column+'>0',(user,)).rowcount:raise ValueError('Нет щепок' if case_type=='cyberpunk' else 'Нет ключей')
+        count=db._one('SELECT COUNT(*) n FROM treasury_openings WHERE user_id=? AND case_type=?',(user,case_type))['n']
         guaranteed=(count+1)%10==0
-        selected=draw(key_type,guaranteed)
+        selected=draw(key_type,guaranteed,case_type=case_type)
+        if case_type=='cyberpunk':selected={**selected,'case_type':case_type}
         encoded=json.dumps(selected,ensure_ascii=False)
-        recent=db._many('SELECT reward_json FROM treasury_openings WHERE user_id=? ORDER BY id DESC LIMIT 4',(user,))
-        duplicate=selected['kind'] not in ('sparks','keys') and selected.get('currency')!='gold' and any(json.loads(r['reward_json'])['name']==selected['name'] for r in recent)
+        recent=db._many('SELECT reward_json FROM treasury_openings WHERE user_id=? AND case_type=? ORDER BY id DESC LIMIT 4',(user,case_type))
+        duplicate=selected['kind'] not in ('sparks','keys') and not selected.get('currency') and any(json.loads(r['reward_json'])['name']==selected['name'] for r in recent)
         item_id=deliver(db,user,selected)
-        opening_id=db.conn.execute('INSERT INTO treasury_openings(user_id,request_id,reward_json,item_id,created_at,key_type,can_reroll,guaranteed) VALUES (?,?,?,?,?,?,?,?)',(user,request_id,encoded,item_id,now(),key_type,int(duplicate),int(guaranteed))).lastrowid
+        opening_id=db.conn.execute('INSERT INTO treasury_openings(user_id,request_id,reward_json,item_id,created_at,key_type,can_reroll,guaranteed,case_type) VALUES (?,?,?,?,?,?,?,?,?)',(user,request_id,encoded,item_id,now(),key_type,int(duplicate),int(guaranteed),case_type)).lastrowid
     return dict(reward=selected,opening_id=opening_id,replayed=False)
 
 def reroll(db,user,opening_id):
@@ -223,7 +285,8 @@ def reroll(db,user,opening_id):
         row=db._one('SELECT * FROM treasury_openings WHERE id=? AND user_id=?',(opening_id,user))
         if not row or not row['can_reroll'] or row['rerolled']:raise ValueError('Переоткрытие недоступно')
         if db.conn.execute("UPDATE treasury_items SET status='rerolled' WHERE id=? AND user_id=? AND status='available'",(row['item_id'],user)).rowcount!=1:raise ValueError('Награда уже использована')
-        selected=draw(row['key_type'],bool(row['guaranteed']),json.loads(row['reward_json'])['name'])
+        selected=draw(row['key_type'],bool(row['guaranteed']),json.loads(row['reward_json'])['name'],case_type=row['case_type'])
+        if row['case_type']=='cyberpunk':selected={**selected,'case_type':'cyberpunk'}
         encoded=json.dumps(selected,ensure_ascii=False)
         item_id=deliver(db,user,selected)
         db.conn.execute('UPDATE treasury_openings SET reward_json=?,item_id=?,rerolled=1 WHERE id=?',(encoded,item_id,opening_id))
@@ -257,7 +320,8 @@ def use_item(db,user,item_id,character_id=None,effect_id='',frame_id='',selectio
             if db._one("SELECT COUNT(*) n FROM treasury_items WHERE user_id=? AND status='pending'",(user,))['n']>=5:raise ValueError('Можно отправить до 5 заявок на сокровища одновременно')
             ch=db.get_character(character_id or 0)
             if not ch or ch.get('telegram_user_id')!=user:raise ValueError('Выбери своего персонажа')
-            if db.get_campaign(ch['campaign_id'])['rule_type']!='fantasy':raise ValueError('Эта добыча предназначена для фэнтези-игры')
+            case_type=value.get('case_type','fantasy')
+            if db.get_campaign(ch['campaign_id'])['rule_type']!=case_type:raise ValueError('Эта добыча предназначена для киберпанк-игры' if case_type=='cyberpunk' else 'Эта добыча предназначена для фэнтези-игры')
             if value.get('choice_type'):
                 selection=selection or {}
                 name=str(selection.get('name','')).strip()
@@ -368,6 +432,7 @@ class GrantIn(BaseModel):
 class OpenIn(BaseModel):
     request_id:str=Field(min_length=8,max_length=100)
     key_type:str='normal'
+    case_type:str='fantasy'
 class UseIn(BaseModel):
     character_id:int|None=None
     effect_id:str=Field(default='',max_length=100)
@@ -384,7 +449,7 @@ def register(app,db,auth):
     @app.get('/api/treasury')
     async def get_state(user=Depends(auth)):return state(db,user.id)
     @app.post('/api/treasury/open')
-    async def opening(data:OpenIn,user=Depends(auth)):return call(open_chest,user.id,data.request_id,data.key_type)
+    async def opening(data:OpenIn,user=Depends(auth)):return call(open_chest,user.id,data.request_id,data.key_type,data.case_type)
     @app.post('/api/treasury/openings/{opening_id}/reroll')
     async def reopening(opening_id:int,user=Depends(auth)):return call(reroll,user.id,opening_id)
     @app.post('/api/treasury/items/{item_id}/sell')
@@ -402,7 +467,7 @@ def register(app,db,auth):
     @app.post('/api/campaigns/{campaign_id}/treasury/keys')
     async def grant(campaign_id:int,data:GrantIn,user=Depends(auth)):
         call(grant_keys,user.id,campaign_id,data.user_id,data.amount,data.comment,data.key_type)
-        return {'message':'Ключи выданы'}
+        return {'message':'Щепки выданы' if db.get_campaign(campaign_id)['rule_type']=='cyberpunk' else 'Ключи выданы'}
     @app.get('/api/campaigns/{campaign_id}/treasury/requests')
     async def requests(campaign_id:int,user=Depends(auth)):
         waiting=call(pending,user.id,campaign_id)

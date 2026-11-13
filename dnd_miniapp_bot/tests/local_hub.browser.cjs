@@ -29,6 +29,12 @@ const {chromium}=require(path.join(os.homedir(),'.cache/codex-runtimes/codex-pri
  await page.screenshot({path:'tmp/hub-models-mobile.png',fullPage:true});
  await page.evaluate(()=>localStorage.setItem('local_hub_user','464302752'));
  await page.goto('http://127.0.0.1:8000/local/hub.html?user=464302752');await page.waitForSelector('.hub-nav');
+ if(await page.evaluate(()=>!!hubData.profile.banner_path)){
+  await page.locator('.profile-banner img').evaluate(img=>img.decode());
+  assert.ok(await page.locator('.profile-banner img').evaluate(img=>img.naturalWidth>1000&&getComputedStyle(img).objectFit==='cover'));
+  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'tmp/ksael-banner-desktop.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/ksael-banner-mobile.png',fullPage:true});
+ }
  await page.getByRole('button',{name:'Мастер',exact:true}).click();
  const master=await page.evaluate(()=>({expected:hubData.games.filter(g=>g.master).length,actual:document.querySelectorAll('.hub-game').length}));
  assert.equal(master.actual,master.expected);assert.ok(master.actual>0);

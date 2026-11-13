@@ -770,6 +770,8 @@ class Database(EffectShopMixin):
         self.seed_tags()
         from .treasury import init_schema as init_treasury
         init_treasury(self)
+        from .profile_banners import init_schema as init_banners
+        init_banners(self)
         self.conn.commit()
 
     def _migrate(self) -> None:
@@ -3365,7 +3367,11 @@ class Database(EffectShopMixin):
         return rows
 
     def get_user_profile(self, telegram_user_id: int) -> dict[str, Any]:
+        from .player_profiles import read_profile
+        account_profile=read_profile(self,int(telegram_user_id))
         characters = self.list_user_characters(int(telegram_user_id))
+        from .profile_banners import BANNERS
+        for ch in characters:ch['banner_path']=next((b['path'] for b in BANNERS if b['id']==ch.get('custom_banner_id')),'')
         grants = self.list_player_achievement_grants(int(telegram_user_id))
         campaigns = self.list_user_campaigns(int(telegram_user_id))
         main_char = characters[0] if characters else None
@@ -3375,6 +3381,7 @@ class Database(EffectShopMixin):
         return {
             "telegram_user_id": int(telegram_user_id),
             "display_name": display_name,
+            "account_profile": {k:account_profile[k] for k in ('name','bio','avatar_path','banner_path')},
             "username": username,
             "main_character": main_char,
             "characters": characters,
